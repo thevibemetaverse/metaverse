@@ -228,15 +228,16 @@ try {
     // Update controls
     controls.update();
     
-    // Update avatar animations
+    // Update avatar animations - ensure this is called every frame
     updateAvatarAnimations();
     
     // Check if player is moving and update animation state
     const isMoving = controls.moveForward || controls.moveBackward || 
                      controls.moveLeft || controls.moveRight;
     
+    // Force player avatar to always be in moving state for continuous running animation
     if (playerAvatar && playerAvatar.setMoving) {
-      playerAvatar.setMoving(isMoving);
+      playerAvatar.setMoving(true);
     }
     
     // Update NPCs
@@ -251,7 +252,7 @@ try {
           z: playerAvatar.position.z
         },
         rotation: playerAvatar.rotation.y,
-        isMoving: isMoving
+        isMoving: true // Always report as moving
       });
     }
     

@@ -350,8 +350,22 @@ function setupAnimations(model, avatarGroup, animations) {
 // Update all animation mixers - call this in the animation loop
 export function updateAvatarAnimations() {
   const delta = clock.getDelta();
-  mixers.forEach((mixer) => {
+  
+  // Log animation update every few seconds
+  const now = Date.now();
+  const logInterval = 5000; // Log every 5 seconds
+  const shouldLog = (now % logInterval < 50); // Log if within the first 50ms of each interval
+  
+  if (shouldLog) {
+    console.log(`Updating ${mixers.size} animation mixers with delta: ${delta}`);
+  }
+  
+  mixers.forEach((mixer, avatar) => {
     mixer.update(delta);
+    
+    if (shouldLog && avatar.userData && avatar.userData.currentAnimation) {
+      console.log(`Avatar ${avatar.userData.username} playing animation: ${avatar.userData.currentAnimation}`);
+    }
   });
 }
 
@@ -951,37 +965,76 @@ export function createPureAvatar(scene, username, loadingManager = avatarLoading
       
       // Setup animations if available
       if (gltf.animations && gltf.animations.length > 0) {
+        console.log(`Found ${gltf.animations.length} animations in the model`);
+        
+        // Create animation mixer
         const mixer = new THREE.AnimationMixer(model);
         mixers.set(avatarGroup, mixer);
         
         // Create animation actions
         const animationActions = {};
         
-        gltf.animations.forEach((clip) => {
+        // Log all available animations
+        console.log('Available animations:');
+        gltf.animations.forEach((clip, index) => {
+          console.log(`Animation ${index}: ${clip.name} (duration: ${clip.duration}s)`);
+          
           const action = mixer.clipAction(clip);
           action.timeScale = 0.8;
           animationActions[clip.name] = action;
-          
-          // Play idle animation by default
-          if (clip.name.toLowerCase().includes('idle')) {
-            action.play();
-          }
         });
+        
+        // Force play the first animation if available (most likely to be the running animation)
+        if (gltf.animations.length > 0) {
+          const firstClip = gltf.animations[0];
+          const firstAction = animationActions[firstClip.name];
+          
+          console.log(`Forcing play of first animation: ${firstClip.name}`);
+          firstAction.setLoop(THREE.LoopRepeat);
+          firstAction.clampWhenFinished = false;
+          firstAction.play();
+          
+          // Store a reference to the currently playing animation
+          avatarGroup.userData.currentAnimation = firstClip.name;
+          console.log(`Set current animation to: ${firstClip.name}`);
+        }
         
         // Store animation actions on the avatar group
         avatarGroup.userData.animationActions = animationActions;
         
+        // Add animation control methods
+        avatarGroup.playAnimation = function(name) {
+          console.log(`Attempting to play animation: ${name}`);
+          const action = animationActions[name];
+          if (action) {
+            // Stop any current animations
+            Object.values(animationActions).forEach(a => {
+              if (a !== action) a.stop();
+            });
+            // Play the requested animation
+            action.setLoop(THREE.LoopRepeat);
+            action.reset().play();
+            avatarGroup.userData.currentAnimation = name;
+            console.log(`Now playing animation: ${name}`);
+            return true;
+          }
+          console.log(`Animation not found: ${name}`);
+          return false;
+        };
+        
         // Add moving state control
-        avatarGroup.userData.isMoving = false;
+        avatarGroup.userData.isMoving = true; // Set to true by default
         avatarGroup.setMoving = function(isMoving) {
           if (isMoving !== this.userData.isMoving) {
             this.userData.isMoving = isMoving;
+            console.log(`Setting avatar moving state to: ${isMoving}`);
             
             // Find walk/run animation
             let walkAction = null;
             for (const name in animationActions) {
               if (name.toLowerCase().includes('walk') || name.toLowerCase().includes('run')) {
                 walkAction = animationActions[name];
+                console.log(`Found walk/run animation: ${name}`);
                 break;
               }
             }
@@ -991,24 +1044,39 @@ export function createPureAvatar(scene, username, loadingManager = avatarLoading
             for (const name in animationActions) {
               if (name.toLowerCase().includes('idle')) {
                 idleAction = animationActions[name];
+                console.log(`Found idle animation: ${name}`);
                 break;
               }
             }
             
             // Play appropriate animation with smooth transitions
             if (isMoving && walkAction) {
+              console.log('Playing walk/run animation');
               if (idleAction) {
                 idleAction.fadeOut(0.5);
               }
+              walkAction.setLoop(THREE.LoopRepeat);
               walkAction.reset().fadeIn(0.5).play();
+              avatarGroup.userData.currentAnimation = 'walking/running';
             } else if (!isMoving && idleAction) {
+              console.log('Playing idle animation');
               if (walkAction) {
                 walkAction.fadeOut(0.5);
               }
+              idleAction.setLoop(THREE.LoopRepeat);
               idleAction.reset().fadeIn(0.5).play();
+              avatarGroup.userData.currentAnimation = 'idle';
             }
           }
         };
+        
+        // Immediately set to moving to ensure animation plays
+        setTimeout(() => {
+          console.log('Forcing animation state refresh');
+          avatarGroup.setMoving(true);
+        }, 1000);
+      } else {
+        console.warn('No animations found in the model!');
       }
       
       console.log('Pure avatar model loaded successfully');
