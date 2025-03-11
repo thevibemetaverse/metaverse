@@ -85,7 +85,6 @@ loadingManager.onError = function(url) {
 const gameState = {
   players: {},
   username: 'Player' + Math.floor(Math.random() * 1000),
-  cameraView: 'third-person',
   settings: {
     volume: 50,
     graphics: 'medium',
@@ -117,12 +116,8 @@ const environment = createEnvironment(scene, loadingManager);
 
 // Create player avatar
 const playerAvatar = createAvatar(scene, gameState.username, loadingManager);
-playerAvatar.position.set(0, 1, 0);
+playerAvatar.position.set(0, 0, 0);
 scene.add(playerAvatar);
-
-// Setup camera position
-camera.position.set(0, 5, 10);
-camera.lookAt(playerAvatar.position);
 
 // Setup controls
 const controls = setupControls(camera, playerAvatar, renderer.domElement, gameState);
@@ -252,12 +247,15 @@ animate();
 const showDebugButton = document.getElementById('show-debug');
 const debugPanel = document.getElementById('debug-panel');
 const reloadModelButton = document.getElementById('reload-model');
+const resetModelButton = document.getElementById('reset-model');
 const modelScaleSlider = document.getElementById('model-scale');
 const modelYPosSlider = document.getElementById('model-y-pos');
 const modelRotationSlider = document.getElementById('model-rotation');
+const modelVerticalScaleSlider = document.getElementById('model-vertical-scale');
 const scaleValueSpan = document.getElementById('scale-value');
 const yPosValueSpan = document.getElementById('y-pos-value');
 const rotationValueSpan = document.getElementById('rotation-value');
+const verticalScaleValueSpan = document.getElementById('vertical-scale-value');
 const toggleDebugButton = document.getElementById('toggle-debug');
 
 if (showDebugButton) {
@@ -293,10 +291,49 @@ if (debugPanel) {
       
       // Create new avatar
       playerAvatar = createAvatar(scene, gameState.username, loadingManager);
-      playerAvatar.position.set(0, 1, 0);
+      playerAvatar.position.set(0, 0, 0);
       scene.add(playerAvatar);
       
       console.log('Zuckerberg model reload requested');
+    });
+  }
+  
+  // Reset model button
+  if (resetModelButton) {
+    resetModelButton.addEventListener('click', () => {
+      console.log('Resetting model to default settings...');
+      
+      // Reset sliders to default values for the new model
+      if (modelScaleSlider) {
+        modelScaleSlider.value = 1.0;
+        scaleValueSpan.textContent = '1.0';
+      }
+      
+      if (modelYPosSlider) {
+        modelYPosSlider.value = 0.0;
+        yPosValueSpan.textContent = '0.0';
+      }
+      
+      if (modelVerticalScaleSlider) {
+        modelVerticalScaleSlider.value = 1.0;
+        verticalScaleValueSpan.textContent = '1.0';
+      }
+      
+      if (modelRotationSlider) {
+        modelRotationSlider.value = 3.14;
+        rotationValueSpan.textContent = '3.14';
+      }
+      
+      // Apply default settings to the model
+      playerAvatar.traverse((node) => {
+        if (node.isGroup && node !== playerAvatar) {
+          node.scale.set(1.0, 1.0, 1.0);
+          node.position.y = 0.0;
+          node.rotation.y = Math.PI;
+        }
+      });
+      
+      console.log('Model reset to default settings');
     });
   }
   
@@ -309,7 +346,9 @@ if (debugPanel) {
       // Find the model in the player avatar
       playerAvatar.traverse((node) => {
         if (node.isGroup && node !== playerAvatar) {
-          node.scale.set(scale, scale, scale);
+          // Preserve the Y scale when changing overall scale
+          const yScale = node.scale.y / node.scale.x;
+          node.scale.set(scale, scale * yScale, scale);
         }
       });
     });
@@ -325,6 +364,23 @@ if (debugPanel) {
       playerAvatar.traverse((node) => {
         if (node.isGroup && node !== playerAvatar) {
           node.position.y = yPos;
+        }
+      });
+    });
+  }
+  
+  // Model vertical scale slider
+  if (modelVerticalScaleSlider) {
+    modelVerticalScaleSlider.addEventListener('input', () => {
+      const verticalScale = parseFloat(modelVerticalScaleSlider.value);
+      verticalScaleValueSpan.textContent = verticalScale.toFixed(1);
+      
+      // Find the model in the player avatar
+      playerAvatar.traverse((node) => {
+        if (node.isGroup && node !== playerAvatar) {
+          // Keep the X and Z scales the same, only change Y
+          const currentScale = node.scale.x;
+          node.scale.set(currentScale, verticalScale, currentScale);
         }
       });
     });

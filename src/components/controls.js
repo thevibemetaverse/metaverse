@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
+// Removing PointerLockControls import since we're eliminating first-person view
+// import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
 
 export function setupControls(camera, player, domElement, gameState) {
   // Create a controls object to return
@@ -19,54 +20,80 @@ export function setupControls(camera, player, domElement, gameState) {
     
     // Camera controls
     orbitControls: null,
-    pointerControls: null,
-    activeControls: null,
     
     // Update method to be called in animation loop
     update: function() {
       this.updateMovement();
       this.updateCamera();
       
-      if (this.activeControls && this.activeControls.update) {
-        this.activeControls.update();
+      if (this.orbitControls) {
+        this.orbitControls.update();
       }
     },
     
-    // Switch between first-person and third-person views
-    switchCameraView: function(view) {
-      if (view === 'first-person' && this.activeControls !== this.pointerControls) {
-        // Switch to first-person
-        this.activeControls = this.pointerControls;
-        gameState.cameraView = 'first-person';
-        camera.position.set(0, 2.5, 0);
-        camera.lookAt(new THREE.Vector3(0, 2.5, -1));
-      } else if (view === 'third-person' && this.activeControls !== this.orbitControls) {
-        // Switch to third-person
-        this.activeControls = this.orbitControls;
-        gameState.cameraView = 'third-person';
-        camera.position.set(0, 5, 10);
-        this.orbitControls.target.copy(player.position);
-      }
+    // Adjust camera distance and height
+    adjustCamera: function(heightOffset, distanceOffset) {
+      // Get the player's current rotation to determine "behind" direction
+      const behindDirection = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), player.rotation.y);
+      
+      // Get current distance from player
+      const currentPos = new THREE.Vector3().subVectors(camera.position, player.position);
+      const currentDistance = currentPos.length();
+      
+      // Calculate new distance (with limits)
+      const newDistance = Math.max(8, Math.min(30, currentDistance + distanceOffset));
+      
+      // Calculate new height (with limits)
+      const newHeight = Math.max(5, Math.min(15, camera.position.y - player.position.y + heightOffset));
+      
+      // Set new camera position behind player
+      camera.position.set(
+        player.position.x - (behindDirection.x * newDistance),
+        player.position.y + newHeight,
+        player.position.z - (behindDirection.z * newDistance)
+      );
+      
+      // Update the target to be in front of the player
+      this.orbitControls.target.x = player.position.x + (behindDirection.x * 2);
+      this.orbitControls.target.z = player.position.z + (behindDirection.z * 2);
+      this.orbitControls.target.y = player.position.y + 2;
     }
   };
   
   // Setup orbit controls for third-person view
   const orbitControls = new OrbitControls(camera, domElement);
   orbitControls.enableDamping = true;
-  orbitControls.dampingFactor = 0.05;
+  orbitControls.dampingFactor = 0.1; // Increased for smoother camera movement
   orbitControls.screenSpacePanning = false;
-  orbitControls.minDistance = 3;
-  orbitControls.maxDistance = 15;
-  orbitControls.maxPolarAngle = Math.PI / 2 - 0.1;
+  orbitControls.minDistance = 8;  // Reduced minimum distance (from 15 to 8)
+  orbitControls.maxDistance = 30; // Reduced maximum distance (from 50 to 30)
+  orbitControls.minPolarAngle = Math.PI / 6; // Limit how low camera can go
+  orbitControls.maxPolarAngle = Math.PI / 2.5; // Increased to allow camera to go higher
+  
+  // Disable rotation with the orbit controls to maintain the behind-player view
+  orbitControls.enableRotate = false;
+  
+  // Allow zooming with the scroll wheel
+  orbitControls.enableZoom = true;
+  
+  // Set initial target
   orbitControls.target.copy(player.position);
+  orbitControls.target.y += 2; // Target slightly above the player's base position
   controls.orbitControls = orbitControls;
   
-  // Setup pointer lock controls for first-person view
-  const pointerControls = new PointerLockControls(camera, domElement);
-  controls.pointerControls = pointerControls;
+  // Set initial camera position - position it behind the player
+  // First determine the "behind" direction based on player's rotation
+  const behindDirection = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), player.rotation.y);
+  camera.position.set(
+    player.position.x - (behindDirection.x * 15), // Position behind based on player rotation (reduced from 25 to 15)
+    player.position.y + 8, // Much lower position (reduced from 20 to 8)
+    player.position.z - (behindDirection.z * 15)  // Position behind based on player rotation (reduced from 25 to 15)
+  );
   
-  // Set initial camera view based on gameState
-  controls.switchCameraView(gameState.cameraView);
+  // Make sure camera is looking at the player from behind
+  orbitControls.target.copy(player.position);
+  orbitControls.target.y += 2; // Target slightly above the player's base position
+  orbitControls.update();
   
   // Setup keyboard controls
   const onKeyDown = function(event) {
@@ -99,16 +126,21 @@ export function setupControls(camera, player, domElement, gameState) {
         }
         break;
         
-      case 'KeyV':
-        // Toggle camera view
-        const newView = gameState.cameraView === 'first-person' ? 'third-person' : 'first-person';
-        controls.switchCameraView(newView);
+      // Camera adjustment controls
+      case 'KeyQ': // Move camera higher
+        controls.adjustCamera(1, 0);
+        break;
         
-        // Update UI
-        const cameraViewSelect = document.getElementById('camera-view');
-        if (cameraViewSelect) {
-          cameraViewSelect.value = newView;
-        }
+      case 'KeyE': // Move camera lower
+        controls.adjustCamera(-1, 0);
+        break;
+        
+      case 'KeyZ': // Zoom camera in
+        controls.adjustCamera(0, -1);
+        break;
+        
+      case 'KeyX': // Zoom camera out
+        controls.adjustCamera(0, 1);
         break;
     }
   };
@@ -140,13 +172,6 @@ export function setupControls(camera, player, domElement, gameState) {
   document.addEventListener('keydown', onKeyDown);
   document.addEventListener('keyup', onKeyUp);
   
-  // Add click handler for pointer lock (first-person mode)
-  domElement.addEventListener('click', () => {
-    if (gameState.cameraView === 'first-person' && !pointerControls.isLocked) {
-      pointerControls.lock();
-    }
-  });
-  
   // Movement and physics update
   controls.updateMovement = function() {
     const time = performance.now();
@@ -160,41 +185,12 @@ export function setupControls(camera, player, domElement, gameState) {
     controls.direction.x = Number(controls.moveRight) - Number(controls.moveLeft);
     controls.direction.normalize();
     
-    // Move the player based on controls
-    if (gameState.cameraView === 'first-person') {
-      // First-person movement is relative to camera direction
-      if (controls.moveForward || controls.moveBackward) {
-        player.position.addScaledVector(
-          new THREE.Vector3(
-            Math.sin(camera.rotation.y),
-            0,
-            Math.cos(camera.rotation.y)
-          ).multiplyScalar(controls.direction.z * -5 * delta)
-        );
-      }
-      
-      if (controls.moveLeft || controls.moveRight) {
-        player.position.addScaledVector(
-          new THREE.Vector3(
-            Math.sin(camera.rotation.y + Math.PI / 2),
-            0,
-            Math.cos(camera.rotation.y + Math.PI / 2)
-          ).multiplyScalar(controls.direction.x * 5 * delta)
-        );
-      }
-      
-      // Update camera position to follow player
-      camera.position.x = player.position.x;
-      camera.position.z = player.position.z;
-      camera.position.y = player.position.y + 2.5;
-    } else {
-      // Third-person movement is relative to world axes
-      player.position.x += controls.direction.x * 5 * delta;
-      player.position.z += controls.direction.z * 5 * delta;
-      
-      // Update orbit controls target to follow player
-      controls.orbitControls.target.copy(player.position);
-    }
+    // Third-person movement is relative to world axes
+    player.position.x += controls.direction.x * 5 * delta;
+    player.position.z += controls.direction.z * 5 * delta;
+    
+    // Update orbit controls target to follow player
+    controls.orbitControls.target.copy(player.position);
     
     // Apply vertical velocity (jumping/falling)
     player.position.y += controls.velocity.y * delta;
@@ -207,12 +203,8 @@ export function setupControls(camera, player, domElement, gameState) {
       controls.isJumping = false;
     }
     
-    // Simple obstacle collision detection
-    // This would be expanded in a full implementation
-    
     // Update player rotation to face movement direction
-    if ((controls.moveForward || controls.moveBackward || controls.moveLeft || controls.moveRight) &&
-        gameState.cameraView === 'third-person') {
+    if (controls.moveForward || controls.moveBackward || controls.moveLeft || controls.moveRight) {
       const angle = Math.atan2(controls.direction.x, controls.direction.z);
       player.rotation.y = angle;
     }
@@ -222,10 +214,24 @@ export function setupControls(camera, player, domElement, gameState) {
   
   // Camera update
   controls.updateCamera = function() {
-    if (gameState.cameraView === 'third-person') {
-      // Third-person camera follows the player
-      controls.orbitControls.target.copy(player.position);
-    }
+    // Get the player's current rotation to determine "behind" direction
+    const behindDirection = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), player.rotation.y);
+    
+    // Calculate the desired camera position behind the player
+    const desiredPosition = new THREE.Vector3(
+      player.position.x - (behindDirection.x * 15),
+      player.position.y + 8,
+      player.position.z - (behindDirection.z * 15)
+    );
+    
+    // Smoothly interpolate current camera position towards the desired position
+    // This creates a smoother following effect
+    camera.position.lerp(desiredPosition, 0.1);
+    
+    // Update the orbit controls target to be in front of the player
+    controls.orbitControls.target.x = player.position.x + (behindDirection.x * 2);
+    controls.orbitControls.target.z = player.position.z + (behindDirection.z * 2);
+    controls.orbitControls.target.y = player.position.y + 2; // Keep targeting above the player
   };
   
   // Initialize time for movement calculations

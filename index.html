@@ -121,6 +121,7 @@
   <div id="debug-panel" style="position: absolute; bottom: 10px; right: 10px; background-color: rgba(0, 0, 0, 0.7); padding: 10px; border-radius: 5px; color: white; display: none;">
     <h3>Debug Controls</h3>
     <button id="reload-model">Reload Zuckerberg Model</button>
+    <button id="reset-model">Reset to Fixed Settings</button>
     <div>
       <label for="model-scale">Scale:</label>
       <input type="range" id="model-scale" min="0.1" max="5" step="0.1" value="1.0">
@@ -128,13 +129,18 @@
     </div>
     <div>
       <label for="model-y-pos">Y Position:</label>
-      <input type="range" id="model-y-pos" min="-5" max="5" step="0.1" value="1.0">
-      <span id="y-pos-value">1.0</span>
+      <input type="range" id="model-y-pos" min="-5" max="5" step="0.1" value="0.0">
+      <span id="y-pos-value">0.0</span>
     </div>
     <div>
       <label for="model-rotation">Rotation:</label>
       <input type="range" id="model-rotation" min="0" max="6.28" step="0.1" value="3.14">
       <span id="rotation-value">3.14</span>
+    </div>
+    <div>
+      <label for="model-vertical-scale">Vertical Scale:</label>
+      <input type="range" id="model-vertical-scale" min="0.1" max="5" step="0.1" value="1.0">
+      <span id="vertical-scale-value">1.0</span>
     </div>
     <button id="toggle-debug">Toggle Debug Visuals</button>
   </div>

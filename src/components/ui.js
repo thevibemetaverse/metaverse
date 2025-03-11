@@ -7,7 +7,6 @@ export function setupUI(gameState) {
   const closeSettingsButton = document.getElementById('close-settings');
   const volumeSlider = document.getElementById('volume');
   const graphicsSelect = document.getElementById('graphics');
-  const cameraViewSelect = document.getElementById('camera-view');
   const emojiButtons = document.querySelectorAll('.emoji-button');
   
   // Set initial username
@@ -46,19 +45,23 @@ export function setupUI(gameState) {
     });
   }
   
-  // Camera view
-  if (cameraViewSelect) {
-    cameraViewSelect.value = gameState.cameraView;
-    cameraViewSelect.addEventListener('change', () => {
-      const newView = cameraViewSelect.value;
-      // The actual camera switch happens in the controls component
-      // This just updates the gameState
-      gameState.cameraView = newView;
-      
-      // Dispatch a custom event that the controls component can listen for
-      const event = new CustomEvent('cameraViewChanged', { detail: { view: newView } });
-      document.dispatchEvent(event);
-    });
+  // Add camera control instructions to the UI
+  const controlsInfo = document.getElementById('controls-info');
+  if (controlsInfo) {
+    // Add camera control instructions
+    const cameraControls = document.createElement('div');
+    cameraControls.innerHTML = `
+      <h3>Camera Controls:</h3>
+      <ul>
+        <li><strong>Q:</strong> Move camera higher</li>
+        <li><strong>E:</strong> Move camera lower</li>
+        <li><strong>Z:</strong> Zoom camera in</li>
+        <li><strong>X:</strong> Zoom camera out</li>
+        <li><strong>Mouse Drag:</strong> Orbit camera around avatar</li>
+        <li><strong>Mouse Wheel:</strong> Zoom in/out</li>
+      </ul>
+    `;
+    controlsInfo.appendChild(cameraControls);
   }
   
   // Emoji reactions

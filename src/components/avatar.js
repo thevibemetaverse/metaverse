@@ -66,7 +66,7 @@ export function createAvatar(scene, username, loadingManager = avatarLoadingMana
   // Load the Zuckerberg GLTF model
   const gltfLoader = new GLTFLoader(loadingManager);
   // In Vite, assets in the public folder are served at the root path
-  const modelPath = '/assets/models/zuckerberg.glb';
+  const modelPath = '/assets/models/zuckerberg2.glb';
   console.log('Attempting to load Zuckerberg model from:', modelPath);
   
   gltfLoader.load(
@@ -75,6 +75,11 @@ export function createAvatar(scene, username, loadingManager = avatarLoadingMana
       console.log('Zuckerberg model loaded successfully', gltf);
       // Model loaded successfully
       const model = gltf.scene;
+      
+      // Apply initial fixes to the model before caching
+      // Simple direct fix for the compressed model
+      model.scale.set(1.0, 1.0, 1.0); // Use natural scale for the new model
+      model.position.y = 0.0; // Position at ground level
       
       // Store animations if available
       if (gltf.animations && gltf.animations.length > 0) {
@@ -168,10 +173,9 @@ export function createAvatar(scene, username, loadingManager = avatarLoadingMana
 }
 
 function setupModel(model, avatarGroup) {
-  // Try different scale and position values for the Zuckerberg model
-  // These values may need to be adjusted based on the specific model
-  model.scale.set(1.0, 1.0, 1.0); // Increased scale
-  model.position.y = 1.0; // Raised position to ensure it's above ground
+  // Settings for the new zuckerberg2.glb model
+  model.scale.set(1.0, 1.0, 1.0); // Use natural scale for the new model
+  model.position.y = 0.0; // Position at ground level
   
   // Some models might need rotation to face the correct direction
   model.rotation.y = Math.PI; // Rotate 180 degrees if needed
@@ -192,6 +196,10 @@ function setupModel(model, avatarGroup) {
       if (!node.geometry) {
         console.warn('Mesh has no geometry:', node.name);
       }
+      
+      // Add shadows
+      node.castShadow = true;
+      node.receiveShadow = true;
     }
   });
   
@@ -234,14 +242,6 @@ function setupModel(model, avatarGroup) {
     avatarGroup.add(axesHelper);
   }
   
-  // Add shadows
-  model.traverse(function(node) {
-    if (node.isMesh) {
-      node.castShadow = true;
-      node.receiveShadow = true;
-    }
-  });
-  
   // Add the model to the avatar group
   avatarGroup.add(model);
   
@@ -268,6 +268,10 @@ function setupAnimations(model, avatarGroup, animations) {
   // Process each animation
   animations.forEach((clip) => {
     const action = mixer.clipAction(clip);
+    
+    // Slow down animations slightly to make them look better
+    action.timeScale = 0.8;
+    
     animationActions[clip.name] = action;
     
     // If this is an idle animation, play it by default
@@ -318,13 +322,17 @@ function setupAnimations(model, avatarGroup, animations) {
         }
       }
       
-      // Play appropriate animation
+      // Play appropriate animation with smooth transitions
       if (isMoving && walkAction) {
-        if (idleAction) idleAction.stop();
-        walkAction.reset().play();
+        if (idleAction) {
+          idleAction.fadeOut(0.5);
+        }
+        walkAction.reset().fadeIn(0.5).play();
       } else if (!isMoving && idleAction) {
-        if (walkAction) walkAction.stop();
-        idleAction.reset().play();
+        if (walkAction) {
+          walkAction.fadeOut(0.5);
+        }
+        idleAction.reset().fadeIn(0.5).play();
       }
     }
   };
