@@ -28,6 +28,15 @@ if (typeof window !== 'undefined') {
 const mixers = new Map();
 const clock = new THREE.Clock();
 
+// Expose mixers to window for debugging and access from other files
+if (typeof window !== 'undefined') {
+  window.DEBUG_MODE = DEBUG_MODE;
+  window.zuckerbergModelCache = zuckerbergModelCache;
+  window.zuckerbergAnimations = zuckerbergAnimations;
+  window.isLoadingModel = isLoadingModel;
+  window.mixers = mixers;
+}
+
 export function createAvatar(scene, username, loadingManager = avatarLoadingManager) {
   // Create a group to hold the avatar
   const avatarGroup = new THREE.Group();
@@ -449,4 +458,178 @@ function createUsernameLabel(avatarGroup, username) {
   avatarGroup.add(sprite);
   
   return sprite;
+}
+
+export function createSimpleAvatar(scene, username, loadingManager = avatarLoadingManager) {
+  console.log('Creating simple avatar for:', username);
+  
+  // Create a completely clean group to hold the avatar
+  const avatarGroup = new THREE.Group();
+  avatarGroup.userData.username = username;
+  avatarGroup.userData.isAvatar = true;
+  
+  // Add username text above avatar
+  const usernameLabel = createUsernameLabel(avatarGroup, username);
+  console.log('Username label created');
+  
+  // Create a basic avatar immediately so there's something visible
+  createBasicAvatar(avatarGroup);
+  console.log('Basic avatar created as placeholder');
+  
+  // Load the original Zuckerberg GLTF model directly
+  const gltfLoader = new GLTFLoader(loadingManager);
+  const modelPath = '/assets/models/zuckerberg.glb';
+  console.log('Attempting to load player avatar model from:', modelPath);
+  
+  try {
+    gltfLoader.load(
+      modelPath,
+      function(gltf) {
+        console.log('Player avatar model loaded successfully', gltf);
+        
+        try {
+          const model = gltf.scene;
+          
+          // Remove the basic avatar first
+          avatarGroup.children.forEach(child => {
+            if (!child.userData.isUsernameLabel) {
+              avatarGroup.remove(child);
+            }
+          });
+          
+          // Apply scaling and positioning
+          model.scale.set(1, 1, 1); // Normal scale for zuckerberg.glb
+          model.position.y = 0; // Position at ground level
+          model.rotation.y = Math.PI; // Rotate to face forward
+          
+          // Setup shadows
+          model.traverse(function(node) {
+            if (node.isMesh) {
+              node.castShadow = true;
+              node.receiveShadow = true;
+            }
+          });
+          
+          // Add the model to the avatar group
+          avatarGroup.add(model);
+          console.log('Model added to avatar group');
+          
+          // Setup animations if available
+          if (gltf.animations && gltf.animations.length > 0) {
+            console.log('Setting up animations:', gltf.animations.length);
+            const mixer = new THREE.AnimationMixer(model);
+            mixers.set(avatarGroup, mixer);
+            
+            // Create animation actions
+            const animationActions = {};
+            
+            gltf.animations.forEach((clip) => {
+              const action = mixer.clipAction(clip);
+              action.timeScale = 0.8;
+              animationActions[clip.name] = action;
+              
+              // Play idle animation by default
+              if (clip.name.toLowerCase().includes('idle')) {
+                action.play();
+              }
+            });
+            
+            // Store animation actions on the avatar group
+            avatarGroup.userData.animationActions = animationActions;
+            
+            // Add animation control methods
+            avatarGroup.playAnimation = function(name) {
+              const action = animationActions[name];
+              if (action) {
+                Object.values(animationActions).forEach(a => {
+                  if (a !== action) a.stop();
+                });
+                action.reset().play();
+                return true;
+              }
+              return false;
+            };
+            
+            // Add moving state control
+            avatarGroup.userData.isMoving = false;
+            avatarGroup.setMoving = function(isMoving) {
+              if (isMoving !== this.userData.isMoving) {
+                this.userData.isMoving = isMoving;
+                
+                // Find walk/run animation
+                let walkAction = null;
+                for (const name in animationActions) {
+                  if (name.toLowerCase().includes('walk') || name.toLowerCase().includes('run')) {
+                    walkAction = animationActions[name];
+                    break;
+                  }
+                }
+                
+                // Find idle animation
+                let idleAction = null;
+                for (const name in animationActions) {
+                  if (name.toLowerCase().includes('idle')) {
+                    idleAction = animationActions[name];
+                    break;
+                  }
+                }
+                
+                // Play appropriate animation with smooth transitions
+                if (isMoving && walkAction) {
+                  if (idleAction) {
+                    idleAction.fadeOut(0.5);
+                  }
+                  walkAction.reset().fadeIn(0.5).play();
+                } else if (!isMoving && idleAction) {
+                  if (walkAction) {
+                    walkAction.fadeOut(0.5);
+                  }
+                  idleAction.reset().fadeIn(0.5).play();
+                }
+              }
+            };
+          } else {
+            console.log('No animations found in model');
+          }
+          
+          // Add collision detection
+          const avatarBoundingBox = new THREE.Box3().setFromObject(avatarGroup);
+          const avatarSize = new THREE.Vector3();
+          avatarBoundingBox.getSize(avatarSize);
+          
+          avatarGroup.userData.boundingBox = avatarBoundingBox;
+          avatarGroup.userData.size = avatarSize;
+          
+          // Add debug visuals if in debug mode
+          if (DEBUG_MODE) {
+            const bbox = new THREE.Box3().setFromObject(model);
+            const bboxHelper = new THREE.Box3Helper(bbox, 0xff0000);
+            bboxHelper.isHelper = true;
+            avatarGroup.add(bboxHelper);
+            
+            const axesHelper = new THREE.AxesHelper(2);
+            axesHelper.isHelper = true;
+            avatarGroup.add(axesHelper);
+          }
+          
+          console.log('Avatar setup complete');
+        } catch (setupError) {
+          console.error('Error setting up avatar model:', setupError);
+        }
+      },
+      function(xhr) {
+        // Loading progress
+        console.log('Player avatar model: ' + (xhr.loaded / xhr.total * 100) + '% loaded');
+      },
+      function(error) {
+        // Error loading model, keep the basic avatar
+        console.error('Error loading player avatar model:', error);
+        console.warn('Using basic avatar as fallback for player');
+      }
+    );
+  } catch (loaderError) {
+    console.error('Error initializing model loader:', loaderError);
+  }
+  
+  return avatarGroup;
 } 
