@@ -274,19 +274,15 @@ function setupAnimations(model, avatarGroup, animations) {
   // Create animation actions
   const animationActions = {};
   
-  // Process each animation
-  animations.forEach((clip) => {
+  // Log all available animations with more details
+  console.log('Available animations in model:');
+  animations.forEach((clip, index) => {
+    console.log(`Animation ${index}: "${clip.name}" (duration: ${clip.duration}s)`);
+    
+    // Create the animation action
     const action = mixer.clipAction(clip);
-    
-    // Slow down animations slightly to make them look better
     action.timeScale = 0.8;
-    
     animationActions[clip.name] = action;
-    
-    // If this is an idle animation, play it by default
-    if (clip.name.toLowerCase().includes('idle')) {
-      action.play();
-    }
   });
   
   // Store animation actions on the avatar group for later use
@@ -974,107 +970,161 @@ export function createPureAvatar(scene, username, loadingManager = avatarLoading
         // Create animation actions
         const animationActions = {};
         
-        // Log all available animations
-        console.log('Available animations:');
+        // Log all available animations with more details
+        console.log('Available animations in model:');
         gltf.animations.forEach((clip, index) => {
-          console.log(`Animation ${index}: ${clip.name} (duration: ${clip.duration}s)`);
+          console.log(`Animation ${index}: "${clip.name}" (duration: ${clip.duration}s)`);
           
+          // Create the animation action
           const action = mixer.clipAction(clip);
           action.timeScale = 0.8;
           animationActions[clip.name] = action;
         });
         
-        // Force play the first animation if available (most likely to be the running animation)
-        if (gltf.animations.length > 0) {
+        // Find running and idle animations
+        let runAction = null;
+        let idleAction = null;
+        
+        // First try to find animations by exact name match
+        for (const name in animationActions) {
+          const lowerName = name.toLowerCase();
+          
+          // Check for running/walking animations
+          if (lowerName === 'run' || lowerName === 'walk' || 
+              lowerName === 'running' || lowerName === 'walking') {
+            runAction = animationActions[name];
+            console.log(`Found exact match for running animation: "${name}"`);
+          } 
+          // Check for idle animations
+          else if (lowerName === 'idle' || lowerName === 'stand' || 
+                   lowerName === 'standing' || lowerName === 'rest') {
+            idleAction = animationActions[name];
+            console.log(`Found exact match for idle animation: "${name}"`);
+          }
+        }
+        
+        // If we didn't find exact matches, try partial matches
+        if (!runAction) {
+          for (const name in animationActions) {
+            const lowerName = name.toLowerCase();
+            if (lowerName.includes('run') || lowerName.includes('walk')) {
+              runAction = animationActions[name];
+              console.log(`Found partial match for running animation: "${name}"`);
+              break;
+            }
+          }
+        }
+        
+        if (!idleAction) {
+          for (const name in animationActions) {
+            const lowerName = name.toLowerCase();
+            if (lowerName.includes('idle') || lowerName.includes('stand')) {
+              idleAction = animationActions[name];
+              console.log(`Found partial match for idle animation: "${name}"`);
+              break;
+            }
+          }
+        }
+        
+        // If still no idle animation found, use any animation that's not running
+        if (!idleAction && gltf.animations.length > 0) {
+          for (const name in animationActions) {
+            const lowerName = name.toLowerCase();
+            if (!lowerName.includes('run') && !lowerName.includes('walk')) {
+              idleAction = animationActions[name];
+              console.log(`No specific idle animation found, using "${name}" as fallback`);
+              break;
+            }
+          }
+        }
+        
+        // If we have a running animation but no idle, we'll just stop all animations when idle
+        if (runAction && !idleAction) {
+          console.log('WARNING: Found running animation but no idle animation. Will stop all animations when idle.');
+        }
+        
+        // If we have no running animation, use the first animation as a fallback
+        if (!runAction && gltf.animations.length > 0) {
           const firstClip = gltf.animations[0];
-          const firstAction = animationActions[firstClip.name];
-          
-          console.log(`Forcing play of first animation: ${firstClip.name}`);
-          firstAction.setLoop(THREE.LoopRepeat);
-          firstAction.clampWhenFinished = false;
-          firstAction.play();
-          
-          // Store a reference to the currently playing animation
-          avatarGroup.userData.currentAnimation = firstClip.name;
-          console.log(`Set current animation to: ${firstClip.name}`);
+          runAction = animationActions[firstClip.name];
+          console.log(`No running animation found, using first animation "${firstClip.name}" as fallback`);
+        }
+        
+        // Configure animations for looping
+        if (runAction) {
+          runAction.setLoop(THREE.LoopRepeat);
+          runAction.clampWhenFinished = false;
+        }
+        
+        if (idleAction) {
+          idleAction.setLoop(THREE.LoopRepeat);
+          idleAction.clampWhenFinished = false;
+          // Start with idle animation by default
+          idleAction.play();
+          avatarGroup.userData.currentAnimation = 'idle';
         }
         
         // Store animation actions on the avatar group
         avatarGroup.userData.animationActions = animationActions;
+        avatarGroup.userData.runAction = runAction;
+        avatarGroup.userData.idleAction = idleAction;
         
-        // Add animation control methods
-        avatarGroup.playAnimation = function(name) {
-          console.log(`Attempting to play animation: ${name}`);
-          const action = animationActions[name];
-          if (action) {
-            // Stop any current animations
-            Object.values(animationActions).forEach(a => {
-              if (a !== action) a.stop();
-            });
-            // Play the requested animation
-            action.setLoop(THREE.LoopRepeat);
-            action.reset().play();
-            avatarGroup.userData.currentAnimation = name;
-            console.log(`Now playing animation: ${name}`);
-            return true;
-          }
-          console.log(`Animation not found: ${name}`);
-          return false;
-        };
-        
-        // Add moving state control
-        avatarGroup.userData.isMoving = true; // Set to true by default
+        // Add moving state control - this is the key function that controls animation state
+        avatarGroup.userData.isMoving = false; // Start with not moving
         avatarGroup.setMoving = function(isMoving) {
-          if (isMoving !== this.userData.isMoving) {
-            this.userData.isMoving = isMoving;
-            console.log(`Setting avatar moving state to: ${isMoving}`);
+          // Always update the animation state
+          this.userData.isMoving = isMoving;
+          
+          // Get the run and idle actions
+          const walkAction = this.userData.runAction;
+          const idleAction = this.userData.idleAction;
+          
+          if (isMoving && walkAction) {
+            // If we should be moving, play the run animation
+            console.log('Setting avatar to RUNNING state');
             
-            // Find walk/run animation
-            let walkAction = null;
-            for (const name in animationActions) {
-              if (name.toLowerCase().includes('walk') || name.toLowerCase().includes('run')) {
-                walkAction = animationActions[name];
-                console.log(`Found walk/run animation: ${name}`);
-                break;
+            // Stop all other animations first
+            Object.values(this.userData.animationActions).forEach(action => {
+              if (action !== walkAction) {
+                action.stop();
               }
+            });
+            
+            // Play the running animation
+            if (!walkAction.isRunning()) {
+              walkAction.reset().fadeIn(0.3).play();
+              this.userData.currentAnimation = 'running';
+            }
+          } else if (!isMoving) {
+            // If we should be idle
+            console.log('Setting avatar to IDLE state');
+            
+            // First stop the running animation if it's playing
+            if (walkAction && walkAction.isRunning()) {
+              walkAction.fadeOut(0.3).stop();
             }
             
-            // Find idle animation
-            let idleAction = null;
-            for (const name in animationActions) {
-              if (name.toLowerCase().includes('idle')) {
-                idleAction = animationActions[name];
-                console.log(`Found idle animation: ${name}`);
-                break;
+            // If we have a dedicated idle animation, play it
+            if (idleAction) {
+              if (!idleAction.isRunning()) {
+                idleAction.reset().fadeIn(0.3).play();
+                this.userData.currentAnimation = 'idle';
               }
-            }
-            
-            // Play appropriate animation with smooth transitions
-            if (isMoving && walkAction) {
-              console.log('Playing walk/run animation');
-              if (idleAction) {
-                idleAction.fadeOut(0.5);
-              }
-              walkAction.setLoop(THREE.LoopRepeat);
-              walkAction.reset().fadeIn(0.5).play();
-              avatarGroup.userData.currentAnimation = 'walking/running';
-            } else if (!isMoving && idleAction) {
-              console.log('Playing idle animation');
-              if (walkAction) {
-                walkAction.fadeOut(0.5);
-              }
-              idleAction.setLoop(THREE.LoopRepeat);
-              idleAction.reset().fadeIn(0.5).play();
-              avatarGroup.userData.currentAnimation = 'idle';
+            } else {
+              // If no idle animation exists, just stop all animations
+              console.log('No idle animation found - stopping all animations');
+              Object.values(this.userData.animationActions).forEach(action => {
+                action.stop();
+              });
+              this.userData.currentAnimation = 'none';
             }
           }
         };
         
-        // Immediately set to moving to ensure animation plays
+        // Force initial state to be idle
         setTimeout(() => {
-          console.log('Forcing animation state refresh');
-          avatarGroup.setMoving(true);
-        }, 1000);
+          avatarGroup.setMoving(false);
+        }, 100);
       } else {
         console.warn('No animations found in the model!');
       }

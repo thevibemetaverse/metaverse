@@ -235,9 +235,9 @@ try {
     const isMoving = controls.moveForward || controls.moveBackward || 
                      controls.moveLeft || controls.moveRight;
     
-    // Force player avatar to always be in moving state for continuous running animation
+    // Update player avatar animation based on movement
     if (playerAvatar && playerAvatar.setMoving) {
-      playerAvatar.setMoving(true);
+      playerAvatar.setMoving(isMoving);
     }
     
     // Update NPCs
@@ -252,7 +252,7 @@ try {
           z: playerAvatar.position.z
         },
         rotation: playerAvatar.rotation.y,
-        isMoving: true // Always report as moving
+        isMoving: isMoving // Report actual movement state
       });
     }
     
