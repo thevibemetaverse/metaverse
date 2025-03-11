@@ -78,7 +78,7 @@ export function createAvatar(scene, username, loadingManager = avatarLoadingMana
       
       // Apply initial fixes to the model before caching
       // Simple direct fix for the compressed model
-      model.scale.set(1.0, 1.0, 1.0); // Use natural scale for the new model
+      model.scale.set(0.6, 0.6, 0.6); // Make the model smaller (reduced from 1.0 to 0.6)
       model.position.y = 0.0; // Position at ground level
       
       // Store animations if available
@@ -174,7 +174,7 @@ export function createAvatar(scene, username, loadingManager = avatarLoadingMana
 
 function setupModel(model, avatarGroup) {
   // Settings for the new zuckerberg2.glb model
-  model.scale.set(1.0, 1.0, 1.0); // Use natural scale for the new model
+  model.scale.set(0.6, 0.6, 0.6); // Make the model smaller (reduced from 1.0 to 0.6)
   model.position.y = 0.0; // Position at ground level
   
   // Some models might need rotation to face the correct direction

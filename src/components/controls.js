@@ -41,34 +41,33 @@ export function setupControls(camera, player, domElement, gameState) {
       const currentDistance = currentPos.length();
       
       // Calculate new distance (with limits)
-      const newDistance = Math.max(8, Math.min(30, currentDistance + distanceOffset));
+      const newDistance = Math.max(2, Math.min(10, currentDistance + distanceOffset));
       
       // Calculate new height (with limits)
-      const newHeight = Math.max(5, Math.min(15, camera.position.y - player.position.y + heightOffset));
+      const newHeight = Math.max(1, Math.min(6, camera.position.y - player.position.y + heightOffset));
       
       // Set new camera position behind player
       camera.position.set(
-        player.position.x - (behindDirection.x * newDistance),
+        player.position.x + (behindDirection.x * newDistance),
         player.position.y + newHeight,
-        player.position.z - (behindDirection.z * newDistance)
+        player.position.z + (behindDirection.z * newDistance)
       );
       
-      // Update the target to be in front of the player
-      this.orbitControls.target.x = player.position.x + (behindDirection.x * 2);
-      this.orbitControls.target.z = player.position.z + (behindDirection.z * 2);
-      this.orbitControls.target.y = player.position.y + 2;
+      // Update the target to be the player
+      this.orbitControls.target.copy(player.position);
+      this.orbitControls.target.y += 1;
     }
   };
   
   // Setup orbit controls for third-person view
   const orbitControls = new OrbitControls(camera, domElement);
   orbitControls.enableDamping = true;
-  orbitControls.dampingFactor = 0.1; // Increased for smoother camera movement
+  orbitControls.dampingFactor = 0.2; // Increased for smoother camera movement
   orbitControls.screenSpacePanning = false;
-  orbitControls.minDistance = 8;  // Reduced minimum distance (from 15 to 8)
-  orbitControls.maxDistance = 30; // Reduced maximum distance (from 50 to 30)
-  orbitControls.minPolarAngle = Math.PI / 6; // Limit how low camera can go
-  orbitControls.maxPolarAngle = Math.PI / 2.5; // Increased to allow camera to go higher
+  orbitControls.minDistance = 2;  // Allow camera to get very close
+  orbitControls.maxDistance = 10; // Reduced maximum distance 
+  orbitControls.minPolarAngle = Math.PI / 10; // Allow for lower viewing angle
+  orbitControls.maxPolarAngle = Math.PI / 1.5; // Allow camera to be positioned above
   
   // Disable rotation with the orbit controls to maintain the behind-player view
   orbitControls.enableRotate = false;
@@ -78,21 +77,21 @@ export function setupControls(camera, player, domElement, gameState) {
   
   // Set initial target
   orbitControls.target.copy(player.position);
-  orbitControls.target.y += 2; // Target slightly above the player's base position
+  orbitControls.target.y += 1; // Target slightly above the player's base position
   controls.orbitControls = orbitControls;
   
   // Set initial camera position - position it behind the player
   // First determine the "behind" direction based on player's rotation
   const behindDirection = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), player.rotation.y);
   camera.position.set(
-    player.position.x - (behindDirection.x * 15), // Position behind based on player rotation (reduced from 25 to 15)
-    player.position.y + 8, // Much lower position (reduced from 20 to 8)
-    player.position.z - (behindDirection.z * 15)  // Position behind based on player rotation (reduced from 25 to 15)
+    player.position.x + (behindDirection.x * 3), // Position behind player, changed direction and brought closer
+    player.position.y + 2, // Lower camera height
+    player.position.z + (behindDirection.z * 3)  // Position behind player, changed direction and brought closer
   );
   
   // Make sure camera is looking at the player from behind
   orbitControls.target.copy(player.position);
-  orbitControls.target.y += 2; // Target slightly above the player's base position
+  orbitControls.target.y += 1; // Target slightly above the player's base position
   orbitControls.update();
   
   // Setup keyboard controls
@@ -185,12 +184,24 @@ export function setupControls(camera, player, domElement, gameState) {
     controls.direction.x = Number(controls.moveRight) - Number(controls.moveLeft);
     controls.direction.normalize();
     
-    // Third-person movement is relative to world axes
-    player.position.x += controls.direction.x * 5 * delta;
-    player.position.z += controls.direction.z * 5 * delta;
+    // Get the player's current rotation to determine forward direction
+    const forwardDirection = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), player.rotation.y);
+    const rightDirection = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), player.rotation.y);
+    
+    // Apply movement in the correct world directions
+    if (controls.moveForward || controls.moveBackward) {
+      player.position.x += forwardDirection.x * controls.direction.z * 5 * delta;
+      player.position.z += forwardDirection.z * controls.direction.z * 5 * delta;
+    }
+    
+    if (controls.moveLeft || controls.moveRight) {
+      player.position.x += rightDirection.x * controls.direction.x * 5 * delta;
+      player.position.z += rightDirection.z * controls.direction.x * 5 * delta;
+    }
     
     // Update orbit controls target to follow player
     controls.orbitControls.target.copy(player.position);
+    controls.orbitControls.target.y += 1;
     
     // Apply vertical velocity (jumping/falling)
     player.position.y += controls.velocity.y * delta;
@@ -205,7 +216,21 @@ export function setupControls(camera, player, domElement, gameState) {
     
     // Update player rotation to face movement direction
     if (controls.moveForward || controls.moveBackward || controls.moveLeft || controls.moveRight) {
-      const angle = Math.atan2(controls.direction.x, controls.direction.z);
+      let angle = 0;
+      
+      // Calculate the angle based on the movement direction
+      if (controls.moveForward) {
+        angle = 0; // Forward
+      } else if (controls.moveBackward) {
+        angle = Math.PI; // Backward
+      }
+      
+      if (controls.moveLeft) {
+        angle = controls.moveForward ? Math.PI * 0.25 : (controls.moveBackward ? Math.PI * 0.75 : Math.PI * 0.5);
+      } else if (controls.moveRight) {
+        angle = controls.moveForward ? -Math.PI * 0.25 : (controls.moveBackward ? -Math.PI * 0.75 : -Math.PI * 0.5);
+      }
+      
       player.rotation.y = angle;
     }
     
@@ -219,19 +244,18 @@ export function setupControls(camera, player, domElement, gameState) {
     
     // Calculate the desired camera position behind the player
     const desiredPosition = new THREE.Vector3(
-      player.position.x - (behindDirection.x * 15),
-      player.position.y + 8,
-      player.position.z - (behindDirection.z * 15)
+      player.position.x + (behindDirection.x * 3),
+      player.position.y + 2,
+      player.position.z + (behindDirection.z * 3)
     );
     
     // Smoothly interpolate current camera position towards the desired position
     // This creates a smoother following effect
     camera.position.lerp(desiredPosition, 0.1);
     
-    // Update the orbit controls target to be in front of the player
-    controls.orbitControls.target.x = player.position.x + (behindDirection.x * 2);
-    controls.orbitControls.target.z = player.position.z + (behindDirection.z * 2);
-    controls.orbitControls.target.y = player.position.y + 2; // Keep targeting above the player
+    // Update the orbit controls target to be the player
+    controls.orbitControls.target.copy(player.position);
+    controls.orbitControls.target.y += 1; // Keep targeting above the player
   };
   
   // Initialize time for movement calculations

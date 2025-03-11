@@ -305,8 +305,8 @@ if (debugPanel) {
       
       // Reset sliders to default values for the new model
       if (modelScaleSlider) {
-        modelScaleSlider.value = 1.0;
-        scaleValueSpan.textContent = '1.0';
+        modelScaleSlider.value = 0.6;
+        scaleValueSpan.textContent = '0.6';
       }
       
       if (modelYPosSlider) {
@@ -327,7 +327,7 @@ if (debugPanel) {
       // Apply default settings to the model
       playerAvatar.traverse((node) => {
         if (node.isGroup && node !== playerAvatar) {
-          node.scale.set(1.0, 1.0, 1.0);
+          node.scale.set(0.6, 0.6, 0.6);
           node.position.y = 0.0;
           node.rotation.y = Math.PI;
         }
