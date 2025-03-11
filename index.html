@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Metaverse Simulator</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+    }
+    #ui-container {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: white;
+      font-family: Arial, sans-serif;
+      pointer-events: none;
+    }
+    #username {
+      font-size: 24px;
+      margin-bottom: 10px;
+    }
+    #users-list {
+      background-color: rgba(0, 0, 0, 0.5);
+      padding: 10px;
+      border-radius: 5px;
+      max-height: 200px;
+      overflow-y: auto;
+      pointer-events: auto;
+    }
+    #settings-button {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      padding: 10px;
+      background-color: rgba(0, 0, 0, 0.5);
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      pointer-events: auto;
+    }
+    #settings-panel {
+      position: absolute;
+      top: 50px;
+      right: 10px;
+      background-color: rgba(0, 0, 0, 0.7);
+      padding: 20px;
+      border-radius: 5px;
+      color: white;
+      display: none;
+      pointer-events: auto;
+    }
+    .emoji-reactions {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 10px;
+      pointer-events: auto;
+    }
+    .emoji-button {
+      font-size: 24px;
+      background-color: rgba(0, 0, 0, 0.5);
+      border: none;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      cursor: pointer;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <div id="ui-container">
+    <div id="username">Player</div>
+    <div id="users-list">
+      <h3>Connected Users</h3>
+      <ul id="users"></ul>
+    </div>
+  </div>
+
+  <button id="settings-button">⚙️</button>
+  <div id="settings-panel">
+    <h3>Settings</h3>
+    <div>
+      <label for="volume">Volume: </label>
+      <input type="range" id="volume" min="0" max="100" value="50">
+    </div>
+    <div>
+      <label for="graphics">Graphics Quality: </label>
+      <select id="graphics">
+        <option value="low">Low</option>
+        <option value="medium" selected>Medium</option>
+        <option value="high">High</option>
+      </select>
+    </div>
+    <div>
+      <label for="camera-view">Camera View: </label>
+      <select id="camera-view">
+        <option value="first-person">First Person</option>
+        <option value="third-person" selected>Third Person</option>
+      </select>
+    </div>
+    <button id="close-settings">Close</button>
+  </div>
+
+  <div class="emoji-reactions">
+    <button class="emoji-button">👋</button>
+    <button class="emoji-button">👍</button>
+    <button class="emoji-button">❤️</button>
+    <button class="emoji-button">😂</button>
+  </div>
+
+  <!-- Debug controls -->
+  <div id="debug-panel" style="position: absolute; bottom: 10px; right: 10px; background-color: rgba(0, 0, 0, 0.7); padding: 10px; border-radius: 5px; color: white; display: none;">
+    <h3>Debug Controls</h3>
+    <button id="reload-model">Reload Zuckerberg Model</button>
+    <div>
+      <label for="model-scale">Scale:</label>
+      <input type="range" id="model-scale" min="0.1" max="5" step="0.1" value="1.0">
+      <span id="scale-value">1.0</span>
+    </div>
+    <div>
+      <label for="model-y-pos">Y Position:</label>
+      <input type="range" id="model-y-pos" min="-5" max="5" step="0.1" value="1.0">
+      <span id="y-pos-value">1.0</span>
+    </div>
+    <div>
+      <label for="model-rotation">Rotation:</label>
+      <input type="range" id="model-rotation" min="0" max="6.28" step="0.1" value="3.14">
+      <span id="rotation-value">3.14</span>
+    </div>
+    <button id="toggle-debug">Toggle Debug Visuals</button>
+  </div>
+
+  <button id="show-debug" style="position: absolute; bottom: 10px; right: 10px; padding: 5px; background-color: rgba(255, 0, 0, 0.7); color: white; border: none; border-radius: 5px;">Debug</button>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html> 

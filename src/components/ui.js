@@ -1,0 +1,144 @@
+export function setupUI(gameState) {
+  // Get UI elements
+  const usernameElement = document.getElementById('username');
+  const usersList = document.getElementById('users');
+  const settingsButton = document.getElementById('settings-button');
+  const settingsPanel = document.getElementById('settings-panel');
+  const closeSettingsButton = document.getElementById('close-settings');
+  const volumeSlider = document.getElementById('volume');
+  const graphicsSelect = document.getElementById('graphics');
+  const cameraViewSelect = document.getElementById('camera-view');
+  const emojiButtons = document.querySelectorAll('.emoji-button');
+  
+  // Set initial username
+  if (usernameElement) {
+    usernameElement.textContent = gameState.username;
+  }
+  
+  // Settings panel toggle
+  if (settingsButton && settingsPanel) {
+    settingsButton.addEventListener('click', () => {
+      settingsPanel.style.display = settingsPanel.style.display === 'block' ? 'none' : 'block';
+    });
+  }
+  
+  if (closeSettingsButton && settingsPanel) {
+    closeSettingsButton.addEventListener('click', () => {
+      settingsPanel.style.display = 'none';
+    });
+  }
+  
+  // Volume control
+  if (volumeSlider) {
+    volumeSlider.value = gameState.settings.volume;
+    volumeSlider.addEventListener('input', () => {
+      gameState.settings.volume = parseInt(volumeSlider.value);
+      // In a real implementation, this would adjust actual audio volume
+    });
+  }
+  
+  // Graphics quality
+  if (graphicsSelect) {
+    graphicsSelect.value = gameState.settings.graphics;
+    graphicsSelect.addEventListener('change', () => {
+      gameState.settings.graphics = graphicsSelect.value;
+      applyGraphicsSettings(gameState.settings.graphics);
+    });
+  }
+  
+  // Camera view
+  if (cameraViewSelect) {
+    cameraViewSelect.value = gameState.cameraView;
+    cameraViewSelect.addEventListener('change', () => {
+      const newView = cameraViewSelect.value;
+      // The actual camera switch happens in the controls component
+      // This just updates the gameState
+      gameState.cameraView = newView;
+      
+      // Dispatch a custom event that the controls component can listen for
+      const event = new CustomEvent('cameraViewChanged', { detail: { view: newView } });
+      document.dispatchEvent(event);
+    });
+  }
+  
+  // Emoji reactions
+  if (emojiButtons) {
+    emojiButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        showEmojiReaction(button.textContent);
+      });
+    });
+  }
+  
+  // Function to update the users list
+  function updateUsersList(players) {
+    if (!usersList) return;
+    
+    // Clear the list
+    usersList.innerHTML = '';
+    
+    // Add each player to the list
+    Object.values(players).forEach(player => {
+      const listItem = document.createElement('li');
+      listItem.textContent = player.username;
+      usersList.appendChild(listItem);
+    });
+    
+    // Add the local player
+    const localPlayerItem = document.createElement('li');
+    localPlayerItem.textContent = `${gameState.username} (You)`;
+    localPlayerItem.style.fontWeight = 'bold';
+    usersList.appendChild(localPlayerItem);
+  }
+  
+  // Function to show emoji reaction
+  function showEmojiReaction(emoji) {
+    // Create a floating emoji element
+    const emojiElement = document.createElement('div');
+    emojiElement.textContent = emoji;
+    emojiElement.style.position = 'absolute';
+    emojiElement.style.fontSize = '2rem';
+    emojiElement.style.left = '50%';
+    emojiElement.style.bottom = '20%';
+    emojiElement.style.transform = 'translateX(-50%)';
+    emojiElement.style.animation = 'float-up 2s ease-out forwards';
+    document.body.appendChild(emojiElement);
+    
+    // Add animation style if it doesn't exist
+    if (!document.querySelector('#emoji-animation')) {
+      const style = document.createElement('style');
+      style.id = 'emoji-animation';
+      style.textContent = `
+        @keyframes float-up {
+          0% { opacity: 1; transform: translateX(-50%) translateY(0); }
+          100% { opacity: 0; transform: translateX(-50%) translateY(-100px); }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+    
+    // Remove the element after animation completes
+    setTimeout(() => {
+      document.body.removeChild(emojiElement);
+    }, 2000);
+    
+    // In a multiplayer implementation, this would also send the emoji to other players
+  }
+  
+  // Function to apply graphics settings
+  function applyGraphicsSettings(quality) {
+    // In a real implementation, this would adjust renderer settings
+    console.log(`Graphics quality set to: ${quality}`);
+    
+    // Example of what this might do:
+    // - Low: Reduce shadow quality, disable antialiasing
+    // - Medium: Medium shadow quality, enable basic antialiasing
+    // - High: High shadow quality, enable advanced antialiasing and effects
+  }
+  
+  // Expose methods that need to be called from outside
+  return {
+    updateUsersList,
+    showEmojiReaction
+  };
+} 
