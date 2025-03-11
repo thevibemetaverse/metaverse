@@ -51,7 +51,7 @@ export function setupControls(camera, player, domElement, gameState) {
       const currentDistance = currentPos.length();
       
       // Calculate new distance (with limits)
-      const newDistance = Math.max(2, Math.min(10, currentDistance + distanceOffset));
+      const newDistance = Math.max(2, Math.min(100, currentDistance + distanceOffset));
       
       // Calculate new height (with limits)
       const newHeight = Math.max(1, Math.min(6, camera.position.y - player.position.y + heightOffset));
@@ -75,12 +75,12 @@ export function setupControls(camera, player, domElement, gameState) {
   orbitControls.dampingFactor = 0.2; // Increased for smoother camera movement
   orbitControls.screenSpacePanning = false;
   orbitControls.minDistance = 2;  // Allow camera to get very close
-  orbitControls.maxDistance = 10; // Reduced maximum distance 
-  orbitControls.minPolarAngle = Math.PI / 10; // Allow for lower viewing angle
+  orbitControls.maxDistance = 100; // Increased to allow viewing distant landmarks
+  orbitControls.minPolarAngle = Math.PI / 20; // Reduced to allow for more extreme upward viewing
   orbitControls.maxPolarAngle = Math.PI / 1.5; // Allow camera to be positioned above
   
-  // Disable rotation with the orbit controls to maintain the behind-player view
-  orbitControls.enableRotate = false;
+  // Enable rotation with the orbit controls to allow viewing the landmarks
+  orbitControls.enableRotate = true;
   
   // Allow zooming with the scroll wheel
   orbitControls.enableZoom = true;
@@ -90,18 +90,11 @@ export function setupControls(camera, player, domElement, gameState) {
   orbitControls.target.y += 1; // Target slightly above the player's base position
   controls.orbitControls = orbitControls;
   
-  // Set initial camera position - position it behind the player
-  // First determine the "behind" direction based on player's rotation
-  const behindDirection = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), player.rotation.y);
-  camera.position.set(
-    player.position.x + (behindDirection.x * 3), // Position behind player, changed direction and brought closer
-    player.position.y + 2, // Lower camera height
-    player.position.z + (behindDirection.z * 3)  // Position behind player, changed direction and brought closer
-  );
+  // Set initial camera position - position it for a selfie-style view
+  camera.position.set(0, 1.5, 5); // In front of the player, at face level
   
-  // Make sure camera is looking at the player from behind
-  orbitControls.target.copy(player.position);
-  orbitControls.target.y += 1; // Target slightly above the player's base position
+  // Make sure camera is looking at the player for selfie view
+  orbitControls.target.set(0, 1.5, 0); // Looking directly at the player
   orbitControls.update();
   
   // Setup keyboard controls

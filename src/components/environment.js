@@ -20,64 +20,139 @@ export function createEnvironment(scene, loadingManager = new THREE.LoadingManag
   // Create terrain
   createTerrain(environment);
   
-  // Create landmarks
+  // Create landmarks - position them to match the reference image
   createEiffelTower(environment, loadingManager);
-  createSagradaFamilia(environment);
-  createTrees(environment);
+  createSagradaFamilia(environment, loadingManager);
+  
+  // Reduce the number of trees to make landmarks more visible
+  createTrees(environment, 50); // Reduced number of trees
   
   return environment;
 }
 
 function createSky(scene) {
-  // Create a bright blue sky
+  // Create a bright blue sky similar to the screenshot
   scene.background = new THREE.Color(0x87CEEB);
   
   // Add a simple directional light to simulate sun
-  const sunLight = new THREE.DirectionalLight(0xFFFFAA, 1);
+  const sunLight = new THREE.DirectionalLight(0xFFFFAA, 1.2);
   sunLight.position.set(100, 100, 100);
+  sunLight.castShadow = true;
+  
+  // Improve shadow quality
+  sunLight.shadow.mapSize.width = 2048;
+  sunLight.shadow.mapSize.height = 2048;
+  sunLight.shadow.camera.near = 0.5;
+  sunLight.shadow.camera.far = 500;
+  sunLight.shadow.camera.left = -100;
+  sunLight.shadow.camera.right = 100;
+  sunLight.shadow.camera.top = 100;
+  sunLight.shadow.camera.bottom = -100;
+  
   scene.add(sunLight);
+  
+  // Add ambient light to brighten shadows
+  const ambientLight = new THREE.AmbientLight(0xCCDDFF, 0.5);
+  scene.add(ambientLight);
 }
 
 function createTerrain(environment) {
-  // Create a large flat ground plane with rolling hills
-  const groundGeometry = new THREE.PlaneGeometry(1000, 1000, 100, 100);
+  // Create a completely flat ground plane for the player to walk on
+  const groundGeometry = new THREE.PlaneGeometry(500, 500);
   
-  // Create rolling hills by modifying the vertices
-  const vertices = groundGeometry.attributes.position.array;
-  for (let i = 0; i < vertices.length; i += 3) {
-    // Skip the edges to keep them flat
-    const x = vertices[i];
-    const z = vertices[i + 2];
-    
-    if (Math.abs(x) < 490 && Math.abs(z) < 490) {
-      // Create gentle rolling hills
-      vertices[i + 1] = Math.sin(x * 0.02) * Math.cos(z * 0.02) * 5;
-    }
-  }
-  
-  // Update normals after modifying vertices
-  groundGeometry.computeVertexNormals();
-  
-  // Create a bright green material for the ground
+  // Create a vibrant green material for the ground
   const groundMaterial = new THREE.MeshStandardMaterial({
-    color: 0x7CFC00,
+    color: 0x4CBB17, // Kelly Green - vibrant green
     side: THREE.DoubleSide,
-    flatShading: true
+    roughness: 0.8,
+    metalness: 0.1
   });
   
   const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-  ground.rotation.x = -Math.PI / 2;
+  ground.rotation.x = -Math.PI / 2; // Rotate to be horizontal
+  ground.position.y = 0; // Place at y=0
   ground.receiveShadow = true;
   environment.add(ground);
   
   // Add collision detection for the ground
   ground.userData.isGround = true;
+  
+  // Add background hills
+  createBackgroundHills(environment);
+}
+
+// New function to create larger background hills
+function createBackgroundHills(environment) {
+  // Create several large hills in the background
+  const hillColors = [
+    0x7EC850, // Light green
+    0x71BC78, // Fern green
+    0x4CBB17, // Kelly green
+    0x3CB371  // Medium sea green
+  ];
+  
+  // Create a continuous range of hills in the far background
+  const hillSegments = 16; // Increased number of segments for smoother appearance
+  const baseDistance = 800; // Place hills even further back
+  
+  for (let i = 0; i < hillSegments; i++) {
+    const angle = (i / hillSegments) * Math.PI * 2;
+    const x = Math.cos(angle) * baseDistance;
+    const z = Math.sin(angle) * baseDistance;
+    
+    // Create a hill geometry - use a half sphere for a smoother look
+    const hillGeometry = new THREE.SphereGeometry(250 + Math.random() * 50, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+    const hillMaterial = new THREE.MeshStandardMaterial({
+      color: hillColors[i % hillColors.length],
+      flatShading: false,
+      roughness: 0.9,
+      metalness: 0.1
+    });
+    
+    const hill = new THREE.Mesh(hillGeometry, hillMaterial);
+    hill.position.set(x, -180, z); // Position lower to create just the top of hills visible
+    hill.scale.y = 0.6 + Math.random() * 0.2; // Less height variation
+    hill.scale.x = 1.8 + Math.random() * 0.4; // More horizontal stretch
+    hill.scale.z = 1.8 + Math.random() * 0.4;
+    hill.rotation.y = angle; // Align with the circle
+    hill.castShadow = true;
+    hill.receiveShadow = true;
+    environment.add(hill);
+  }
+  
+  // Add a second row of hills slightly closer with offset angles for more depth
+  const innerHillSegments = 12;
+  const innerDistance = baseDistance - 100;
+  
+  for (let i = 0; i < innerHillSegments; i++) {
+    const offsetAngle = ((i + 0.5) / innerHillSegments) * Math.PI * 2;
+    const innerX = Math.cos(offsetAngle) * innerDistance;
+    const innerZ = Math.sin(offsetAngle) * innerDistance;
+    
+    const innerHillGeometry = new THREE.SphereGeometry(200 + Math.random() * 40, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+    const innerHill = new THREE.Mesh(innerHillGeometry, new THREE.MeshStandardMaterial({
+      color: hillColors[(i + 1) % hillColors.length],
+      flatShading: false,
+      roughness: 0.9,
+      metalness: 0.1
+    }));
+    
+    innerHill.position.set(innerX, -150, innerZ);
+    innerHill.scale.y = 0.5 + Math.random() * 0.2;
+    innerHill.scale.x = 1.6 + Math.random() * 0.3;
+    innerHill.scale.z = 1.6 + Math.random() * 0.3;
+    innerHill.rotation.y = offsetAngle;
+    innerHill.castShadow = true;
+    innerHill.receiveShadow = true;
+    environment.add(innerHill);
+  }
 }
 
 function createEiffelTower(environment, loadingManager) {
   // Create a placeholder for the tower while it loads
   const placeholder = new THREE.Group();
-  placeholder.position.set(100, 0, -50);
+  // Position the Eiffel Tower far in the distance near the Sagrada Familia
+  placeholder.position.set(65, 0, -70); // Moved far in the distance, to the left of Sagrada Familia
   environment.add(placeholder);
   
   // Try to load the GLB/GLTF model first
@@ -88,8 +163,8 @@ function createEiffelTower(environment, loadingManager) {
       // Model loaded successfully
       const model = gltf.scene;
       
-      // Scale and position the model
-      model.scale.set(5, 5, 5); // Adjust scale as needed
+      // Scale and position the model - make it appropriate for distant viewing
+      model.scale.set(5, 6, 5); // Adjusted scale for distant viewing
       model.position.set(0, 0, 0);
       
       // Add shadows
@@ -106,7 +181,7 @@ function createEiffelTower(environment, loadingManager) {
       // Add collision detection
       placeholder.userData.isObstacle = true;
       
-      console.log('Eiffel Tower model loaded successfully');
+      console.log('Eiffel Tower model loaded successfully - positioned in the distance');
     },
     function(xhr) {
       // Loading progress
@@ -263,75 +338,144 @@ function createEiffelTower(environment, loadingManager) {
   return placeholder;
 }
 
-function createSagradaFamilia(environment) {
-  // Create a simplified Sagrada Familia using basic geometries
-  const sagradaGroup = new THREE.Group();
+function createSagradaFamilia(environment, loadingManager) {
+  // Create a placeholder for the Sagrada Familia
+  const placeholder = new THREE.Group();
+  // Position it to be to the right and behind the Eiffel Tower relative to player spawn
+  placeholder.position.set(50, 0, -70); // Right and behind the Eiffel Tower
+  environment.add(placeholder);
   
-  // Base of the cathedral
-  const baseMaterial = new THREE.MeshStandardMaterial({ color: 0xD2B48C });
-  const base = new THREE.Mesh(
-    new THREE.BoxGeometry(30, 5, 50),
-    baseMaterial
+  // Try to load the GLB model first
+  const gltfLoader = new GLTFLoader(loadingManager);
+  gltfLoader.load(
+    '/assets/models/sagrada_familia_2.glb',
+    function(gltf) {
+      // Model loaded successfully
+      const model = gltf.scene;
+      
+      // Scale and position the model - make it 10x smaller than current size
+      model.scale.set(1, 1, 1); // Reduced from 0.8 to 0.08 (10x smaller than before)
+      model.position.set(75, 0, -70);
+      
+      // Rotate the model to face toward the player
+      model.rotation.y = Math.PI / 6; // 30-degree rotation to show a good angle from player's view
+      
+      // Add shadows
+      model.traverse(function(node) {
+        if (node.isMesh) {
+          node.castShadow = true;
+          node.receiveShadow = true;
+        }
+      });
+      
+      // Add the model to the placeholder
+      placeholder.add(model);
+      
+      // Add collision detection
+      placeholder.userData.isObstacle = true;
+      
+      console.log('Sagrada Familia model loaded successfully - scaled down to 1/100th of original size');
+    },
+    function(xhr) {
+      // Loading progress
+      console.log('Sagrada Familia: ' + (xhr.loaded / xhr.total * 100) + '% loaded');
+    },
+    function(error) {
+      // Error loading GLTF, fall back to basic geometries
+      console.warn('Error loading Sagrada Familia model, falling back to basic geometries:', error);
+      createBasicSagradaFamilia(placeholder);
+    }
   );
-  base.position.y = 2.5;
-  sagradaGroup.add(base);
   
-  // Main towers
-  const towerMaterial = new THREE.MeshStandardMaterial({ color: 0xE6BE8A });
-  
-  // Create multiple towers of different heights
-  const towerPositions = [
-    { x: -10, z: -20, height: 40, radius: 3 },
-    { x: 10, z: -20, height: 45, radius: 3 },
-    { x: -10, z: 0, height: 50, radius: 3 },
-    { x: 10, z: 0, height: 55, radius: 3 },
-    { x: -10, z: 20, height: 40, radius: 3 },
-    { x: 10, z: 20, height: 45, radius: 3 },
-  ];
-  
-  towerPositions.forEach(pos => {
-    const tower = new THREE.Mesh(
-      new THREE.CylinderGeometry(pos.radius * 0.5, pos.radius, pos.height, 8),
-      towerMaterial
-    );
-    tower.position.set(pos.x, pos.height / 2 + 5, pos.z);
+  // Function to create a basic Sagrada Familia with geometries as fallback
+  function createBasicSagradaFamilia(placeholder) {
+    console.log('Creating basic Sagrada Familia with geometries');
     
-    // Add a spire to each tower
-    const spire = new THREE.Mesh(
-      new THREE.ConeGeometry(pos.radius * 0.5, 10, 8),
-      new THREE.MeshStandardMaterial({ color: 0xFFD700 })
-    );
-    spire.position.y = pos.height / 2 + 5;
-    tower.add(spire);
+    // Create a simplified Sagrada Familia using basic geometries
+    const sagradaGroup = new THREE.Group();
     
-    sagradaGroup.add(tower);
-  });
+    // Base of the cathedral
+    const baseMaterial = new THREE.MeshStandardMaterial({ color: 0xD2B48C });
+    const base = new THREE.Mesh(
+      new THREE.BoxGeometry(30, 5, 50),
+      baseMaterial
+    );
+    base.position.y = 2.5;
+    sagradaGroup.add(base);
+    
+    // Main towers
+    const towerMaterial = new THREE.MeshStandardMaterial({ color: 0xE6BE8A });
+    
+    // Create multiple towers of different heights
+    const towerPositions = [
+      { x: -10, z: -20, height: 40, radius: 3 },
+      { x: 10, z: -20, height: 45, radius: 3 },
+      { x: -10, z: 0, height: 50, radius: 3 },
+      { x: 10, z: 0, height: 55, radius: 3 },
+      { x: -10, z: 20, height: 40, radius: 3 },
+      { x: 10, z: 20, height: 45, radius: 3 },
+    ];
+    
+    towerPositions.forEach(pos => {
+      const tower = new THREE.Mesh(
+        new THREE.CylinderGeometry(pos.radius * 0.5, pos.radius, pos.height, 8),
+        towerMaterial
+      );
+      tower.position.set(pos.x, pos.height / 2 + 5, pos.z);
+      
+      // Add a spire to each tower
+      const spire = new THREE.Mesh(
+        new THREE.ConeGeometry(pos.radius * 0.5, 10, 8),
+        new THREE.MeshStandardMaterial({ color: 0xFFD700 })
+      );
+      spire.position.y = pos.height / 2 + 5;
+      tower.add(spire);
+      
+      sagradaGroup.add(tower);
+    });
+    
+    // Add the basic Sagrada to the placeholder
+    placeholder.add(sagradaGroup);
+  }
   
-  // Position the cathedral in the environment
-  sagradaGroup.position.set(-150, 0, 100);
-  sagradaGroup.castShadow = true;
-  
-  // Add collision detection
-  sagradaGroup.userData.isObstacle = true;
-  
-  environment.add(sagradaGroup);
+  return placeholder;
 }
 
-function createTrees(environment) {
+function createTrees(environment, numTrees = 150) {
   // Create a set of simple low-poly trees scattered around
   const treePositions = [];
   
   // Generate random positions for trees, avoiding landmarks
-  for (let i = 0; i < 100; i++) {
+  for (let i = 0; i < numTrees; i++) {
     const x = Math.random() * 800 - 400;
     const z = Math.random() * 800 - 400;
     
-    // Avoid placing trees near landmarks
-    const distToEiffel = Math.sqrt(Math.pow(x - 100, 2) + Math.pow(z + 50, 2));
-    const distToSagrada = Math.sqrt(Math.pow(x + 150, 2) + Math.pow(z - 100, 2));
+    // Avoid placing trees near landmarks and player spawn
+    const distToEiffel = Math.sqrt(Math.pow(x - 30, 2) + Math.pow(z + 50, 2));
+    const distToSagrada = Math.sqrt(Math.pow(x - 50, 2) + Math.pow(z + 30, 2));
+    const distToSpawn = Math.sqrt(Math.pow(x, 2) + Math.pow(z, 2));
     
-    if (distToEiffel > 50 && distToSagrada > 70) {
-      treePositions.push({ x, z });
+    if (distToEiffel > 50 && distToSagrada > 50 && distToSpawn > 30) {
+      // Add some clustering to make tree groups
+      if (Math.random() < 0.3) {
+        // Add a cluster of trees
+        const clusterSize = Math.floor(Math.random() * 3) + 2;
+        for (let j = 0; j < clusterSize; j++) {
+          const offsetX = Math.random() * 15 - 7.5;
+          const offsetZ = Math.random() * 15 - 7.5;
+          treePositions.push({ 
+            x: x + offsetX, 
+            z: z + offsetZ,
+            scale: 0.7 + Math.random() * 0.6 // Varied scale for natural look
+          });
+        }
+      } else {
+        treePositions.push({ 
+          x, 
+          z,
+          scale: 0.8 + Math.random() * 0.4 // Varied scale for natural look
+        });
+      }
     }
   }
   
@@ -339,6 +483,7 @@ function createTrees(environment) {
   treePositions.forEach(pos => {
     const tree = createTree();
     tree.position.set(pos.x, 0, pos.z);
+    tree.scale.set(pos.scale, pos.scale, pos.scale);
     environment.add(tree);
   });
 }
@@ -346,21 +491,40 @@ function createTrees(environment) {
 function createTree() {
   const treeGroup = new THREE.Group();
   
-  // Tree trunk
-  const trunkGeometry = new THREE.CylinderGeometry(0.5, 1, 5, 6);
-  const trunkMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513 });
+  // Tree trunk - shorter and thicker
+  const trunkGeometry = new THREE.CylinderGeometry(0.7, 1.2, 3, 6);
+  const trunkMaterial = new THREE.MeshStandardMaterial({ 
+    color: 0x8B4513,
+    roughness: 0.9,
+    metalness: 0.1
+  });
   const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
-  trunk.position.y = 2.5;
+  trunk.position.y = 1.5;
   trunk.castShadow = true;
   treeGroup.add(trunk);
   
-  // Tree foliage (low-poly)
-  const foliageGeometry = new THREE.ConeGeometry(3, 7, 6);
-  const foliageMaterial = new THREE.MeshStandardMaterial({ color: 0x228B22 });
+  // Tree foliage - more stylized, rounded shape like in the screenshot
+  const foliageGeometry = new THREE.SphereGeometry(3, 8, 8);
+  const foliageMaterial = new THREE.MeshStandardMaterial({ 
+    color: 0x228B22, // Forest green
+    roughness: 0.8,
+    metalness: 0.1
+  });
   const foliage = new THREE.Mesh(foliageGeometry, foliageMaterial);
-  foliage.position.y = 8;
+  foliage.position.y = 5;
+  foliage.scale.y = 1.2; // Slightly elongated vertically
   foliage.castShadow = true;
   treeGroup.add(foliage);
+  
+  // Add a second, smaller foliage sphere on top for some trees (randomly)
+  if (Math.random() < 0.4) {
+    const topFoliageGeometry = new THREE.SphereGeometry(2, 8, 8);
+    const topFoliage = new THREE.Mesh(topFoliageGeometry, foliageMaterial);
+    topFoliage.position.y = 7.5;
+    topFoliage.scale.y = 1.1;
+    topFoliage.castShadow = true;
+    treeGroup.add(topFoliage);
+  }
   
   // Add collision detection
   treeGroup.userData.isObstacle = true;
