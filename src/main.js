@@ -6,6 +6,7 @@ import { createEnvironment } from './components/environment.js';
 import { createAvatar, updateAvatarAnimations } from './components/avatar.js';
 import { setupControls } from './components/controls.js';
 import { setupUI } from './components/ui.js';
+import { NPCManager } from './components/npcs.js';
 
 // Create loading screen
 const loadingScreen = document.createElement('div');
@@ -116,7 +117,7 @@ const environment = createEnvironment(scene, loadingManager);
 
 // Create player avatar
 const playerAvatar = createAvatar(scene, gameState.username, loadingManager);
-playerAvatar.position.set(0, 0, 0);
+playerAvatar.position.set(0, 0, 0); // Set player at ground level
 scene.add(playerAvatar);
 
 // Setup controls
@@ -124,6 +125,10 @@ const controls = setupControls(camera, playerAvatar, renderer.domElement, gameSt
 
 // Setup UI
 setupUI(gameState);
+
+// Create NPC manager and initialize NPCs
+const npcManager = new NPCManager(scene, loadingManager);
+npcManager.initialize();
 
 // Setup socket connection for multiplayer
 let socket;
@@ -210,6 +215,11 @@ window.addEventListener('resize', () => {
 function animate() {
   requestAnimationFrame(animate);
   
+  // Calculate delta time for smooth animation
+  const currentTime = performance.now();
+  const deltaTime = (currentTime - lastTime) / 1000; // Convert to seconds
+  lastTime = currentTime;
+  
   // Update controls
   controls.update();
   
@@ -223,6 +233,9 @@ function animate() {
   if (playerAvatar.setMoving) {
     playerAvatar.setMoving(isMoving);
   }
+  
+  // Update NPCs
+  npcManager.update(deltaTime, playerAvatar.position);
   
   // Update player position on server
   if (socket && socket.connected) {
@@ -241,6 +254,9 @@ function animate() {
   renderer.render(scene, camera);
 }
 
+// Initialize time for animation
+let lastTime = performance.now();
+
 animate();
 
 // Debug functionality
@@ -257,6 +273,7 @@ const yPosValueSpan = document.getElementById('y-pos-value');
 const rotationValueSpan = document.getElementById('rotation-value');
 const verticalScaleValueSpan = document.getElementById('vertical-scale-value');
 const toggleDebugButton = document.getElementById('toggle-debug');
+const toggleNPCsButton = document.getElementById('toggle-npcs');
 
 if (showDebugButton) {
   showDebugButton.addEventListener('click', () => {
@@ -414,6 +431,25 @@ if (debugPanel) {
           node.visible = window.DEBUG_MODE;
         }
       });
+    });
+  }
+  
+  // Toggle NPCs
+  if (toggleNPCsButton) {
+    let npcsEnabled = true;
+    toggleNPCsButton.textContent = 'Disable NPCs';
+    
+    toggleNPCsButton.addEventListener('click', () => {
+      npcsEnabled = !npcsEnabled;
+      toggleNPCsButton.textContent = npcsEnabled ? 'Disable NPCs' : 'Enable NPCs';
+      
+      if (npcsEnabled) {
+        // Re-initialize NPCs
+        npcManager.initialize();
+      } else {
+        // Remove all NPCs
+        npcManager.removeAll();
+      }
     });
   }
 }
