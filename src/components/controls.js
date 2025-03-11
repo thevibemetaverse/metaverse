@@ -11,8 +11,9 @@ export function setupControls(camera, player, domElement, gameState) {
     moveBackward: false,
     moveLeft: false,
     moveRight: false,
-    canJump: false,
+    canJump: true,
     isJumping: false,
+    jump: false, // New flag for animation-based jumping
     
     // Rotation state
     rotateLeft: false,
@@ -137,9 +138,13 @@ export function setupControls(camera, player, domElement, gameState) {
         
       case 'Space':
         if (controls.canJump) {
-          controls.velocity.y = 10;
-          controls.isJumping = true;
-          controls.canJump = false;
+          controls.jump = true; // Set the jump flag for animation-based jumping
+          controls.canJump = false; // Prevent multiple jumps until reset
+          
+          // Reset the canJump flag after a short delay to prevent spam jumping
+          setTimeout(() => {
+            controls.canJump = true;
+          }, 1000); // 1 second cooldown
         }
         break;
         

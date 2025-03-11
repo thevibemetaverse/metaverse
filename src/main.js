@@ -240,6 +240,12 @@ try {
       playerAvatar.setMoving(isMoving);
     }
     
+    // Handle jumping if the player has pressed space
+    if (controls.jump && playerAvatar && playerAvatar.jump && !playerAvatar.userData.isJumping) {
+      playerAvatar.jump();
+      controls.jump = false; // Reset the jump flag
+    }
+    
     // Update NPCs
     npcManager.update(deltaTime, playerAvatar.position);
     
@@ -252,7 +258,8 @@ try {
           z: playerAvatar.position.z
         },
         rotation: playerAvatar.rotation.y,
-        isMoving: isMoving // Report actual movement state
+        isMoving: isMoving, // Report actual movement state
+        isJumping: playerAvatar.userData.isJumping || false // Report jumping state
       });
     }
     
