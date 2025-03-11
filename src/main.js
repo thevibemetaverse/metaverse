@@ -453,3 +453,13 @@ if (debugPanel) {
     });
   }
 }
+
+// Add control help panel close button functionality
+const controlsHelp = document.getElementById('controls-help');
+const closeControlsHelpButton = document.getElementById('close-controls-help');
+
+if (closeControlsHelpButton && controlsHelp) {
+  closeControlsHelpButton.addEventListener('click', () => {
+    controlsHelp.style.display = 'none';
+  });
+}

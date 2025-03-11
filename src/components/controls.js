@@ -14,12 +14,21 @@ export function setupControls(camera, player, domElement, gameState) {
     canJump: false,
     isJumping: false,
     
+    // Rotation state
+    rotateLeft: false,
+    rotateRight: false,
+    targetRotation: player.rotation.y,
+    
     // Physics
     velocity: new THREE.Vector3(),
     direction: new THREE.Vector3(),
     
     // Camera controls
     orbitControls: null,
+    
+    // Mouse state
+    mouseDown: false,
+    mousePosition: new THREE.Vector2(),
     
     // Update method to be called in animation loop
     update: function() {
@@ -117,6 +126,15 @@ export function setupControls(camera, player, domElement, gameState) {
         controls.moveRight = true;
         break;
         
+      // Dedicated rotation keys
+      case 'KeyQ':
+        controls.rotateLeft = true;
+        break;
+        
+      case 'KeyE':
+        controls.rotateRight = true;
+        break;
+        
       case 'Space':
         if (controls.canJump) {
           controls.velocity.y = 10;
@@ -126,11 +144,11 @@ export function setupControls(camera, player, domElement, gameState) {
         break;
         
       // Camera adjustment controls
-      case 'KeyQ': // Move camera higher
+      case 'KeyR': // Move camera higher
         controls.adjustCamera(1, 0);
         break;
         
-      case 'KeyE': // Move camera lower
+      case 'KeyF': // Move camera lower
         controls.adjustCamera(-1, 0);
         break;
         
@@ -165,11 +183,79 @@ export function setupControls(camera, player, domElement, gameState) {
       case 'KeyD':
         controls.moveRight = false;
         break;
+        
+      // Rotation key releases
+      case 'KeyQ':
+        controls.rotateLeft = false;
+        break;
+        
+      case 'KeyE':
+        controls.rotateRight = false;
+        break;
     }
   };
   
   document.addEventListener('keydown', onKeyDown);
   document.addEventListener('keyup', onKeyUp);
+  
+  // Mouse controls for rotation
+  document.addEventListener('mousedown', (event) => {
+    if (event.button === 0) { // Left mouse button
+      controls.mouseDown = true;
+      controls.mousePosition.x = event.clientX;
+      controls.mousePosition.y = event.clientY;
+    }
+  });
+  
+  document.addEventListener('mouseup', (event) => {
+    if (event.button === 0) { // Left mouse button
+      controls.mouseDown = false;
+    }
+  });
+  
+  document.addEventListener('mousemove', (event) => {
+    if (controls.mouseDown) {
+      // Calculate horizontal mouse movement
+      const deltaX = event.clientX - controls.mousePosition.x;
+      
+      // Update target rotation based on mouse movement
+      controls.targetRotation -= deltaX * 0.01; // Adjust sensitivity as needed
+      
+      // Update mouse position
+      controls.mousePosition.x = event.clientX;
+      controls.mousePosition.y = event.clientY;
+    }
+  });
+  
+  // Touch controls for mobile devices
+  document.addEventListener('touchstart', (event) => {
+    if (event.touches.length === 1) {
+      controls.mouseDown = true;
+      controls.mousePosition.x = event.touches[0].clientX;
+      controls.mousePosition.y = event.touches[0].clientY;
+    }
+  });
+  
+  document.addEventListener('touchend', () => {
+    controls.mouseDown = false;
+  });
+  
+  document.addEventListener('touchmove', (event) => {
+    if (controls.mouseDown && event.touches.length === 1) {
+      // Calculate horizontal touch movement
+      const deltaX = event.touches[0].clientX - controls.mousePosition.x;
+      
+      // Update target rotation based on touch movement
+      controls.targetRotation -= deltaX * 0.01; // Adjust sensitivity as needed
+      
+      // Update touch position
+      controls.mousePosition.x = event.touches[0].clientX;
+      controls.mousePosition.y = event.touches[0].clientY;
+      
+      // Prevent scrolling
+      event.preventDefault();
+    }
+  }, { passive: false });
   
   // Movement and physics update
   controls.updateMovement = function() {
@@ -178,6 +264,17 @@ export function setupControls(camera, player, domElement, gameState) {
     
     // Apply gravity
     controls.velocity.y -= 9.8 * delta;
+    
+    // Update rotation from keyboard inputs
+    if (controls.rotateLeft) {
+      controls.targetRotation += 2.0 * delta; // Rotation speed
+    }
+    if (controls.rotateRight) {
+      controls.targetRotation -= 2.0 * delta; // Rotation speed
+    }
+    
+    // Apply smooth rotation (lerp current rotation toward target)
+    player.rotation.y += (controls.targetRotation - player.rotation.y) * 10 * delta;
     
     // Calculate movement direction
     controls.direction.z = Number(controls.moveForward) - Number(controls.moveBackward);
@@ -212,26 +309,6 @@ export function setupControls(camera, player, domElement, gameState) {
       player.position.y = 1;
       controls.canJump = true;
       controls.isJumping = false;
-    }
-    
-    // Update player rotation to face movement direction
-    if (controls.moveForward || controls.moveBackward || controls.moveLeft || controls.moveRight) {
-      let angle = 0;
-      
-      // Calculate the angle based on the movement direction
-      if (controls.moveForward) {
-        angle = 0; // Forward
-      } else if (controls.moveBackward) {
-        angle = Math.PI; // Backward
-      }
-      
-      if (controls.moveLeft) {
-        angle = controls.moveForward ? Math.PI * 0.25 : (controls.moveBackward ? Math.PI * 0.75 : Math.PI * 0.5);
-      } else if (controls.moveRight) {
-        angle = controls.moveForward ? -Math.PI * 0.25 : (controls.moveBackward ? -Math.PI * 0.75 : -Math.PI * 0.5);
-      }
-      
-      player.rotation.y = angle;
     }
     
     prevTime = time;
