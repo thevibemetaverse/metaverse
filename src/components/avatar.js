@@ -499,14 +499,20 @@ export function createSimpleAvatar(scene, username, loadingManager = avatarLoadi
           
           // Apply scaling and positioning
           model.scale.set(1, 1, 1); // Normal scale for zuckerberg.glb
-          model.position.y = 0; // Position at ground level
+          model.position.y = -0.5; // Adjust position to ensure feet are at ground level
           model.rotation.y = Math.PI; // Rotate to face forward
           
-          // Setup shadows
+          // Setup shadows and remove any unwanted geometry
           model.traverse(function(node) {
             if (node.isMesh) {
               node.castShadow = true;
               node.receiveShadow = true;
+              
+              // Check for any helper objects or strange geometry and remove them
+              if (node.name.includes('helper') || node.name.includes('debug') || 
+                  node.name.includes('collision') || node.name.includes('bound')) {
+                node.visible = false;
+              }
             }
           });
           
@@ -600,15 +606,17 @@ export function createSimpleAvatar(scene, username, loadingManager = avatarLoadi
           avatarGroup.userData.boundingBox = avatarBoundingBox;
           avatarGroup.userData.size = avatarSize;
           
-          // Add debug visuals if in debug mode
+          // Add debug visuals if in debug mode, but keep them hidden by default
           if (DEBUG_MODE) {
             const bbox = new THREE.Box3().setFromObject(model);
             const bboxHelper = new THREE.Box3Helper(bbox, 0xff0000);
             bboxHelper.isHelper = true;
+            bboxHelper.visible = false; // Hide by default
             avatarGroup.add(bboxHelper);
             
             const axesHelper = new THREE.AxesHelper(2);
             axesHelper.isHelper = true;
+            axesHelper.visible = false; // Hide by default
             avatarGroup.add(axesHelper);
           }
           
@@ -630,6 +638,389 @@ export function createSimpleAvatar(scene, username, loadingManager = avatarLoadi
   } catch (loaderError) {
     console.error('Error initializing model loader:', loaderError);
   }
+  
+  return avatarGroup;
+}
+
+export function createDirectAvatar(scene, username, loadingManager = avatarLoadingManager) {
+  console.log('Creating direct avatar for:', username);
+  
+  // Create a group to hold the avatar and label
+  const avatarGroup = new THREE.Group();
+  avatarGroup.userData.username = username;
+  avatarGroup.userData.isAvatar = true;
+  
+  // Create a basic avatar immediately as a placeholder
+  createBasicAvatar(avatarGroup);
+  
+  // Add username text above avatar
+  const usernameLabel = createUsernameLabel(avatarGroup, username);
+  
+  // Load the Zuckerberg model directly - using the exact same approach as giant NPCs
+  const gltfLoader = new GLTFLoader(loadingManager);
+  const modelPath = '/assets/models/zuckerberg.glb';
+  
+  gltfLoader.load(
+    modelPath,
+    (gltf) => {
+      // Get the model
+      const model = gltf.scene;
+      
+      // Remove the basic avatar
+      avatarGroup.children.forEach(child => {
+        if (!child.userData.isUsernameLabel) {
+          avatarGroup.remove(child);
+        }
+      });
+      
+      // Clean up the model - remove any problematic geometry
+      model.traverse((node) => {
+        // Check for any helper objects or strange geometry and remove them
+        if (node.name && (
+            node.name.includes('helper') || 
+            node.name.includes('debug') || 
+            node.name.includes('collision') || 
+            node.name.includes('bound') ||
+            node.name.includes('skeleton') ||
+            node.name.includes('bone') ||
+            node.name.includes('ik') ||
+            node.name.includes('control')
+          )) {
+          node.visible = false;
+        }
+        
+        // Set up shadows for meshes
+        if (node.isMesh) {
+          node.castShadow = true;
+          node.receiveShadow = true;
+        }
+      });
+      
+      // Apply normal scale (not giant)
+      model.scale.set(1, 1, 1);
+      
+      // Position the model
+      model.position.y = -0.5;
+      
+      // Rotate to face forward
+      model.rotation.y = Math.PI;
+      
+      // Add the model to the avatar group
+      avatarGroup.add(model);
+      
+      // Setup animations if available
+      if (gltf.animations && gltf.animations.length > 0) {
+        const mixer = new THREE.AnimationMixer(model);
+        mixers.set(avatarGroup, mixer);
+        
+        // Create animation actions
+        const animationActions = {};
+        
+        gltf.animations.forEach((clip) => {
+          const action = mixer.clipAction(clip);
+          action.timeScale = 0.8;
+          animationActions[clip.name] = action;
+          
+          // Play idle animation by default
+          if (clip.name.toLowerCase().includes('idle')) {
+            action.play();
+          }
+        });
+        
+        // Store animation actions on the avatar group
+        avatarGroup.userData.animationActions = animationActions;
+        
+        // Add animation control methods
+        avatarGroup.playAnimation = function(name) {
+          const action = animationActions[name];
+          if (action) {
+            Object.values(animationActions).forEach(a => {
+              if (a !== action) a.stop();
+            });
+            action.reset().play();
+            return true;
+          }
+          return false;
+        };
+        
+        // Add moving state control
+        avatarGroup.userData.isMoving = false;
+        avatarGroup.setMoving = function(isMoving) {
+          if (isMoving !== this.userData.isMoving) {
+            this.userData.isMoving = isMoving;
+            
+            // Find walk/run animation
+            let walkAction = null;
+            for (const name in animationActions) {
+              if (name.toLowerCase().includes('walk') || name.toLowerCase().includes('run')) {
+                walkAction = animationActions[name];
+                break;
+              }
+            }
+            
+            // Find idle animation
+            let idleAction = null;
+            for (const name in animationActions) {
+              if (name.toLowerCase().includes('idle')) {
+                idleAction = animationActions[name];
+                break;
+              }
+            }
+            
+            // Play appropriate animation with smooth transitions
+            if (isMoving && walkAction) {
+              if (idleAction) {
+                idleAction.fadeOut(0.5);
+              }
+              walkAction.reset().fadeIn(0.5).play();
+            } else if (!isMoving && idleAction) {
+              if (walkAction) {
+                walkAction.fadeOut(0.5);
+              }
+              idleAction.reset().fadeIn(0.5).play();
+            }
+          }
+        };
+      }
+      
+      console.log('Direct avatar model loaded successfully');
+    },
+    (xhr) => {
+      // Loading progress
+      console.log('Direct avatar model: ' + (xhr.loaded / xhr.total * 100) + '% loaded');
+    },
+    (error) => {
+      console.error('Error loading direct avatar model:', error);
+    }
+  );
+  
+  return avatarGroup;
+}
+
+export function createCleanAvatar(scene, username, loadingManager = avatarLoadingManager) {
+  console.log('Creating clean avatar for:', username);
+  
+  // Create a group to hold the avatar and label
+  const avatarGroup = new THREE.Group();
+  avatarGroup.userData.username = username;
+  avatarGroup.userData.isAvatar = true;
+  
+  // Load the Zuckerberg model directly - EXACTLY like the giant NPCs but with normal scale
+  const gltfLoader = new GLTFLoader(loadingManager);
+  const modelPath = '/assets/models/zuckerberg.glb';
+  
+  // Create a basic avatar immediately as a placeholder
+  createBasicAvatar(avatarGroup);
+  
+  // Add username text above avatar
+  createUsernameLabel(avatarGroup, username);
+  
+  gltfLoader.load(
+    modelPath,
+    (gltf) => {
+      // Get the model
+      const model = gltf.scene;
+      
+      // Remove the basic avatar
+      avatarGroup.children.forEach(child => {
+        if (!child.userData.isUsernameLabel) {
+          avatarGroup.remove(child);
+        }
+      });
+      
+      // Apply normal scale (not giant)
+      model.scale.set(1, 1, 1);
+      
+      // Position the model
+      model.position.y = -0.5;
+      
+      // Rotate to face forward
+      model.rotation.y = Math.PI;
+      
+      // Add the model to the avatar group
+      avatarGroup.add(model);
+      
+      // Setup animations if available
+      if (gltf.animations && gltf.animations.length > 0) {
+        const mixer = new THREE.AnimationMixer(model);
+        mixers.set(avatarGroup, mixer);
+        
+        // Create animation actions
+        const animationActions = {};
+        
+        gltf.animations.forEach((clip) => {
+          const action = mixer.clipAction(clip);
+          action.timeScale = 0.8;
+          animationActions[clip.name] = action;
+          
+          // Play idle animation by default
+          if (clip.name.toLowerCase().includes('idle')) {
+            action.play();
+          }
+        });
+        
+        // Store animation actions on the avatar group
+        avatarGroup.userData.animationActions = animationActions;
+        
+        // Add moving state control
+        avatarGroup.userData.isMoving = false;
+        avatarGroup.setMoving = function(isMoving) {
+          if (isMoving !== this.userData.isMoving) {
+            this.userData.isMoving = isMoving;
+            
+            // Find walk/run animation
+            let walkAction = null;
+            for (const name in animationActions) {
+              if (name.toLowerCase().includes('walk') || name.toLowerCase().includes('run')) {
+                walkAction = animationActions[name];
+                break;
+              }
+            }
+            
+            // Find idle animation
+            let idleAction = null;
+            for (const name in animationActions) {
+              if (name.toLowerCase().includes('idle')) {
+                idleAction = animationActions[name];
+                break;
+              }
+            }
+            
+            // Play appropriate animation with smooth transitions
+            if (isMoving && walkAction) {
+              if (idleAction) {
+                idleAction.fadeOut(0.5);
+              }
+              walkAction.reset().fadeIn(0.5).play();
+            } else if (!isMoving && idleAction) {
+              if (walkAction) {
+                walkAction.fadeOut(0.5);
+              }
+              idleAction.reset().fadeIn(0.5).play();
+            }
+          }
+        };
+      }
+      
+      console.log('Clean avatar model loaded successfully');
+    },
+    (xhr) => {
+      // Loading progress
+      console.log('Clean avatar model: ' + (xhr.loaded / xhr.total * 100) + '% loaded');
+    },
+    (error) => {
+      console.error('Error loading clean avatar model:', error);
+    }
+  );
+  
+  return avatarGroup;
+}
+
+export function createPureAvatar(scene, username, loadingManager = avatarLoadingManager) {
+  console.log('Creating pure avatar for:', username);
+  
+  // Create a group to hold the avatar and label
+  const avatarGroup = new THREE.Group();
+  avatarGroup.userData.username = username;
+  avatarGroup.userData.isAvatar = true;
+  
+  // Add username text above avatar
+  createUsernameLabel(avatarGroup, username);
+  
+  // Load the Zuckerberg model EXACTLY like the giant NPCs
+  const gltfLoader = new GLTFLoader(loadingManager);
+  const modelPath = '/assets/models/zuckerberg.glb';
+  
+  gltfLoader.load(
+    modelPath,
+    (gltf) => {
+      // Get the model
+      const model = gltf.scene;
+      
+      // Apply normal scale (not giant)
+      model.scale.set(1, 1, 1);
+      
+      // Position the model
+      model.position.y = -0.5;
+      
+      // Rotate to face forward
+      model.rotation.y = Math.PI;
+      
+      // Add the model to the avatar group
+      avatarGroup.add(model);
+      
+      // Setup animations if available
+      if (gltf.animations && gltf.animations.length > 0) {
+        const mixer = new THREE.AnimationMixer(model);
+        mixers.set(avatarGroup, mixer);
+        
+        // Create animation actions
+        const animationActions = {};
+        
+        gltf.animations.forEach((clip) => {
+          const action = mixer.clipAction(clip);
+          action.timeScale = 0.8;
+          animationActions[clip.name] = action;
+          
+          // Play idle animation by default
+          if (clip.name.toLowerCase().includes('idle')) {
+            action.play();
+          }
+        });
+        
+        // Store animation actions on the avatar group
+        avatarGroup.userData.animationActions = animationActions;
+        
+        // Add moving state control
+        avatarGroup.userData.isMoving = false;
+        avatarGroup.setMoving = function(isMoving) {
+          if (isMoving !== this.userData.isMoving) {
+            this.userData.isMoving = isMoving;
+            
+            // Find walk/run animation
+            let walkAction = null;
+            for (const name in animationActions) {
+              if (name.toLowerCase().includes('walk') || name.toLowerCase().includes('run')) {
+                walkAction = animationActions[name];
+                break;
+              }
+            }
+            
+            // Find idle animation
+            let idleAction = null;
+            for (const name in animationActions) {
+              if (name.toLowerCase().includes('idle')) {
+                idleAction = animationActions[name];
+                break;
+              }
+            }
+            
+            // Play appropriate animation with smooth transitions
+            if (isMoving && walkAction) {
+              if (idleAction) {
+                idleAction.fadeOut(0.5);
+              }
+              walkAction.reset().fadeIn(0.5).play();
+            } else if (!isMoving && idleAction) {
+              if (walkAction) {
+                walkAction.fadeOut(0.5);
+              }
+              idleAction.reset().fadeIn(0.5).play();
+            }
+          }
+        };
+      }
+      
+      console.log('Pure avatar model loaded successfully');
+    },
+    (xhr) => {
+      // Loading progress
+      console.log('Pure avatar model: ' + (xhr.loaded / xhr.total * 100) + '% loaded');
+    },
+    (error) => {
+      console.error('Error loading pure avatar model:', error);
+    }
+  );
   
   return avatarGroup;
 } 

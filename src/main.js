@@ -3,7 +3,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { io } from 'socket.io-client';
 
 import { createEnvironment } from './components/environment.js';
-import { createAvatar, createSimpleAvatar, updateAvatarAnimations } from './components/avatar.js';
+import { createAvatar, createSimpleAvatar, createDirectAvatar, createCleanAvatar, createPureAvatar, updateAvatarAnimations } from './components/avatar.js';
 import { setupControls } from './components/controls.js';
 import { setupUI } from './components/ui.js';
 import { NPCManager } from './components/npcs.js';
@@ -118,7 +118,7 @@ const environment = createEnvironment(scene, loadingManager);
 // Create player avatar
 console.log('Creating player avatar...');
 try {
-  let playerAvatar = createSimpleAvatar(scene, gameState.username, loadingManager);
+  let playerAvatar = createPureAvatar(scene, gameState.username, loadingManager);
   playerAvatar.position.set(0, 0, 0); // Set player at ground level
   scene.add(playerAvatar);
   
@@ -344,9 +344,9 @@ try {
         window.zuckerbergAnimations = null;
         window.isLoadingModel = false;
         
-        // Create new avatar using our simple avatar function
+        // Create new avatar using our pure avatar function
         try {
-          playerAvatar = createSimpleAvatar(scene, gameState.username, loadingManager);
+          playerAvatar = createPureAvatar(scene, gameState.username, loadingManager);
           playerAvatar.position.set(0, 0, 0);
           scene.add(playerAvatar);
           console.log('Player avatar model reload requested');
@@ -468,7 +468,11 @@ try {
         
         // Toggle visibility of debug helpers
         playerAvatar.traverse((node) => {
-          if (node.isHelper) {
+          if (node.isHelper || 
+              (node.name && (node.name.includes('helper') || 
+                            node.name.includes('debug') || 
+                            node.name.includes('collision') || 
+                            node.name.includes('bound')))) {
             node.visible = window.DEBUG_MODE;
           }
         });
