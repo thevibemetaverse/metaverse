@@ -29,8 +29,9 @@ export class NPCManager {
     const x = Math.cos(angle) * radius;
     const z = Math.sin(angle) * radius;
 
-    // Create NPC with random username
-    const npcName = `NPC${Math.floor(Math.random() * 1000)}`;
+    // Create NPC with Mark Z. naming convention
+    const markNumber = Math.floor(Math.random() * 1000);
+    const npcName = `Mark Z. ${markNumber}`;
     const npcAvatar = createAvatar(this.scene, npcName, this.loadingManager);
     
     // Position the NPC

@@ -85,7 +85,7 @@ loadingManager.onError = function(url) {
 // Game state
 const gameState = {
   players: {},
-  username: 'Player' + Math.floor(Math.random() * 1000),
+  username: 'Mark Z. ' + Math.floor(Math.random() * 1000),
   settings: {
     volume: 50,
     graphics: 'medium',
