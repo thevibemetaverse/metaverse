@@ -119,7 +119,9 @@ const environment = createEnvironment(scene, loadingManager);
 console.log('Creating player avatar...');
 try {
   let playerAvatar = createPureAvatar(scene, gameState.username, loadingManager);
-  playerAvatar.position.set(0, 0, 0); // Set player at ground level
+  // Position the player for a selfie view
+  playerAvatar.position.set(0, 0, 0); // Keep at origin
+  playerAvatar.rotation.y = Math.PI; // Face toward the camera (180 degrees rotation)
   scene.add(playerAvatar);
   
   // Log the player avatar structure to help debug
@@ -127,6 +129,54 @@ try {
   
   // Setup controls
   const controls = setupControls(camera, playerAvatar, renderer.domElement, gameState);
+  
+  // Position camera for a selfie-style view - in front of player looking back
+  camera.position.set(0, 1.5, 5); // In front of the player, at face level
+  camera.lookAt(0, 1.5, 0); // Looking directly at the player for selfie view
+  
+  // Temporarily disable camera following to allow viewing the landmarks
+  const originalUpdateCamera = controls.updateCamera;
+  controls.updateCamera = function() {}; // Empty function to prevent camera following
+  
+  // After a short delay, restore normal camera controls
+  setTimeout(() => {
+    console.log('Transitioning to normal camera controls');
+    controls.updateCamera = originalUpdateCamera;
+    
+    // Smoothly transition the orbit controls target
+    const startTarget = new THREE.Vector3(0, 1.5, 0); // Initial selfie-style target
+    const endTarget = new THREE.Vector3(
+      playerAvatar.position.x,
+      playerAvatar.position.y + 1,
+      playerAvatar.position.z
+    );
+    
+    // Animate the transition over 2 seconds
+    const startTime = performance.now();
+    const duration = 2000; // 2 seconds
+    
+    function animateTargetTransition() {
+      const elapsed = performance.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      
+      // Use easing function for smoother transition
+      const easedProgress = 1 - Math.pow(1 - progress, 3); // Cubic ease-out
+      
+      // Interpolate between start and end targets
+      const currentTarget = new THREE.Vector3().lerpVectors(
+        startTarget, endTarget, easedProgress
+      );
+      
+      // Update orbit controls target
+      controls.orbitControls.target.copy(currentTarget);
+      
+      if (progress < 1) {
+        requestAnimationFrame(animateTargetTransition);
+      }
+    }
+    
+    animateTargetTransition();
+  }, 5000); // 5 seconds to view the landmarks
   
   // Setup UI
   setupUI(gameState);

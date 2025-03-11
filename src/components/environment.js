@@ -20,10 +20,12 @@ export function createEnvironment(scene, loadingManager = new THREE.LoadingManag
   // Create terrain
   createTerrain(environment);
   
-  // Create landmarks
+  // Create landmarks - position them to match the reference image
   createEiffelTower(environment, loadingManager);
-  createSagradaFamilia(environment);
-  createTrees(environment);
+  createSagradaFamilia(environment, loadingManager);
+  
+  // Reduce the number of trees to make landmarks more visible
+  createTrees(environment, 50); // Reduced number of trees
   
   return environment;
 }
@@ -149,7 +151,8 @@ function createBackgroundHills(environment) {
 function createEiffelTower(environment, loadingManager) {
   // Create a placeholder for the tower while it loads
   const placeholder = new THREE.Group();
-  placeholder.position.set(100, 0, -50);
+  // Position the Eiffel Tower far in the distance near the Sagrada Familia
+  placeholder.position.set(65, 0, -70); // Moved far in the distance, to the left of Sagrada Familia
   environment.add(placeholder);
   
   // Try to load the GLB/GLTF model first
@@ -160,8 +163,8 @@ function createEiffelTower(environment, loadingManager) {
       // Model loaded successfully
       const model = gltf.scene;
       
-      // Scale and position the model
-      model.scale.set(5, 5, 5); // Adjust scale as needed
+      // Scale and position the model - make it appropriate for distant viewing
+      model.scale.set(5, 6, 5); // Adjusted scale for distant viewing
       model.position.set(0, 0, 0);
       
       // Add shadows
@@ -178,7 +181,7 @@ function createEiffelTower(environment, loadingManager) {
       // Add collision detection
       placeholder.userData.isObstacle = true;
       
-      console.log('Eiffel Tower model loaded successfully');
+      console.log('Eiffel Tower model loaded successfully - positioned in the distance');
     },
     function(xhr) {
       // Loading progress
@@ -335,74 +338,124 @@ function createEiffelTower(environment, loadingManager) {
   return placeholder;
 }
 
-function createSagradaFamilia(environment) {
-  // Create a simplified Sagrada Familia using basic geometries
-  const sagradaGroup = new THREE.Group();
+function createSagradaFamilia(environment, loadingManager) {
+  // Create a placeholder for the Sagrada Familia
+  const placeholder = new THREE.Group();
+  // Position it to be to the right and behind the Eiffel Tower relative to player spawn
+  placeholder.position.set(50, 0, -70); // Right and behind the Eiffel Tower
+  environment.add(placeholder);
   
-  // Base of the cathedral
-  const baseMaterial = new THREE.MeshStandardMaterial({ color: 0xD2B48C });
-  const base = new THREE.Mesh(
-    new THREE.BoxGeometry(30, 5, 50),
-    baseMaterial
+  // Try to load the GLB model first
+  const gltfLoader = new GLTFLoader(loadingManager);
+  gltfLoader.load(
+    '/assets/models/sagrada_familia_2.glb',
+    function(gltf) {
+      // Model loaded successfully
+      const model = gltf.scene;
+      
+      // Scale and position the model - make it 10x smaller than current size
+      model.scale.set(1, 1, 1); // Reduced from 0.8 to 0.08 (10x smaller than before)
+      model.position.set(75, 0, -70);
+      
+      // Rotate the model to face toward the player
+      model.rotation.y = Math.PI / 6; // 30-degree rotation to show a good angle from player's view
+      
+      // Add shadows
+      model.traverse(function(node) {
+        if (node.isMesh) {
+          node.castShadow = true;
+          node.receiveShadow = true;
+        }
+      });
+      
+      // Add the model to the placeholder
+      placeholder.add(model);
+      
+      // Add collision detection
+      placeholder.userData.isObstacle = true;
+      
+      console.log('Sagrada Familia model loaded successfully - scaled down to 1/100th of original size');
+    },
+    function(xhr) {
+      // Loading progress
+      console.log('Sagrada Familia: ' + (xhr.loaded / xhr.total * 100) + '% loaded');
+    },
+    function(error) {
+      // Error loading GLTF, fall back to basic geometries
+      console.warn('Error loading Sagrada Familia model, falling back to basic geometries:', error);
+      createBasicSagradaFamilia(placeholder);
+    }
   );
-  base.position.y = 2.5;
-  sagradaGroup.add(base);
   
-  // Main towers
-  const towerMaterial = new THREE.MeshStandardMaterial({ color: 0xE6BE8A });
-  
-  // Create multiple towers of different heights
-  const towerPositions = [
-    { x: -10, z: -20, height: 40, radius: 3 },
-    { x: 10, z: -20, height: 45, radius: 3 },
-    { x: -10, z: 0, height: 50, radius: 3 },
-    { x: 10, z: 0, height: 55, radius: 3 },
-    { x: -10, z: 20, height: 40, radius: 3 },
-    { x: 10, z: 20, height: 45, radius: 3 },
-  ];
-  
-  towerPositions.forEach(pos => {
-    const tower = new THREE.Mesh(
-      new THREE.CylinderGeometry(pos.radius * 0.5, pos.radius, pos.height, 8),
-      towerMaterial
-    );
-    tower.position.set(pos.x, pos.height / 2 + 5, pos.z);
+  // Function to create a basic Sagrada Familia with geometries as fallback
+  function createBasicSagradaFamilia(placeholder) {
+    console.log('Creating basic Sagrada Familia with geometries');
     
-    // Add a spire to each tower
-    const spire = new THREE.Mesh(
-      new THREE.ConeGeometry(pos.radius * 0.5, 10, 8),
-      new THREE.MeshStandardMaterial({ color: 0xFFD700 })
-    );
-    spire.position.y = pos.height / 2 + 5;
-    tower.add(spire);
+    // Create a simplified Sagrada Familia using basic geometries
+    const sagradaGroup = new THREE.Group();
     
-    sagradaGroup.add(tower);
-  });
+    // Base of the cathedral
+    const baseMaterial = new THREE.MeshStandardMaterial({ color: 0xD2B48C });
+    const base = new THREE.Mesh(
+      new THREE.BoxGeometry(30, 5, 50),
+      baseMaterial
+    );
+    base.position.y = 2.5;
+    sagradaGroup.add(base);
+    
+    // Main towers
+    const towerMaterial = new THREE.MeshStandardMaterial({ color: 0xE6BE8A });
+    
+    // Create multiple towers of different heights
+    const towerPositions = [
+      { x: -10, z: -20, height: 40, radius: 3 },
+      { x: 10, z: -20, height: 45, radius: 3 },
+      { x: -10, z: 0, height: 50, radius: 3 },
+      { x: 10, z: 0, height: 55, radius: 3 },
+      { x: -10, z: 20, height: 40, radius: 3 },
+      { x: 10, z: 20, height: 45, radius: 3 },
+    ];
+    
+    towerPositions.forEach(pos => {
+      const tower = new THREE.Mesh(
+        new THREE.CylinderGeometry(pos.radius * 0.5, pos.radius, pos.height, 8),
+        towerMaterial
+      );
+      tower.position.set(pos.x, pos.height / 2 + 5, pos.z);
+      
+      // Add a spire to each tower
+      const spire = new THREE.Mesh(
+        new THREE.ConeGeometry(pos.radius * 0.5, 10, 8),
+        new THREE.MeshStandardMaterial({ color: 0xFFD700 })
+      );
+      spire.position.y = pos.height / 2 + 5;
+      tower.add(spire);
+      
+      sagradaGroup.add(tower);
+    });
+    
+    // Add the basic Sagrada to the placeholder
+    placeholder.add(sagradaGroup);
+  }
   
-  // Position the cathedral in the environment
-  sagradaGroup.position.set(-150, 0, 100);
-  sagradaGroup.castShadow = true;
-  
-  // Add collision detection
-  sagradaGroup.userData.isObstacle = true;
-  
-  environment.add(sagradaGroup);
+  return placeholder;
 }
 
-function createTrees(environment) {
+function createTrees(environment, numTrees = 150) {
   // Create a set of simple low-poly trees scattered around
   const treePositions = [];
   
   // Generate random positions for trees, avoiding landmarks
-  for (let i = 0; i < 150; i++) { // Increased number of trees
+  for (let i = 0; i < numTrees; i++) {
     const x = Math.random() * 800 - 400;
     const z = Math.random() * 800 - 400;
     
-    // Avoid placing trees near landmarks
-    const distToEiffel = Math.sqrt(Math.pow(x - 100, 2) + Math.pow(z + 50, 2));
-    const distToSagrada = Math.sqrt(Math.pow(x + 150, 2) + Math.pow(z - 100, 2));
+    // Avoid placing trees near landmarks and player spawn
+    const distToEiffel = Math.sqrt(Math.pow(x - 30, 2) + Math.pow(z + 50, 2));
+    const distToSagrada = Math.sqrt(Math.pow(x - 50, 2) + Math.pow(z + 30, 2));
+    const distToSpawn = Math.sqrt(Math.pow(x, 2) + Math.pow(z, 2));
     
-    if (distToEiffel > 50 && distToSagrada > 70) {
+    if (distToEiffel > 50 && distToSagrada > 50 && distToSpawn > 30) {
       // Add some clustering to make tree groups
       if (Math.random() < 0.3) {
         // Add a cluster of trees
