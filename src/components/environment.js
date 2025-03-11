@@ -29,49 +29,121 @@ export function createEnvironment(scene, loadingManager = new THREE.LoadingManag
 }
 
 function createSky(scene) {
-  // Create a bright blue sky
+  // Create a bright blue sky similar to the screenshot
   scene.background = new THREE.Color(0x87CEEB);
   
   // Add a simple directional light to simulate sun
-  const sunLight = new THREE.DirectionalLight(0xFFFFAA, 1);
+  const sunLight = new THREE.DirectionalLight(0xFFFFAA, 1.2);
   sunLight.position.set(100, 100, 100);
+  sunLight.castShadow = true;
+  
+  // Improve shadow quality
+  sunLight.shadow.mapSize.width = 2048;
+  sunLight.shadow.mapSize.height = 2048;
+  sunLight.shadow.camera.near = 0.5;
+  sunLight.shadow.camera.far = 500;
+  sunLight.shadow.camera.left = -100;
+  sunLight.shadow.camera.right = 100;
+  sunLight.shadow.camera.top = 100;
+  sunLight.shadow.camera.bottom = -100;
+  
   scene.add(sunLight);
+  
+  // Add ambient light to brighten shadows
+  const ambientLight = new THREE.AmbientLight(0xCCDDFF, 0.5);
+  scene.add(ambientLight);
 }
 
 function createTerrain(environment) {
-  // Create a large flat ground plane with rolling hills
-  const groundGeometry = new THREE.PlaneGeometry(1000, 1000, 100, 100);
+  // Create a completely flat ground plane for the player to walk on
+  const groundGeometry = new THREE.PlaneGeometry(500, 500);
   
-  // Create rolling hills by modifying the vertices
-  const vertices = groundGeometry.attributes.position.array;
-  for (let i = 0; i < vertices.length; i += 3) {
-    // Skip the edges to keep them flat
-    const x = vertices[i];
-    const z = vertices[i + 2];
-    
-    if (Math.abs(x) < 490 && Math.abs(z) < 490) {
-      // Create gentle rolling hills
-      vertices[i + 1] = Math.sin(x * 0.02) * Math.cos(z * 0.02) * 5;
-    }
-  }
-  
-  // Update normals after modifying vertices
-  groundGeometry.computeVertexNormals();
-  
-  // Create a bright green material for the ground
+  // Create a vibrant green material for the ground
   const groundMaterial = new THREE.MeshStandardMaterial({
-    color: 0x7CFC00,
+    color: 0x4CBB17, // Kelly Green - vibrant green
     side: THREE.DoubleSide,
-    flatShading: true
+    roughness: 0.8,
+    metalness: 0.1
   });
   
   const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-  ground.rotation.x = -Math.PI / 2;
+  ground.rotation.x = -Math.PI / 2; // Rotate to be horizontal
+  ground.position.y = 0; // Place at y=0
   ground.receiveShadow = true;
   environment.add(ground);
   
   // Add collision detection for the ground
   ground.userData.isGround = true;
+  
+  // Add background hills
+  createBackgroundHills(environment);
+}
+
+// New function to create larger background hills
+function createBackgroundHills(environment) {
+  // Create several large hills in the background
+  const hillColors = [
+    0x7EC850, // Light green
+    0x71BC78, // Fern green
+    0x4CBB17, // Kelly green
+    0x3CB371  // Medium sea green
+  ];
+  
+  // Create a continuous range of hills in the far background
+  const hillSegments = 16; // Increased number of segments for smoother appearance
+  const baseDistance = 800; // Place hills even further back
+  
+  for (let i = 0; i < hillSegments; i++) {
+    const angle = (i / hillSegments) * Math.PI * 2;
+    const x = Math.cos(angle) * baseDistance;
+    const z = Math.sin(angle) * baseDistance;
+    
+    // Create a hill geometry - use a half sphere for a smoother look
+    const hillGeometry = new THREE.SphereGeometry(250 + Math.random() * 50, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+    const hillMaterial = new THREE.MeshStandardMaterial({
+      color: hillColors[i % hillColors.length],
+      flatShading: false,
+      roughness: 0.9,
+      metalness: 0.1
+    });
+    
+    const hill = new THREE.Mesh(hillGeometry, hillMaterial);
+    hill.position.set(x, -180, z); // Position lower to create just the top of hills visible
+    hill.scale.y = 0.6 + Math.random() * 0.2; // Less height variation
+    hill.scale.x = 1.8 + Math.random() * 0.4; // More horizontal stretch
+    hill.scale.z = 1.8 + Math.random() * 0.4;
+    hill.rotation.y = angle; // Align with the circle
+    hill.castShadow = true;
+    hill.receiveShadow = true;
+    environment.add(hill);
+  }
+  
+  // Add a second row of hills slightly closer with offset angles for more depth
+  const innerHillSegments = 12;
+  const innerDistance = baseDistance - 100;
+  
+  for (let i = 0; i < innerHillSegments; i++) {
+    const offsetAngle = ((i + 0.5) / innerHillSegments) * Math.PI * 2;
+    const innerX = Math.cos(offsetAngle) * innerDistance;
+    const innerZ = Math.sin(offsetAngle) * innerDistance;
+    
+    const innerHillGeometry = new THREE.SphereGeometry(200 + Math.random() * 40, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+    const innerHill = new THREE.Mesh(innerHillGeometry, new THREE.MeshStandardMaterial({
+      color: hillColors[(i + 1) % hillColors.length],
+      flatShading: false,
+      roughness: 0.9,
+      metalness: 0.1
+    }));
+    
+    innerHill.position.set(innerX, -150, innerZ);
+    innerHill.scale.y = 0.5 + Math.random() * 0.2;
+    innerHill.scale.x = 1.6 + Math.random() * 0.3;
+    innerHill.scale.z = 1.6 + Math.random() * 0.3;
+    innerHill.rotation.y = offsetAngle;
+    innerHill.castShadow = true;
+    innerHill.receiveShadow = true;
+    environment.add(innerHill);
+  }
 }
 
 function createEiffelTower(environment, loadingManager) {
@@ -322,7 +394,7 @@ function createTrees(environment) {
   const treePositions = [];
   
   // Generate random positions for trees, avoiding landmarks
-  for (let i = 0; i < 100; i++) {
+  for (let i = 0; i < 150; i++) { // Increased number of trees
     const x = Math.random() * 800 - 400;
     const z = Math.random() * 800 - 400;
     
@@ -331,7 +403,26 @@ function createTrees(environment) {
     const distToSagrada = Math.sqrt(Math.pow(x + 150, 2) + Math.pow(z - 100, 2));
     
     if (distToEiffel > 50 && distToSagrada > 70) {
-      treePositions.push({ x, z });
+      // Add some clustering to make tree groups
+      if (Math.random() < 0.3) {
+        // Add a cluster of trees
+        const clusterSize = Math.floor(Math.random() * 3) + 2;
+        for (let j = 0; j < clusterSize; j++) {
+          const offsetX = Math.random() * 15 - 7.5;
+          const offsetZ = Math.random() * 15 - 7.5;
+          treePositions.push({ 
+            x: x + offsetX, 
+            z: z + offsetZ,
+            scale: 0.7 + Math.random() * 0.6 // Varied scale for natural look
+          });
+        }
+      } else {
+        treePositions.push({ 
+          x, 
+          z,
+          scale: 0.8 + Math.random() * 0.4 // Varied scale for natural look
+        });
+      }
     }
   }
   
@@ -339,6 +430,7 @@ function createTrees(environment) {
   treePositions.forEach(pos => {
     const tree = createTree();
     tree.position.set(pos.x, 0, pos.z);
+    tree.scale.set(pos.scale, pos.scale, pos.scale);
     environment.add(tree);
   });
 }
@@ -346,21 +438,40 @@ function createTrees(environment) {
 function createTree() {
   const treeGroup = new THREE.Group();
   
-  // Tree trunk
-  const trunkGeometry = new THREE.CylinderGeometry(0.5, 1, 5, 6);
-  const trunkMaterial = new THREE.MeshStandardMaterial({ color: 0x8B4513 });
+  // Tree trunk - shorter and thicker
+  const trunkGeometry = new THREE.CylinderGeometry(0.7, 1.2, 3, 6);
+  const trunkMaterial = new THREE.MeshStandardMaterial({ 
+    color: 0x8B4513,
+    roughness: 0.9,
+    metalness: 0.1
+  });
   const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
-  trunk.position.y = 2.5;
+  trunk.position.y = 1.5;
   trunk.castShadow = true;
   treeGroup.add(trunk);
   
-  // Tree foliage (low-poly)
-  const foliageGeometry = new THREE.ConeGeometry(3, 7, 6);
-  const foliageMaterial = new THREE.MeshStandardMaterial({ color: 0x228B22 });
+  // Tree foliage - more stylized, rounded shape like in the screenshot
+  const foliageGeometry = new THREE.SphereGeometry(3, 8, 8);
+  const foliageMaterial = new THREE.MeshStandardMaterial({ 
+    color: 0x228B22, // Forest green
+    roughness: 0.8,
+    metalness: 0.1
+  });
   const foliage = new THREE.Mesh(foliageGeometry, foliageMaterial);
-  foliage.position.y = 8;
+  foliage.position.y = 5;
+  foliage.scale.y = 1.2; // Slightly elongated vertically
   foliage.castShadow = true;
   treeGroup.add(foliage);
+  
+  // Add a second, smaller foliage sphere on top for some trees (randomly)
+  if (Math.random() < 0.4) {
+    const topFoliageGeometry = new THREE.SphereGeometry(2, 8, 8);
+    const topFoliage = new THREE.Mesh(topFoliageGeometry, foliageMaterial);
+    topFoliage.position.y = 7.5;
+    topFoliage.scale.y = 1.1;
+    topFoliage.castShadow = true;
+    treeGroup.add(topFoliage);
+  }
   
   // Add collision detection
   treeGroup.userData.isObstacle = true;
