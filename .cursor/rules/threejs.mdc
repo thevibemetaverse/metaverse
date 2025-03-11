@@ -1,0 +1,113 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+
+# Your rule content
+MetaVerse Walking Simulator: Game Requirements Document
+Game Concept
+Create a satirical walking simulator set in a simplified "metaverse" environment where all users appear as identical avatars, reflecting the meme's commentary on virtual reality platforms.
+Core Mechanics
+Avatar System
+
+All players should appear as identical stylized avatars wearing dark shirts with buttons
+Each player should have their username displayed above their avatar
+No avatar customization in the initial release (to emphasize the satirical uniformity)
+
+Movement & Controls
+
+First-person and third-person camera options
+WASD/arrow keys for movement
+Mouse for camera control
+Spacebar for jumping
+Simple collision detection with environment objects
+
+Environment
+
+Create a simplified, low-poly world featuring recognizable landmarks:
+
+Eiffel Tower
+Sagrada Familia cathedral
+Rolling green hills
+Simple trees
+
+
+Use a bright, vibrant color palette with minimal texturing
+Implement a perpetually clear blue sky
+
+Multiplayer Features
+
+Support for at least 20 simultaneous players
+Simple proximity-based voice chat
+Player position syncing
+Player join/leave notifications
+
+User Interface
+
+Minimalistic UI with:
+
+Player name display
+Connected users list
+Simple emoji reaction system
+Settings menu (volume, graphics, controls)
+
+
+
+Technical Requirements
+Three.js Implementation
+
+Use Three.js for 3D rendering
+Implement efficient low-poly models to ensure good performance
+Utilize WebGL for rendering
+Support for desktop and mobile browsers
+
+Networking
+
+WebSocket connection for real-time player position updates
+Simple server architecture to handle player connections
+Data optimization to minimize bandwidth usage
+
+Performance Targets
+
+60 FPS on mid-range hardware
+Mobile-friendly version at 30 FPS
+Optimize asset loading for faster initial experience
+
+Development Milestones
+
+Environment Creation
+
+Basic terrain implementation
+Landmark models placement
+Lighting and sky setup
+
+
+Avatar & Movement System
+
+Avatar model implementation
+Basic movement controls
+Camera systems
+
+
+Multiplayer Foundation
+
+Server connection
+Player position syncing
+Username display system
+
+
+Polish & Optimization
+
+Performance tuning
+UI refinement
+Browser compatibility testing
+
+
+
+Additional Notes for Junior Developer
+
+Focus on performance optimization from the start as WebGL can be demanding
+Keep the visual style intentionally simplified to match the meme's aesthetic
+Use Three.js's built-in geometries where possible to reduce development time
+Consider using a physics library like Cannon.js for more realistic movement, but this is optional for the first version
