@@ -609,6 +609,17 @@ try {
         // Give an initial speed boost when entering skateboard mode
         if (controls.isSkateboardMode) {
           controls.skateboardSpeed = controls.maxSkateboardSpeed / 2; // Start at half max speed
+          
+          // Create a burst of skateboard emojis when entering skateboard mode
+          if (emojiEffects) {
+            // Calculate position behind the player
+            const cameraDirection = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+            const position = playerAvatar.position.clone().add(cameraDirection.multiplyScalar(2));
+            position.y += 0.5; // Slightly above ground level
+            
+            console.log('Creating skateboard emoji burst at position:', position);
+            emojiEffects.createEmojiBurst('🛹', position, 5); // Create 5 skateboard emojis
+          }
         } else {
           controls.skateboardSpeed = 0;
         }

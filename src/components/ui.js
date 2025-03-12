@@ -114,7 +114,7 @@ export function createEmojiBar() {
   emojiContainer.style.boxShadow = '0 3px 10px rgba(0, 0, 0, 0.5)';
   
   // Create emoji buttons
-  const emojis = ['👋', '👍', '❤️', '😂', '🎉', '🛹'];
+  const emojis = ['👋', '👍', '❤️', '😂', '🎉'];
   emojis.forEach(emoji => {
     const button = document.createElement('button');
     button.textContent = emoji;
@@ -129,50 +129,71 @@ export function createEmojiBar() {
     button.addEventListener('click', () => {
       console.log('Emoji clicked:', emoji);
       
-      if (emoji === '🛹') {
-        // Toggle skateboard mode
-        button.classList.toggle('active');
-        const event = new CustomEvent('toggle-skateboard-mode', { 
-          detail: { 
-            isActive: button.classList.contains('active')
-          }
-        });
-        document.dispatchEvent(event);
+      // Use the window.showEmojiReaction function if available
+      if (window.showEmojiReaction) {
+        window.showEmojiReaction(emoji);
       } else {
-        // Use the window.showEmojiReaction function if available
-        if (window.showEmojiReaction) {
-          window.showEmojiReaction(emoji);
-        } else {
-          // Fallback to 2D animation
-          // Create floating emoji element
-          const element = document.createElement('div');
-          element.textContent = emoji;
-          element.style.position = 'fixed';
-          element.style.fontSize = '60px';
-          element.style.left = '50%';
-          element.style.bottom = '40%';
-          element.style.transform = 'translateX(-50%)';
-          element.style.zIndex = '10000';
-          element.style.pointerEvents = 'none';
-          
-          // Add animation
-          element.style.animation = 'float-up 2s ease-out forwards';
-          
-          // Add to document
-          document.body.appendChild(element);
-          
-          // Remove after animation completes
-          setTimeout(() => {
-            if (document.body.contains(element)) {
-              document.body.removeChild(element);
-            }
-          }, 2000);
-        }
+        // Fallback to 2D animation
+        // Create floating emoji element
+        const element = document.createElement('div');
+        element.textContent = emoji;
+        element.style.position = 'fixed';
+        element.style.fontSize = '60px';
+        element.style.left = '50%';
+        element.style.bottom = '40%';
+        element.style.transform = 'translateX(-50%)';
+        element.style.zIndex = '10000';
+        element.style.pointerEvents = 'none';
+        
+        // Add animation
+        element.style.animation = 'float-up 2s ease-out forwards';
+        
+        // Add to document
+        document.body.appendChild(element);
+        
+        // Remove after animation completes
+        setTimeout(() => {
+          if (document.body.contains(element)) {
+            document.body.removeChild(element);
+          }
+        }, 2000);
       }
     });
     
     emojiContainer.appendChild(button);
   });
+
+  // Add divider
+  const divider = document.createElement('div');
+  divider.style.width = '1px';
+  divider.style.height = '30px';
+  divider.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
+  divider.style.margin = '0 5px';
+  emojiContainer.appendChild(divider);
+
+  // Add skateboard button
+  const skateboardButton = document.createElement('button');
+  skateboardButton.textContent = '🛹';
+  skateboardButton.style.fontSize = '28px';
+  skateboardButton.style.backgroundColor = 'transparent';
+  skateboardButton.style.border = 'none';
+  skateboardButton.style.cursor = 'pointer';
+  skateboardButton.style.color = 'white';
+  skateboardButton.style.padding = '5px';
+  
+  // Add click handler for skateboard
+  skateboardButton.addEventListener('click', () => {
+    console.log('Skateboard clicked');
+    skateboardButton.classList.toggle('active');
+    const event = new CustomEvent('toggle-skateboard-mode', { 
+      detail: { 
+        isActive: skateboardButton.classList.contains('active')
+      }
+    });
+    document.dispatchEvent(event);
+  });
+  
+  emojiContainer.appendChild(skateboardButton);
   
   // Add the emoji bar to the document body
   document.body.appendChild(emojiContainer);
