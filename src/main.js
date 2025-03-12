@@ -7,9 +7,10 @@ import { io } from 'socket.io-client';
 import { createEnvironment } from './components/environment.js';
 import { createAvatar, createSimpleAvatar, createDirectAvatar, createCleanAvatar, createPureAvatar, updateAvatarAnimations } from './components/avatar.js';
 import { setupControls } from './components/controls.js';
-import { setupUI } from './components/ui.js';
+import { setupUI, createEmojiBar, showEmojiReaction } from './components/ui.js';
 import { NPCManager } from './components/npcs.js';
 import { PokeMechanic } from './components/pokeMechanic.js';
+import { EmojiEffects } from './components/emojiEffects.js';
 import { setupMobileControls, isMobileDevice, optimizeForMobile, setupDeviceOrientation, createMobileUI } from './components/mobileControls.js';
 
 // Detect if we're on a mobile device
@@ -589,6 +590,89 @@ try {
   // Initialize NPCs
   npcManager.initialize();
   
+  // Initialize emoji effects
+  let emojiEffects = new EmojiEffects(scene, camera);
+  console.log('EmojiEffects initialized with scene and camera');
+  
+  // Add skateboard mode toggle listener
+  document.addEventListener('toggle-skateboard-mode', function(event) {
+    console.log('Skateboard mode toggle event received:', event.detail.isActive);
+    if (controls) {
+      controls.isSkateboardMode = event.detail.isActive;
+      console.log('Skateboard mode set to:', controls.isSkateboardMode);
+      
+      // Update skateboard visibility
+      if (controls.skateboard) {
+        controls.skateboard.visible = controls.isSkateboardMode;
+        console.log('Skateboard visibility set to:', controls.skateboard.visible);
+        
+        // Give an initial speed boost when entering skateboard mode
+        if (controls.isSkateboardMode) {
+          controls.skateboardSpeed = controls.maxSkateboardSpeed / 2; // Start at half max speed
+          
+          // Create a burst of skateboard emojis when entering skateboard mode
+          if (emojiEffects) {
+            // Calculate position behind the player
+            const cameraDirection = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+            const position = playerAvatar.position.clone().add(cameraDirection.multiplyScalar(2));
+            position.y += 0.5; // Slightly above ground level
+            
+            console.log('Creating skateboard emoji burst at position:', position);
+            emojiEffects.createEmojiBurst('🛹', position, 5); // Create 5 skateboard emojis
+          }
+        } else {
+          controls.skateboardSpeed = 0;
+        }
+      } else {
+        console.warn('Skateboard model not loaded yet!');
+      }
+    }
+  });
+  
+  // Override the showEmojiReaction function to use 3D emojis
+  window.showEmojiReaction = function(emoji) {
+    console.log('3D Emoji reaction triggered:', emoji);
+    
+    if (!emojiEffects) {
+      console.error('EmojiEffects not initialized!');
+      return;
+    }
+    
+    // Calculate position in front of the camera
+    const cameraDirection = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+    const position = camera.position.clone().add(cameraDirection.multiplyScalar(3));
+    position.y += 0.5; // Slightly above eye level
+    
+    console.log('Creating emoji at position:', position);
+    
+    // Create a burst of emojis
+    emojiEffects.createEmojiBurst(emoji, position, 8);
+  };
+  
+  // Listen for emoji-reaction events
+  document.addEventListener('emoji-reaction', function(event) {
+    console.log('Emoji reaction event received:', event.detail.emoji);
+    
+    if (!emojiEffects) {
+      console.error('EmojiEffects not initialized!');
+      return;
+    }
+    
+    // Calculate position in front of the camera
+    const cameraDirection = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+    const position = camera.position.clone().add(cameraDirection.multiplyScalar(3));
+    position.y += 0.5; // Slightly above eye level
+    
+    console.log('Creating emoji at position:', position);
+    
+    // Create a burst of emojis
+    emojiEffects.createEmojiBurst(event.detail.emoji, position, 8);
+  });
+  
+  // Initialize emoji bar
+  const emojiBar = createEmojiBar();
+  console.log('Emoji bar initialized in main.js');
+  
   // Setup socket connection for multiplayer
   let socket;
   try {
@@ -824,6 +908,19 @@ try {
     
     // Update poke mechanic
     pokeMechanic.update();
+    
+    // Update emoji effects
+    if (emojiEffects) {
+      emojiEffects.update();
+    } else {
+      console.warn('EmojiEffects not available in animation loop');
+    }
+    
+    // Check if emoji bar exists and create it if not
+    if (!document.getElementById('emoji-bar-container')) {
+      console.log('Emoji bar not found in animate loop, recreating...');
+      createEmojiBar();
+    }
     
     // Update player position on server
     if (socket && socket.connected) {
@@ -1144,6 +1241,11 @@ renderer.setAnimationLoop(function() {
   // Update poke mechanic
   if (pokeMechanic) {
     pokeMechanic.update();
+  }
+  
+  // Update emoji effects
+  if (emojiEffects) {
+    emojiEffects.update();
   }
   
   // Render scene
