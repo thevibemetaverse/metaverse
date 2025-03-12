@@ -707,6 +707,10 @@ export class PokeMechanic {
   
   // Create leaderboard UI
   createLeaderboardUI() {
+    // Check if we're on mobile
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                    (window.innerWidth <= 800 && window.innerHeight <= 900);
+    
     // Create leaderboard container
     const leaderboardContainer = document.createElement('div');
     leaderboardContainer.id = 'poke-leaderboard';
@@ -715,19 +719,96 @@ export class PokeMechanic {
     leaderboardContainer.style.left = '10px'; // Position in top left instead of right
     leaderboardContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
     leaderboardContainer.style.color = 'white';
-    leaderboardContainer.style.padding = '10px';
+    leaderboardContainer.style.padding = isMobile ? '8px' : '10px';
     leaderboardContainer.style.borderRadius = '5px';
-    leaderboardContainer.style.maxWidth = '250px';
-    leaderboardContainer.style.maxHeight = '300px';
+    leaderboardContainer.style.maxWidth = isMobile ? '220px' : '250px';
+    leaderboardContainer.style.maxHeight = isMobile ? '250px' : '300px';
     leaderboardContainer.style.overflowY = 'auto';
     leaderboardContainer.style.zIndex = '1000';
-    leaderboardContainer.style.display = 'block'; // Always visible
+    leaderboardContainer.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+    leaderboardContainer.style.boxShadow = '0 3px 10px rgba(0, 0, 0, 0.3)';
+    leaderboardContainer.style.fontSize = isMobile ? '14px' : '16px';
+    
+    // Set initial display state based on device
+    if (isMobile) {
+      // Collapsed by default on mobile
+      leaderboardContainer.style.transform = 'translateX(-220px)';
+      leaderboardContainer.style.opacity = '0.2';
+    } else {
+      // Expanded by default on desktop
+      leaderboardContainer.style.transform = 'translateX(0)';
+      leaderboardContainer.style.opacity = '1';
+    }
+    
+    // Create toggle button for mobile
+    const toggleButton = document.createElement('div');
+    toggleButton.id = 'poke-leaderboard-toggle';
+    toggleButton.style.position = 'absolute';
+    toggleButton.style.top = '10px';
+    toggleButton.style.left = isMobile ? '10px' : '260px'; // Position based on device
+    toggleButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+    toggleButton.style.color = 'white';
+    toggleButton.style.width = isMobile ? '40px' : '30px'; // Larger on mobile
+    toggleButton.style.height = isMobile ? '40px' : '30px'; // Larger on mobile
+    toggleButton.style.borderRadius = '50%';
+    toggleButton.style.display = 'flex';
+    toggleButton.style.justifyContent = 'center';
+    toggleButton.style.alignItems = 'center';
+    toggleButton.style.cursor = 'pointer';
+    toggleButton.style.zIndex = '1001';
+    toggleButton.style.boxShadow = '0 2px 5px rgba(0, 0, 0, 0.3)';
+    toggleButton.innerHTML = isMobile ? '📊' : '◀';
+    toggleButton.style.fontSize = isMobile ? '20px' : '16px'; // Larger font on mobile
+    toggleButton.style.transition = 'background-color 0.2s ease, transform 0.2s ease';
+    
+    // Add active state effect
+    toggleButton.addEventListener('touchstart', () => {
+      toggleButton.style.backgroundColor = 'rgba(50, 50, 50, 0.9)';
+      toggleButton.style.transform = 'scale(0.95)';
+    }, { passive: true });
+    
+    toggleButton.addEventListener('touchend', () => {
+      toggleButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+      toggleButton.style.transform = 'scale(1)';
+    }, { passive: true });
+    
+    // Add hover effect for desktop
+    toggleButton.addEventListener('mouseenter', () => {
+      toggleButton.style.backgroundColor = 'rgba(50, 50, 50, 0.9)';
+    });
+    
+    toggleButton.addEventListener('mouseleave', () => {
+      toggleButton.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+    });
+    
+    document.body.appendChild(toggleButton);
+    
+    // Toggle functionality
+    let isExpanded = !isMobile;
+    toggleButton.addEventListener('click', () => {
+      isExpanded = !isExpanded;
+      
+      if (isExpanded) {
+        // Expand
+        leaderboardContainer.style.transform = 'translateX(0)';
+        leaderboardContainer.style.opacity = '1';
+        toggleButton.innerHTML = '◀';
+        toggleButton.style.left = isMobile ? '230px' : '260px';
+      } else {
+        // Collapse
+        leaderboardContainer.style.transform = 'translateX(-220px)';
+        leaderboardContainer.style.opacity = '0.2';
+        toggleButton.innerHTML = '📊';
+        toggleButton.style.left = '10px';
+      }
+    });
     
     // Create leaderboard title
     const leaderboardTitle = document.createElement('h3');
     leaderboardTitle.textContent = 'Poke Leaderboard';
     leaderboardTitle.style.margin = '0 0 10px 0';
     leaderboardTitle.style.textAlign = 'center';
+    leaderboardTitle.style.fontSize = isMobile ? '16px' : '18px';
     leaderboardContainer.appendChild(leaderboardTitle);
     
     // Create leaderboard list
@@ -740,6 +821,27 @@ export class PokeMechanic {
     
     // Add the leaderboard to the document
     document.body.appendChild(leaderboardContainer);
+    
+    // Handle window resize
+    window.addEventListener('resize', () => {
+      const nowMobile = window.innerWidth <= 800;
+      
+      if (nowMobile && isExpanded) {
+        // Collapse on mobile if it was expanded
+        leaderboardContainer.style.transform = 'translateX(-220px)';
+        leaderboardContainer.style.opacity = '0.2';
+        toggleButton.innerHTML = '📊';
+        toggleButton.style.left = '10px';
+        isExpanded = false;
+      } else if (!nowMobile && !isExpanded) {
+        // Expand on desktop if it was collapsed
+        leaderboardContainer.style.transform = 'translateX(0)';
+        leaderboardContainer.style.opacity = '1';
+        toggleButton.innerHTML = '◀';
+        toggleButton.style.left = '260px';
+        isExpanded = true;
+      }
+    });
   }
   
   // Sort leaderboard
@@ -752,6 +854,9 @@ export class PokeMechanic {
     const leaderboardList = document.getElementById('poke-leaderboard-list');
     if (!leaderboardList) return;
     
+    // Check if we're on mobile
+    const isMobile = window.innerWidth <= 800;
+    
     // Clear the list
     leaderboardList.innerHTML = '';
     
@@ -760,8 +865,9 @@ export class PokeMechanic {
     
     topObjects.forEach((entry, index) => {
       const listItem = document.createElement('li');
-      listItem.style.padding = '5px 0';
+      listItem.style.padding = isMobile ? '4px 0' : '5px 0';
       listItem.style.borderBottom = index < topObjects.length - 1 ? '1px solid rgba(255, 255, 255, 0.2)' : 'none';
+      listItem.style.fontSize = isMobile ? '12px' : '14px';
       
       // Add medal for top 3
       let medal = '';
@@ -769,7 +875,12 @@ export class PokeMechanic {
       else if (index === 1) medal = '🥈 ';
       else if (index === 2) medal = '🥉 ';
       
-      listItem.innerHTML = `${medal}${index + 1}. <strong>${entry.name}</strong>: ${entry.pokeCount} pokes`;
+      // Shorter display for mobile
+      if (isMobile && entry.name.length > 10) {
+        listItem.innerHTML = `${medal}${index + 1}. <strong>${entry.name.substring(0, 10)}...</strong>: ${entry.pokeCount}`;
+      } else {
+        listItem.innerHTML = `${medal}${index + 1}. <strong>${entry.name}</strong>: ${entry.pokeCount} pokes`;
+      }
       
       // Highlight if it has pokes
       if (entry.pokeCount > 0) {
