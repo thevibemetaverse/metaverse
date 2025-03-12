@@ -712,7 +712,7 @@ export class PokeMechanic {
     leaderboardContainer.id = 'poke-leaderboard';
     leaderboardContainer.style.position = 'absolute';
     leaderboardContainer.style.top = '10px';
-    leaderboardContainer.style.right = '10px';
+    leaderboardContainer.style.left = '10px'; // Position in top left instead of right
     leaderboardContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
     leaderboardContainer.style.color = 'white';
     leaderboardContainer.style.padding = '10px';
@@ -721,7 +721,7 @@ export class PokeMechanic {
     leaderboardContainer.style.maxHeight = '300px';
     leaderboardContainer.style.overflowY = 'auto';
     leaderboardContainer.style.zIndex = '1000';
-    leaderboardContainer.style.display = 'none'; // Hidden by default
+    leaderboardContainer.style.display = 'block'; // Always visible
     
     // Create leaderboard title
     const leaderboardTitle = document.createElement('h3');
@@ -738,33 +738,8 @@ export class PokeMechanic {
     leaderboardList.style.margin = '0';
     leaderboardContainer.appendChild(leaderboardList);
     
-    // Create toggle button
-    const toggleButton = document.createElement('button');
-    toggleButton.textContent = 'Poke Leaderboard';
-    toggleButton.style.position = 'absolute';
-    toggleButton.style.top = '10px';
-    toggleButton.style.right = '10px';
-    toggleButton.style.padding = '5px 10px';
-    toggleButton.style.backgroundColor = '#4CAF50';
-    toggleButton.style.color = 'white';
-    toggleButton.style.border = 'none';
-    toggleButton.style.borderRadius = '5px';
-    toggleButton.style.cursor = 'pointer';
-    toggleButton.style.zIndex = '1001';
-    
-    // Toggle leaderboard visibility
-    toggleButton.addEventListener('click', () => {
-      if (leaderboardContainer.style.display === 'none') {
-        leaderboardContainer.style.display = 'block';
-        toggleButton.textContent = 'Hide Leaderboard';
-      } else {
-        leaderboardContainer.style.display = 'none';
-        toggleButton.textContent = 'Poke Leaderboard';
-      }
-    });
-    
+    // Add the leaderboard to the document
     document.body.appendChild(leaderboardContainer);
-    document.body.appendChild(toggleButton);
   }
   
   // Sort leaderboard

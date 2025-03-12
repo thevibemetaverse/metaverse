@@ -43,9 +43,9 @@ export class NPCManager {
     const x = Math.cos(angle) * radius;
     const z = Math.sin(angle) * radius;
 
-    // Create NPC with Mark Z. naming convention
-    const markNumber = Math.floor(Math.random() * 1000);
-    const npcName = `Mark Z. ${markNumber}`;
+    // Create NPC with a fun name instead of Mark Z.
+    const npcNames = ["Metaverse Citizen", "Digital Dweller", "Virtual Visitor", "Pixel Person", "Data Denizen"];
+    const npcName = npcNames[Math.floor(Math.random() * npcNames.length)];
     
     // Load the Zuckerberg model for regular NPCs
     const gltfLoader = new GLTFLoader(this.loadingManager);
@@ -160,8 +160,8 @@ export class NPCManager {
 
   // Spawn a giant Zuckerberg NPC
   spawnGiantZuckerberg(x, z) {
-    // Create a giant Zuckerberg NPC
-    const npcName = `Giant Zuck`;
+    // Create a giant Zuckerberg NPC with a more interesting name
+    const npcName = `Colossal Entity`;
     
     // Load the Zuckerberg model
     const gltfLoader = new GLTFLoader(this.loadingManager);
@@ -289,11 +289,11 @@ export class NPCManager {
           this.scene.add(model);
           
           // Add name label with increased height
-          this.addNameLabel(model, "Giant Zuck", 100);
+          this.addNameLabel(model, "Colossal Entity", 100);
           
           // Register as pokeable if poke mechanic is available
           if (this.pokeMechanic) {
-            this.pokeMechanic.registerPokeableObject(model, "Giant Zuck");
+            this.pokeMechanic.registerPokeableObject(model, "Colossal Entity");
           }
           
           // Setup animations if available
@@ -326,14 +326,14 @@ export class NPCManager {
             // Play idle animation if found
             if (idleAction) {
               idleAction.reset().play();
-              console.log(`Playing idle animation for Alternative Giant Zuck`);
+              console.log(`Playing idle animation for Alternative Giant NPC`);
             }
           }
           
           // Store giant NPC data
           const giant = {
             model: model,
-            name: "Giant Zuck",
+            name: "Colossal Entity",
             position: model.position,
             mixer: mixer,
             idleAction: idleAction
@@ -357,7 +357,7 @@ export class NPCManager {
   // Create a fallback giant NPC using createAvatar
   createFallbackGiant(x, z) {
     // Create a basic avatar as fallback
-    const avatar = createAvatar(this.scene, "Giant Zuck");
+    const avatar = createAvatar(this.scene, "Colossal Entity");
     
     // Scale and position the avatar - make it MUCH bigger (50x)
     avatar.scale.set(50, 50, 50);
@@ -369,7 +369,7 @@ export class NPCManager {
     // Store NPC data
     const giant = {
       model: avatar,
-      name: "Giant Zuck",
+      name: "Colossal Entity",
       position: avatar.position,
       // The avatar created by createAvatar should already have animation setup
       mixer: avatar.userData.mixer || null,
@@ -396,14 +396,15 @@ export class NPCManager {
     
     // Register as pokeable if poke mechanic is available
     if (this.pokeMechanic) {
-      this.pokeMechanic.registerPokeableObject(avatar, "Giant Zuck");
+      this.pokeMechanic.registerPokeableObject(avatar, "Colossal Entity");
     }
   }
   
   // Create a fallback regular NPC using createAvatar
   createFallbackNPC(x, z) {
-    // Create a basic avatar as fallback
-    const npcName = `Mark Z. ${Math.floor(Math.random() * 1000)}`;
+    // Create a basic avatar as fallback with a fun name
+    const npcNames = ["Metaverse Citizen", "Digital Dweller", "Virtual Visitor", "Pixel Person", "Data Denizen"];
+    const npcName = npcNames[Math.floor(Math.random() * npcNames.length)];
     const avatar = createAvatar(this.scene, npcName);
     
     // Position the avatar
