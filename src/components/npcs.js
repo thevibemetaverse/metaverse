@@ -79,13 +79,72 @@ export class NPCManager {
           this.pokeMechanic.registerPokeableObject(model, npcName);
         }
         
+        // Setup animations if available
+        let mixer = null;
+        let runAction = null;
+        let idleAction = null;
+        
+        if (animations && animations.length > 0) {
+          // Create animation mixer
+          mixer = new THREE.AnimationMixer(model);
+          
+          // Log available animations to help with debugging
+          console.log(`NPC ${npcName} animations:`, animations.map(a => a.name).join(', '));
+          
+          // Find run and idle animations
+          animations.forEach((clip) => {
+            const lowerName = clip.name.toLowerCase();
+            if (lowerName.includes('run') || lowerName.includes('walk')) {
+              console.log(`Found running animation: ${clip.name}`);
+              runAction = mixer.clipAction(clip);
+            } else if (lowerName.includes('idle') || lowerName.includes('stand')) {
+              console.log(`Found idle animation: ${clip.name}`);
+              idleAction = mixer.clipAction(clip);
+            }
+          });
+          
+          // If we couldn't find specific animations, try to use any animation
+          if (!runAction && animations.length > 0) {
+            // Try to find the most likely running animation by name or use the first animation
+            for (const clip of animations) {
+              const lowerName = clip.name.toLowerCase();
+              // Common names for running/walking animations
+              if (lowerName.includes('run') || lowerName.includes('walk') || 
+                  lowerName.includes('jog') || lowerName.includes('move')) {
+                runAction = mixer.clipAction(clip);
+                console.log(`Using animation ${clip.name} as running animation`);
+                break;
+              }
+            }
+            
+            // If still no running animation, use the first animation
+            if (!runAction && animations.length > 0) {
+              runAction = mixer.clipAction(animations[0]);
+              console.log(`Using first animation ${animations[0].name} as running animation`);
+            }
+          }
+          
+          // If we found a run animation, play it
+          if (runAction) {
+            runAction.reset().play();
+            console.log(`Playing running animation for NPC ${npcName}`);
+          } else if (idleAction) {
+            // Fallback to idle if no run animation
+            idleAction.reset().play();
+            console.log(`No running animation found, playing idle for NPC ${npcName}`);
+          }
+        }
+        
         // Store NPC data
         const npc = {
           model: model,
           name: npcName,
           position: model.position,
           direction: new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize(),
-          timeToChangeDirection: Math.random() * this.changeDirectionInterval
+          timeToChangeDirection: Math.random() * this.changeDirectionInterval,
+          mixer: mixer,
+          runAction: runAction,
+          idleAction: idleAction
         };
         
         this.npcs.push(npc);
@@ -108,13 +167,13 @@ export class NPCManager {
     const gltfLoader = new GLTFLoader(this.loadingManager);
     
     gltfLoader.load(
-      '/assets/models/zuckerberg.glb',
+      '/assets/models/zuckerberg2.glb',
       (gltf) => {
         const model = gltf.scene;
         const animations = gltf.animations;
         
-        // Scale and position the model - make it giant
-        model.scale.set(3, 3, 3);
+        // Scale and position the model - make it MUCH bigger (50x instead of 3x)
+        model.scale.set(50, 50, 50);
         model.position.set(x, 0, z);
         
         // Add shadows
@@ -128,19 +187,68 @@ export class NPCManager {
         // Add the model to the scene
         this.scene.add(model);
         
-        // Add name label
-        this.addNameLabel(model, npcName, 6);
+        // Add name label - increase height for the much larger model
+        this.addNameLabel(model, npcName, 100);
         
         // Register as pokeable if poke mechanic is available
         if (this.pokeMechanic) {
           this.pokeMechanic.registerPokeableObject(model, npcName);
         }
         
+        // Setup animations if available
+        let mixer = null;
+        let idleAction = null;
+        
+        if (animations && animations.length > 0) {
+          // Create animation mixer
+          mixer = new THREE.AnimationMixer(model);
+          
+          // Log available animations to help with debugging
+          console.log(`Giant NPC animations:`, animations.map(a => a.name).join(', '));
+          
+          // Find idle animation
+          animations.forEach((clip) => {
+            const lowerName = clip.name.toLowerCase();
+            if (lowerName.includes('idle') || lowerName.includes('stand')) {
+              console.log(`Found idle animation: ${clip.name}`);
+              idleAction = mixer.clipAction(clip);
+            }
+          });
+          
+          // If we couldn't find an idle animation, try to use any animation
+          if (!idleAction && animations.length > 0) {
+            // Try to find the most likely idle animation by name or use the first animation
+            for (const clip of animations) {
+              const lowerName = clip.name.toLowerCase();
+              if (lowerName.includes('idle') || lowerName.includes('stand') || 
+                  lowerName.includes('pose') || lowerName.includes('static')) {
+                idleAction = mixer.clipAction(clip);
+                console.log(`Using animation ${clip.name} as idle animation`);
+                break;
+              }
+            }
+            
+            // If still no idle animation, use the first animation
+            if (!idleAction && animations.length > 0) {
+              idleAction = mixer.clipAction(animations[0]);
+              console.log(`Using first animation ${animations[0].name} as idle animation`);
+            }
+          }
+          
+          // Play idle animation if found
+          if (idleAction) {
+            idleAction.reset().play();
+            console.log(`Playing idle animation for Giant Zuck`);
+          }
+        }
+        
         // Store giant NPC data
         const giant = {
           model: model,
           name: npcName,
-          position: model.position
+          position: model.position,
+          mixer: mixer,
+          idleAction: idleAction
         };
         
         this.giantNPCs.push(giant);
@@ -156,40 +264,205 @@ export class NPCManager {
 
   // Try to load an alternative Zuckerberg model
   tryAlternativeZuckerberg(x, z, isGiant = false) {
-    // Create a basic avatar as fallback
-    const avatar = createAvatar(this.scene, isGiant ? "Giant Zuck" : `Mark Z. ${Math.floor(Math.random() * 1000)}`);
-    
-    // Scale and position the avatar
+    // For giant NPCs, try zuckerberg2.glb first before falling back to createAvatar
     if (isGiant) {
-      avatar.scale.set(3, 3, 3);
+      const gltfLoader = new GLTFLoader(this.loadingManager);
+      gltfLoader.load(
+        '/assets/models/zuckerberg2.glb',
+        (gltf) => {
+          const model = gltf.scene;
+          const animations = gltf.animations;
+          
+          // Scale and position the model - make it MUCH bigger (50x)
+          model.scale.set(50, 50, 50);
+          model.position.set(x, 0, z);
+          
+          // Add shadows
+          model.traverse(function(node) {
+            if (node.isMesh) {
+              node.castShadow = true;
+              node.receiveShadow = true;
+            }
+          });
+          
+          // Add the model to the scene
+          this.scene.add(model);
+          
+          // Add name label with increased height
+          this.addNameLabel(model, "Giant Zuck", 100);
+          
+          // Register as pokeable if poke mechanic is available
+          if (this.pokeMechanic) {
+            this.pokeMechanic.registerPokeableObject(model, "Giant Zuck");
+          }
+          
+          // Setup animations if available
+          let mixer = null;
+          let idleAction = null;
+          
+          if (animations && animations.length > 0) {
+            // Create animation mixer
+            mixer = new THREE.AnimationMixer(model);
+            
+            // Log available animations
+            console.log(`Alternative Giant NPC animations:`, animations.map(a => a.name).join(', '));
+            
+            // Find idle animation
+            for (const clip of animations) {
+              const lowerName = clip.name.toLowerCase();
+              if (lowerName.includes('idle') || lowerName.includes('stand')) {
+                idleAction = mixer.clipAction(clip);
+                console.log(`Found idle animation: ${clip.name}`);
+                break;
+              }
+            }
+            
+            // If no idle animation found, use first animation
+            if (!idleAction && animations.length > 0) {
+              idleAction = mixer.clipAction(animations[0]);
+              console.log(`Using first animation ${animations[0].name} as idle animation`);
+            }
+            
+            // Play idle animation if found
+            if (idleAction) {
+              idleAction.reset().play();
+              console.log(`Playing idle animation for Alternative Giant Zuck`);
+            }
+          }
+          
+          // Store giant NPC data
+          const giant = {
+            model: model,
+            name: "Giant Zuck",
+            position: model.position,
+            mixer: mixer,
+            idleAction: idleAction
+          };
+          
+          this.giantNPCs.push(giant);
+        },
+        undefined,
+        (error) => {
+          console.error('Error loading alternative giant Zuckerberg2 model:', error);
+          // Fall back to createAvatar
+          this.createFallbackGiant(x, z);
+        }
+      );
+    } else {
+      // For regular NPCs, use createAvatar directly
+      this.createFallbackNPC(x, z);
     }
+  }
+  
+  // Create a fallback giant NPC using createAvatar
+  createFallbackGiant(x, z) {
+    // Create a basic avatar as fallback
+    const avatar = createAvatar(this.scene, "Giant Zuck");
+    
+    // Scale and position the avatar - make it MUCH bigger (50x)
+    avatar.scale.set(50, 50, 50);
     avatar.position.set(x, 0, z);
     
     // Add the avatar to the scene
     this.scene.add(avatar);
     
     // Store NPC data
-    if (isGiant) {
-      const giant = {
-        model: avatar,
-        name: "Giant Zuck",
-        position: avatar.position
-      };
-      this.giantNPCs.push(giant);
-    } else {
-      const npc = {
-        model: avatar,
-        name: `Mark Z. ${Math.floor(Math.random() * 1000)}`,
-        position: avatar.position,
-        direction: new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize(),
-        timeToChangeDirection: Math.random() * this.changeDirectionInterval
-      };
-      this.npcs.push(npc);
+    const giant = {
+      model: avatar,
+      name: "Giant Zuck",
+      position: avatar.position,
+      // The avatar created by createAvatar should already have animation setup
+      mixer: avatar.userData.mixer || null,
+      idleAction: avatar.userData.idleAction || null
+    };
+    this.giantNPCs.push(giant);
+    
+    // If the avatar has animation controls, play idle animation
+    if (avatar.userData && avatar.userData.animationActions) {
+      console.log('Fallback Giant NPC animations:', Object.keys(avatar.userData.animationActions).join(', '));
+      
+      // Try to play idle animation
+      if (avatar.playAnimation) {
+        // Try to find idle animation
+        for (const name in avatar.userData.animationActions) {
+          if (name.toLowerCase().includes('idle') || name.toLowerCase().includes('stand')) {
+            avatar.playAnimation(name);
+            console.log(`Playing idle animation ${name} for Fallback Giant Zuck`);
+            break;
+          }
+        }
+      }
     }
     
     // Register as pokeable if poke mechanic is available
     if (this.pokeMechanic) {
-      this.pokeMechanic.registerPokeableObject(avatar, isGiant ? "Giant Zuck" : `Mark Z. ${Math.floor(Math.random() * 1000)}`);
+      this.pokeMechanic.registerPokeableObject(avatar, "Giant Zuck");
+    }
+  }
+  
+  // Create a fallback regular NPC using createAvatar
+  createFallbackNPC(x, z) {
+    // Create a basic avatar as fallback
+    const npcName = `Mark Z. ${Math.floor(Math.random() * 1000)}`;
+    const avatar = createAvatar(this.scene, npcName);
+    
+    // Position the avatar
+    avatar.position.set(x, 0, z);
+    
+    // Add the avatar to the scene
+    this.scene.add(avatar);
+    
+    // Store NPC data
+    const npc = {
+      model: avatar,
+      name: npcName,
+      position: avatar.position,
+      direction: new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize(),
+      timeToChangeDirection: Math.random() * this.changeDirectionInterval,
+      // The avatar created by createAvatar should already have animation setup
+      mixer: avatar.userData.mixer || null,
+      runAction: avatar.userData.runAction || null,
+      idleAction: avatar.userData.idleAction || null
+    };
+    this.npcs.push(npc);
+    
+    // If the avatar has animation controls, play running animation
+    if (avatar.userData && avatar.userData.animationActions) {
+      console.log('Fallback NPC animations:', Object.keys(avatar.userData.animationActions).join(', '));
+      
+      // Try to find and play running animation
+      if (avatar.playAnimation) {
+        // Try to find running animation
+        let foundRunning = false;
+        for (const name in avatar.userData.animationActions) {
+          const lowerName = name.toLowerCase();
+          if (lowerName.includes('run') || lowerName.includes('walk') || 
+              lowerName.includes('jog') || lowerName.includes('move')) {
+            avatar.playAnimation(name);
+            console.log(`Playing running animation ${name} for Fallback NPC`);
+            foundRunning = true;
+            break;
+          }
+        }
+        
+        // If no running animation found, use the first animation
+        if (!foundRunning && Object.keys(avatar.userData.animationActions).length > 0) {
+          const firstAnim = Object.keys(avatar.userData.animationActions)[0];
+          avatar.playAnimation(firstAnim);
+          console.log(`No running animation found, playing ${firstAnim} for Fallback NPC`);
+        }
+      }
+      
+      // Also try the setMoving method as a backup
+      if (avatar.setMoving) {
+        avatar.setMoving(true);
+        console.log('Set Fallback NPC to moving state');
+      }
+    }
+    
+    // Register as pokeable if poke mechanic is available
+    if (this.pokeMechanic) {
+      this.pokeMechanic.registerPokeableObject(avatar, npcName);
     }
   }
 
@@ -260,6 +533,11 @@ export class NPCManager {
         npc.model.rotation.y = targetRotation;
       }
       
+      // Update animation mixer if available
+      if (npc.mixer) {
+        npc.mixer.update(deltaTime);
+      }
+      
       // Update name label position
       if (npc.model.userData.nameLabel) {
         this.updateLabelPosition(npc.model, npc.model.userData.nameLabel);
@@ -269,6 +547,11 @@ export class NPCManager {
     // Update giant NPCs (if any)
     for (let i = 0; i < this.giantNPCs.length; i++) {
       const giant = this.giantNPCs[i];
+      
+      // Update animation mixer if available
+      if (giant.mixer) {
+        giant.mixer.update(deltaTime);
+      }
       
       // Update name label position
       if (giant.model.userData.nameLabel) {
