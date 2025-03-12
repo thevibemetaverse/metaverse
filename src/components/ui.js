@@ -113,6 +113,71 @@ export function createEmojiBar() {
   emojiContainer.style.zIndex = '1001';
   emojiContainer.style.boxShadow = '0 3px 10px rgba(0, 0, 0, 0.5)';
   
+  // Add responsive styles for mobile and active state
+  const style = document.createElement('style');
+  style.textContent = `
+    @media (max-width: 768px) {
+      #emoji-bar-container {
+        display: none;
+        position: fixed;
+        bottom: 180px; /* Align with the toggle button */
+        left: 110px; /* Position to the left of the toggle button */
+        transform: none;
+        padding: 10px;
+        border-radius: 25px;
+        background-color: rgba(0, 0, 0, 0.7);
+        flex-direction: row;
+        transition: opacity 0.3s ease;
+        opacity: 0;
+      }
+
+      #emoji-bar-container.visible {
+        display: flex;
+        opacity: 1;
+      }
+
+      #emoji-toggle {
+        position: fixed;
+        left: 20px;
+        bottom: 160px; /* Slightly lower position */
+        width: 80px;
+        height: 80px;
+        background-color: rgba(255, 255, 255, 0.2);
+        border: none;
+        border-radius: 50%;
+        color: white;
+        font-size: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 1002;
+        outline: none;
+        backdrop-filter: blur(5px);
+      }
+
+      #emoji-toggle.active {
+        background-color: rgba(255, 255, 255, 0.4);
+      }
+
+      #emoji-toggle:active {
+        transform: scale(0.95);
+      }
+    }
+
+    @media (min-width: 769px) {
+      #emoji-toggle {
+        display: none;
+      }
+    }
+
+    .active {
+      background-color: rgba(255, 255, 255, 0.2) !important;
+      transform: scale(1.1) !important;
+    }
+  `;
+  document.head.appendChild(style);
+  
   // Create emoji buttons
   const emojis = ['👋', '👍', '❤️', '😂', '🎉'];
   emojis.forEach(emoji => {
@@ -121,19 +186,23 @@ export function createEmojiBar() {
     button.style.fontSize = '28px';
     button.style.backgroundColor = 'transparent';
     button.style.border = 'none';
+    button.style.outline = 'none';
     button.style.cursor = 'pointer';
     button.style.color = 'white';
     button.style.padding = '5px';
+    button.style.width = '40px';
+    button.style.height = '40px';
+    button.style.display = 'flex';
+    button.style.alignItems = 'center';
+    button.style.justifyContent = 'center';
     
     // Add click handler
     button.addEventListener('click', () => {
       console.log('Emoji clicked:', emoji);
       
-      // Use the window.showEmojiReaction function if available
       if (window.showEmojiReaction) {
         window.showEmojiReaction(emoji);
       } else {
-        // Fallback to 2D animation
         // Create floating emoji element
         const element = document.createElement('div');
         element.textContent = emoji;
@@ -165,6 +234,7 @@ export function createEmojiBar() {
 
   // Add divider
   const divider = document.createElement('div');
+  divider.className = 'divider';
   divider.style.width = '1px';
   divider.style.height = '30px';
   divider.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
@@ -182,6 +252,11 @@ export function createEmojiBar() {
   skateboardButton.style.color = 'white';
   skateboardButton.style.padding = '5px';
   skateboardButton.style.transition = 'transform 0.2s, background-color 0.2s';
+  skateboardButton.style.width = '40px';
+  skateboardButton.style.height = '40px';
+  skateboardButton.style.display = 'flex';
+  skateboardButton.style.alignItems = 'center';
+  skateboardButton.style.justifyContent = 'center';
   
   // Add hover effect
   skateboardButton.addEventListener('mouseenter', () => {
@@ -208,17 +283,15 @@ export function createEmojiBar() {
     
     // Update visual state
     if (!isActive) {
-      // Activating
       skateboardButton.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
       skateboardButton.style.transform = 'scale(1.1)';
     } else {
-      // Deactivating
       skateboardButton.style.backgroundColor = 'transparent';
       skateboardButton.style.transform = 'scale(1)';
-      skateboardButton.classList.remove('active'); // Ensure class is removed
+      skateboardButton.classList.remove('active');
     }
     
-    // Dispatch event with correct state
+    // Dispatch event
     const event = new CustomEvent('toggle-skateboard-mode', { 
       detail: { 
         isActive: !isActive
@@ -227,20 +300,26 @@ export function createEmojiBar() {
     document.dispatchEvent(event);
   });
   
-  // Add CSS class for active state
-  const style = document.createElement('style');
-  style.textContent = `
-    .active {
-      background-color: rgba(255, 255, 255, 0.2) !important;
-      transform: scale(1.1) !important;
-    }
-  `;
-  document.head.appendChild(style);
-  
   emojiContainer.appendChild(skateboardButton);
+
+  // Add toggle button for mobile
+  const toggleButton = document.createElement('button');
+  toggleButton.id = 'emoji-toggle';
+  toggleButton.textContent = '👍';
+  toggleButton.addEventListener('click', () => {
+    toggleButton.classList.toggle('active');
+    emojiContainer.classList.toggle('visible');
+  });
+
+  // Only close emoji bar when clicking the toggle button again
+  document.addEventListener('click', (event) => {
+    // Remove the auto-hide behavior
+  });
   
-  // Add the emoji bar to the document body
+  // Add the emoji bar and toggle button to the document body
   document.body.appendChild(emojiContainer);
+  document.body.appendChild(toggleButton);
+  
   console.log('Emoji bar created and added to document.body');
   
   return emojiContainer;
