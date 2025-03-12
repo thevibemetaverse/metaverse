@@ -7,7 +7,7 @@ import { io } from 'socket.io-client';
 import { createEnvironment } from './components/environment.js';
 import { createAvatar, createSimpleAvatar, createDirectAvatar, createCleanAvatar, createPureAvatar, updateAvatarAnimations } from './components/avatar.js';
 import { setupControls } from './components/controls.js';
-import { setupUI } from './components/ui.js';
+import { setupUI, createEmojiBar } from './components/ui.js';
 import { NPCManager } from './components/npcs.js';
 import { PokeMechanic } from './components/pokeMechanic.js';
 import { setupMobileControls, isMobileDevice, optimizeForMobile, setupDeviceOrientation, createMobileUI } from './components/mobileControls.js';
@@ -588,6 +588,10 @@ try {
   
   // Initialize NPCs
   npcManager.initialize();
+  
+  // Initialize emoji bar
+  const emojiBar = createEmojiBar();
+  console.log('Emoji bar initialized in main.js');
   
   // Setup socket connection for multiplayer
   let socket;
