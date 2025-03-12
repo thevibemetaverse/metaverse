@@ -21,8 +21,8 @@ export function setupControls(camera, player, domElement, gameState, scene) {
     skateboard: null,
     skateboardSpeed: 0,
     maxSkateboardSpeed: 30, // Doubled from 15 to 30 for 2x faster skateboarding
-    skateboardAcceleration: 0.8, // Increased for faster acceleration
-    skateboardDeceleration: 0.4, // Increased from 0.2 for more friction
+    skateboardAcceleration: 0.4, // Reduced for smoother acceleration
+    skateboardDeceleration: 0.8, // Increased from 0.2 for more friction
     skateboardFriction: 0.15, // New constant friction factor
     skateboardTurnSpeed: 3.0,
     
@@ -191,7 +191,7 @@ export function setupControls(camera, player, domElement, gameState, scene) {
           controls.canJump = false; // Prevent multiple jumps until reset
           
           // Add initial upward velocity for the jump
-          controls.velocity.y = 5.0; // Initial jump velocity
+          controls.velocity.y = 7.0; // Increased from 5.0 for better visibility on skateboard
           controls.isJumping = true; // Set jumping state
           
           // Reset the canJump flag after a short delay to prevent spam jumping
@@ -343,19 +343,30 @@ export function setupControls(camera, player, domElement, gameState, scene) {
     
     // Update skateboard position and rotation if in skateboard mode
     if (controls.isSkateboardMode && controls.skateboard) {
-      // Position skateboard - adjust height to be closer to the ground
+      // Position skateboard - adjust height based on player position, accounting for jumps
       controls.skateboard.position.copy(player.position);
-      controls.skateboard.position.y = 0.01; // Position very close to the ground
+      controls.skateboard.position.y = 0.01; // Base skateboard height
       
-      // Adjust player position to have feet on skateboard
-      player.position.y = 0.6; // Match the skateboard height exactly
+      // If jumping, adjust skateboard to follow player
+      if (controls.isJumping) {
+        controls.skateboard.position.y = player.position.y - 0.59; // Keep skateboard slightly below player when jumping
+      }
+      
+      // Adjust player position to have feet on skateboard when not jumping
+      if (!controls.isJumping) {
+        player.position.y = 0.6; // Match the skateboard height exactly
+      }
       
       // Set the skateboard's rotation to match the movement direction
       controls.skateboard.rotation.y = controls.targetRotation;
       
       // Update skateboard speed
       if (controls.moveForward) {
-        controls.skateboardSpeed = Math.min(controls.skateboardSpeed + controls.skateboardAcceleration * delta, controls.maxSkateboardSpeed);
+        // Calculate speed ratio (0 to 1) based on current speed
+        const speedRatio = Math.abs(controls.skateboardSpeed) / controls.maxSkateboardSpeed;
+        // Reduce acceleration as speed increases
+        const currentAcceleration = controls.skateboardAcceleration * (1 - speedRatio * 0.7);
+        controls.skateboardSpeed = Math.min(controls.skateboardSpeed + currentAcceleration * delta, controls.maxSkateboardSpeed);
       } else if (controls.moveBackward) {
         controls.skateboardSpeed = Math.max(controls.skateboardSpeed - controls.skateboardAcceleration * delta, -controls.maxSkateboardSpeed / 2);
       } else {
@@ -409,11 +420,17 @@ export function setupControls(camera, player, domElement, gameState, scene) {
     
     // Apply vertical velocity (jumping/falling)
     player.position.y += controls.velocity.y * delta;
+    if (controls.isSkateboardMode && controls.skateboard) {
+      controls.skateboard.position.y = player.position.y - 0.59; // Keep skateboard slightly below player
+    }
     
     // Simple ground collision
     if (player.position.y < (controls.isSkateboardMode ? 0.6 : 1)) {
       controls.velocity.y = 0;
       player.position.y = controls.isSkateboardMode ? 0.6 : 1; // Match the skateboard height when in skateboard mode
+      if (controls.isSkateboardMode && controls.skateboard) {
+        controls.skateboard.position.y = 0.01; // Reset skateboard position
+      }
       controls.canJump = true;
       controls.isJumping = false;
       
@@ -430,12 +447,21 @@ export function setupControls(camera, player, domElement, gameState, scene) {
       }
     }
     
-    // Handle jumping if the player has pressed space and not in skateboard mode
-    if (controls.jump && player && player.jump && !player.userData.isJumping) {
-      // Play the jump animation
-      player.jump();
-      // The physics-based jump is already handled in controls.js
+    // Handle jumping if the player has pressed space
+    if (controls.jump && controls.canJump) {
+      // Add initial upward velocity for the jump
+      controls.velocity.y = 7.0; // Increased from 5.0 for better visibility on skateboard
+      controls.isJumping = true;
+      controls.canJump = false; // Prevent multiple jumps
+      
+      // Reset the canJump flag after a short delay to prevent spam jumping
+      setTimeout(() => {
+        controls.canJump = true;
+      }, 1000); // 1 second cooldown
+      
       controls.jump = false; // Reset the jump flag
+      
+      console.log("Jump initiated, velocity.y:", controls.velocity.y); // Debug log
     }
     
     prevTime = time;
