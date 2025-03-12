@@ -177,21 +177,65 @@ export function createEmojiBar() {
   skateboardButton.style.fontSize = '28px';
   skateboardButton.style.backgroundColor = 'transparent';
   skateboardButton.style.border = 'none';
+  skateboardButton.style.outline = 'none';
   skateboardButton.style.cursor = 'pointer';
   skateboardButton.style.color = 'white';
   skateboardButton.style.padding = '5px';
+  skateboardButton.style.transition = 'transform 0.2s, background-color 0.2s';
+  
+  // Add hover effect
+  skateboardButton.addEventListener('mouseenter', () => {
+    if (!skateboardButton.classList.contains('active')) {
+      skateboardButton.style.transform = 'scale(1.2)';
+      skateboardButton.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+    }
+  });
+  
+  skateboardButton.addEventListener('mouseleave', () => {
+    if (!skateboardButton.classList.contains('active')) {
+      skateboardButton.style.transform = 'scale(1)';
+      skateboardButton.style.backgroundColor = 'transparent';
+    }
+  });
   
   // Add click handler for skateboard
   skateboardButton.addEventListener('click', () => {
     console.log('Skateboard clicked');
+    const isActive = skateboardButton.classList.contains('active');
+    
+    // Toggle active state
     skateboardButton.classList.toggle('active');
+    
+    // Update visual state
+    if (!isActive) {
+      // Activating
+      skateboardButton.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+      skateboardButton.style.transform = 'scale(1.1)';
+    } else {
+      // Deactivating
+      skateboardButton.style.backgroundColor = 'transparent';
+      skateboardButton.style.transform = 'scale(1)';
+      skateboardButton.classList.remove('active'); // Ensure class is removed
+    }
+    
+    // Dispatch event with correct state
     const event = new CustomEvent('toggle-skateboard-mode', { 
       detail: { 
-        isActive: skateboardButton.classList.contains('active')
+        isActive: !isActive
       }
     });
     document.dispatchEvent(event);
   });
+  
+  // Add CSS class for active state
+  const style = document.createElement('style');
+  style.textContent = `
+    .active {
+      background-color: rgba(255, 255, 255, 0.2) !important;
+      transform: scale(1.1) !important;
+    }
+  `;
+  document.head.appendChild(style);
   
   emojiContainer.appendChild(skateboardButton);
   
