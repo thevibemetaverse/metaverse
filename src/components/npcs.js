@@ -13,6 +13,14 @@ export class NPCManager {
     this.moveSpeed = 2; // Movement speed of NPCs
     this.changeDirectionInterval = 3; // Time in seconds before changing direction
     this.giantNPCs = []; // Array to store giant Zuckerberg NPCs
+    
+    // Poke mechanic will be set later when camera is available
+    this.pokeMechanic = null;
+  }
+
+  // Set the poke mechanic
+  setPokeMechanic(pokeMechanic) {
+    this.pokeMechanic = pokeMechanic;
   }
 
   // Initialize NPCs
@@ -48,335 +56,238 @@ export class NPCManager {
         const model = gltf.scene;
         const animations = gltf.animations;
         
-        // Scale the model (smaller than the giant ones)
-        model.scale.set(1.5, 1.5, 1.5);
-        
-        // Position the NPC
+        // Scale and position the model
+        model.scale.set(0.8, 0.8, 0.8);
         model.position.set(x, 0, z);
         
-        // Add random rotation
-        model.rotation.y = Math.random() * Math.PI * 2;
-        
-        // Add shadows to the model
-        model.traverse((node) => {
+        // Add shadows
+        model.traverse(function(node) {
           if (node.isMesh) {
             node.castShadow = true;
             node.receiveShadow = true;
           }
         });
         
-        // Add to scene
+        // Add the model to the scene
         this.scene.add(model);
         
-        // Add name label above the NPC
-        this.addNameLabel(model, npcName, 3);
+        // Add name label
+        this.addNameLabel(model, npcName);
         
-        // Setup animations if available
-        if (animations && animations.length > 0) {
-          // Create animation mixer
-          const mixer = new THREE.AnimationMixer(model);
-          
-          // Find running animation
-          let runAction = null;
-          for (let i = 0; i < animations.length; i++) {
-            const clip = animations[i];
-            console.log(`Animation ${i}: "${clip.name}" (duration: ${clip.duration}s)`);
-            
-            if (clip.name.toLowerCase().includes('run') || 
-                clip.name.toLowerCase().includes('walk')) {
-              runAction = mixer.clipAction(clip);
-              break;
-            }
-          }
-          
-          // If no specific run animation found, use the first animation
-          if (!runAction && animations.length > 0) {
-            runAction = mixer.clipAction(animations[0]);
-          }
-          
-          // Play running animation if found
-          if (runAction) {
-            runAction.play();
-          }
-          
-          // Create NPC data object with animation mixer
-          const npc = {
-            avatar: model,
-            name: npcName,
-            direction: new THREE.Vector3(
-              Math.random() * 2 - 1, 
-              0, 
-              Math.random() * 2 - 1
-            ).normalize(),
-            lastDirectionChange: performance.now(),
-            isMoving: true,
-            mixer: mixer,
-            runAction: runAction
-          };
-          
-          // Add to NPCs array
-          this.npcs.push(npc);
-        } else {
-          // Create NPC data object without animations
-          const npc = {
-            avatar: model,
-            name: npcName,
-            direction: new THREE.Vector3(
-              Math.random() * 2 - 1, 
-              0, 
-              Math.random() * 2 - 1
-            ).normalize(),
-            lastDirectionChange: performance.now(),
-            isMoving: true
-          };
-          
-          // Add to NPCs array
-          this.npcs.push(npc);
+        // Register as pokeable if poke mechanic is available
+        if (this.pokeMechanic) {
+          this.pokeMechanic.registerPokeableObject(model, npcName);
         }
         
-        console.log(`Regular NPC ${npcName} spawned at`, x, z);
+        // Store NPC data
+        const npc = {
+          model: model,
+          name: npcName,
+          position: model.position,
+          direction: new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize(),
+          timeToChangeDirection: Math.random() * this.changeDirectionInterval
+        };
+        
+        this.npcs.push(npc);
       },
       undefined,
       (error) => {
-        console.error('Error loading regular Zuckerberg model:', error);
+        console.error('Error loading Zuckerberg model:', error);
+        // Try alternative model or create a basic avatar
+        this.tryAlternativeZuckerberg(x, z);
       }
     );
   }
 
   // Spawn a giant Zuckerberg NPC
   spawnGiantZuckerberg(x, z) {
-    // Load the Zuckerberg model directly
-    const gltfLoader = new GLTFLoader(this.loadingManager);
-    const modelPath = '/assets/models/zuckerberg2.glb'; // Using zuckerberg2.glb model
+    // Create a giant Zuckerberg NPC
+    const npcName = `Giant Zuck`;
     
-    gltfLoader.load(
-      modelPath,
-      (gltf) => {
-        const model = gltf.scene;
-        
-        // Make it larger (200x normal size)
-        model.scale.set(50, 50, 50);
-        
-        // Position the giant NPC - adjust y position to make sure it's on the ground
-        model.position.set(x, 0, z);
-        
-        // Add random rotation
-        model.rotation.y = Math.random() * Math.PI * 2;
-        
-        // Add shadows to the model
-        model.traverse((node) => {
-          if (node.isMesh) {
-            node.castShadow = true;
-            node.receiveShadow = true;
-          }
-        });
-        
-        // Add to scene
-        this.scene.add(model);
-        
-        // Create giant NPC data object
-        const giantNPC = {
-          avatar: model,
-          name: "GIANT ZUCK",
-          isGiant: true,
-          rotationSpeed: 0.05 + Math.random() * 0.1 // Slower rotation for massive NPCs
-        };
-        
-        // Add to giant NPCs array
-        this.giantNPCs.push(giantNPC);
-        
-        // Add name label above the giant NPC
-        this.addNameLabel(model, "GIANT ZUCK", 400); // Position for the label due to large size
-        
-        console.log("MASSIVE Zuckerberg NPC (zuckerberg2.glb) spawned at", x, z);
-      },
-      (xhr) => {
-        // Loading progress
-        console.log(`Loading zuckerberg2.glb: ${(xhr.loaded / xhr.total * 100).toFixed(2)}%`);
-      },
-      (error) => {
-        console.error('Error loading giant Zuckerberg model:', error);
-        // Try the alternative model if available
-        this.tryAlternativeZuckerberg(x, z);
-      }
-    );
-  }
-  
-  // Try loading an alternative Zuckerberg model if the main one fails
-  tryAlternativeZuckerberg(x, z) {
-    console.warn('Trying alternative zuckerberg.glb model');
+    // Load the Zuckerberg model
     const gltfLoader = new GLTFLoader(this.loadingManager);
     
     gltfLoader.load(
       '/assets/models/zuckerberg.glb',
       (gltf) => {
         const model = gltf.scene;
-        model.scale.set(200, 200, 200); // Also make the fallback 200x larger
-        model.position.set(x, 0, z);
-        model.rotation.y = Math.random() * Math.PI * 2;
+        const animations = gltf.animations;
         
-        model.traverse((node) => {
+        // Scale and position the model - make it giant
+        model.scale.set(3, 3, 3);
+        model.position.set(x, 0, z);
+        
+        // Add shadows
+        model.traverse(function(node) {
           if (node.isMesh) {
             node.castShadow = true;
             node.receiveShadow = true;
           }
         });
         
+        // Add the model to the scene
         this.scene.add(model);
         
-        const giantNPC = {
-          avatar: model,
-          name: "GIANT ZUCK",
-          isGiant: true,
-          rotationSpeed: 0.05 + Math.random() * 0.1
+        // Add name label
+        this.addNameLabel(model, npcName, 6);
+        
+        // Register as pokeable if poke mechanic is available
+        if (this.pokeMechanic) {
+          this.pokeMechanic.registerPokeableObject(model, npcName);
+        }
+        
+        // Store giant NPC data
+        const giant = {
+          model: model,
+          name: npcName,
+          position: model.position
         };
         
-        this.giantNPCs.push(giantNPC);
-        this.addNameLabel(model, "GIANT ZUCK", 400);
-        
-        console.log("Alternative MASSIVE Zuckerberg NPC (zuckerberg.glb) spawned at", x, z);
+        this.giantNPCs.push(giant);
       },
       undefined,
       (error) => {
-        console.error('Error loading alternative Zuckerberg model:', error);
+        console.error('Error loading giant Zuckerberg model:', error);
+        // Try alternative model or create a basic avatar
+        this.tryAlternativeZuckerberg(x, z, true);
       }
     );
   }
 
-  // Add a name label above an NPC
-  addNameLabel(model, name, height = 3) {
-    // Create canvas for the text
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
-    canvas.width = 256;
-    canvas.height = 64;
+  // Try to load an alternative Zuckerberg model
+  tryAlternativeZuckerberg(x, z, isGiant = false) {
+    // Create a basic avatar as fallback
+    const avatar = createAvatar(this.scene, isGiant ? "Giant Zuck" : `Mark Z. ${Math.floor(Math.random() * 1000)}`);
     
-    // Set text properties
-    context.font = 'Bold 24px Arial';
-    context.fillStyle = 'white';
-    context.textAlign = 'center';
-    context.textBaseline = 'middle';
+    // Scale and position the avatar
+    if (isGiant) {
+      avatar.scale.set(3, 3, 3);
+    }
+    avatar.position.set(x, 0, z);
     
-    // Add background
-    context.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    context.fillRect(0, 0, canvas.width, canvas.height);
+    // Add the avatar to the scene
+    this.scene.add(avatar);
     
-    // Add text
-    context.fillStyle = 'white';
-    context.fillText(name, canvas.width / 2, canvas.height / 2);
+    // Store NPC data
+    if (isGiant) {
+      const giant = {
+        model: avatar,
+        name: "Giant Zuck",
+        position: avatar.position
+      };
+      this.giantNPCs.push(giant);
+    } else {
+      const npc = {
+        model: avatar,
+        name: `Mark Z. ${Math.floor(Math.random() * 1000)}`,
+        position: avatar.position,
+        direction: new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize(),
+        timeToChangeDirection: Math.random() * this.changeDirectionInterval
+      };
+      this.npcs.push(npc);
+    }
     
-    // Create texture from canvas
-    const texture = new THREE.CanvasTexture(canvas);
-    
-    // Create sprite material
-    const material = new THREE.SpriteMaterial({ map: texture });
-    
-    // Create sprite
-    const sprite = new THREE.Sprite(material);
-    sprite.scale.set(5, 1.25, 1); // Adjust scale as needed
-    sprite.position.y = height; // Position above the model
-    
-    // Add sprite to model
-    model.add(sprite);
-    
-    return sprite;
+    // Register as pokeable if poke mechanic is available
+    if (this.pokeMechanic) {
+      this.pokeMechanic.registerPokeableObject(avatar, isGiant ? "Giant Zuck" : `Mark Z. ${Math.floor(Math.random() * 1000)}`);
+    }
   }
 
-  // Update all NPCs
-  update(deltaTime, playerPosition) {
-    const currentTime = performance.now();
+  // Add name label above NPC
+  addNameLabel(model, name, height = 3) {
+    // Create a div for the name label
+    const nameLabel = document.createElement('div');
+    nameLabel.className = 'npc-name';
+    nameLabel.textContent = name;
+    nameLabel.style.position = 'absolute';
+    nameLabel.style.color = 'white';
+    nameLabel.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+    nameLabel.style.padding = '2px 5px';
+    nameLabel.style.borderRadius = '10px';
+    nameLabel.style.fontSize = '0.8em';
+    nameLabel.style.fontWeight = 'bold';
+    nameLabel.style.textAlign = 'center';
+    nameLabel.style.zIndex = '1000';
+    nameLabel.style.pointerEvents = 'none'; // Prevent the label from blocking clicks
     
-    // Update regular NPCs
-    this.npcs.forEach(npc => {
-      // Update animation mixer if available
-      if (npc.mixer) {
-        npc.mixer.update(deltaTime);
-      }
+    document.body.appendChild(nameLabel);
+    
+    // Store the label element and height in the model's userData
+    model.userData.nameLabel = nameLabel;
+    model.userData.labelHeight = height;
+  }
+
+  // Update label position to follow NPC
+  updateLabelPosition(model, labelElement) {
+    // Convert 3D position to screen position
+    const vector = new THREE.Vector3();
+    vector.setFromMatrixPosition(model.matrixWorld);
+    vector.y += model.userData.labelHeight || 3; // Use stored height or default
+    
+    vector.project(window.camera);
+    
+    const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+    const y = (-vector.y * 0.5 + 0.5) * window.innerHeight;
+    
+    // Update label position
+    labelElement.style.left = `${x}px`;
+    labelElement.style.top = `${y}px`;
+    labelElement.style.transform = 'translate(-50%, -50%)';
+  }
+
+  // Update method to be called in animation loop
+  update(deltaTime, playerPosition) {
+    // Update NPC positions and animations
+    for (let i = 0; i < this.npcs.length; i++) {
+      const npc = this.npcs[i];
       
-      // Check if it's time to change direction
-      if (currentTime - npc.lastDirectionChange > this.changeDirectionInterval * 1000) {
-        // Generate new random direction
-        npc.direction.set(
-          Math.random() * 2 - 1,
-          0,
-          Math.random() * 2 - 1
-        ).normalize();
-        
-        // Update last direction change time
-        npc.lastDirectionChange = currentTime;
-        
-        // Update NPC rotation to face movement direction
-        npc.avatar.rotation.y = Math.atan2(npc.direction.x, npc.direction.z);
+      // Update direction change timer
+      npc.timeToChangeDirection -= deltaTime;
+      if (npc.timeToChangeDirection <= 0) {
+        // Change to a new random direction
+        npc.direction.set(Math.random() - 0.5, 0, Math.random() - 0.5).normalize();
+        npc.timeToChangeDirection = Math.random() * this.changeDirectionInterval;
       }
       
       // Move NPC in current direction
-      npc.avatar.position.x += npc.direction.x * this.moveSpeed * deltaTime;
-      npc.avatar.position.z += npc.direction.z * this.moveSpeed * deltaTime;
+      const moveDistance = this.moveSpeed * deltaTime;
+      npc.position.x += npc.direction.x * moveDistance;
+      npc.position.z += npc.direction.z * moveDistance;
       
-      // Keep NPCs within bounds
-      const distanceFromCenter = Math.sqrt(
-        npc.avatar.position.x * npc.avatar.position.x + 
-        npc.avatar.position.z * npc.avatar.position.z
-      );
-      
-      if (distanceFromCenter > this.spawnRadius) {
-        // If NPC is too far, direct it back toward center
-        const toCenter = new THREE.Vector3(
-          -npc.avatar.position.x,
-          0,
-          -npc.avatar.position.z
-        ).normalize();
-        
-        // Blend current direction with direction to center
-        npc.direction.lerp(toCenter, 0.2).normalize();
-        
-        // Update NPC rotation
-        npc.avatar.rotation.y = Math.atan2(npc.direction.x, npc.direction.z);
+      // Rotate NPC to face movement direction
+      if (npc.direction.length() > 0.1) {
+        const targetRotation = Math.atan2(npc.direction.x, npc.direction.z);
+        npc.model.rotation.y = targetRotation;
       }
       
-      // Simple collision avoidance with player
-      if (playerPosition) {
-        const distToPlayer = new THREE.Vector3(
-          npc.avatar.position.x - playerPosition.x,
-          0,
-          npc.avatar.position.z - playerPosition.z
-        ).length();
-        
-        if (distToPlayer < 5) {
-          // Move away from player
-          const awayFromPlayer = new THREE.Vector3(
-            npc.avatar.position.x - playerPosition.x,
-            0,
-            npc.avatar.position.z - playerPosition.z
-          ).normalize();
-          
-          // Blend current direction with direction away from player
-          npc.direction.lerp(awayFromPlayer, 0.5).normalize();
-          
-          // Update NPC rotation
-          npc.avatar.rotation.y = Math.atan2(npc.direction.x, npc.direction.z);
-        }
+      // Update name label position
+      if (npc.model.userData.nameLabel) {
+        this.updateLabelPosition(npc.model, npc.model.userData.nameLabel);
       }
-    });
+    }
     
-    // Update giant NPCs (just rotate them slowly)
-    this.giantNPCs.forEach(giant => {
-      // Rotate the giant NPC slowly
-      giant.avatar.rotation.y += giant.rotationSpeed * deltaTime;
-    });
+    // Update giant NPCs (if any)
+    for (let i = 0; i < this.giantNPCs.length; i++) {
+      const giant = this.giantNPCs[i];
+      
+      // Update name label position
+      if (giant.model.userData.nameLabel) {
+        this.updateLabelPosition(giant.model, giant.model.userData.nameLabel);
+      }
+    }
   }
 
   // Remove all NPCs
   removeAll() {
     // Remove regular NPCs
     this.npcs.forEach(npc => {
-      this.scene.remove(npc.avatar);
+      this.scene.remove(npc.model);
     });
     this.npcs = [];
     
     // Remove giant NPCs
     this.giantNPCs.forEach(giant => {
-      this.scene.remove(giant.avatar);
+      this.scene.remove(giant.model);
     });
     this.giantNPCs = [];
   }
