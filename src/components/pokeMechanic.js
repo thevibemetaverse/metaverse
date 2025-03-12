@@ -907,7 +907,7 @@ export class PokeMechanic {
     // Convert 3D position to screen position
     const vector = new THREE.Vector3();
     vector.setFromMatrixPosition(object.matrixWorld);
-    vector.y += 3.5; // Position above the name label
+    vector.y += 2.8; // Reduced from 3.5 to account for lower position
     
     vector.project(this.camera);
     

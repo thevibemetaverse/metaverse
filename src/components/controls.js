@@ -22,7 +22,8 @@ export function setupControls(camera, player, domElement, gameState, scene) {
     skateboardSpeed: 0,
     maxSkateboardSpeed: 30, // Doubled from 15 to 30 for 2x faster skateboarding
     skateboardAcceleration: 0.8, // Increased for faster acceleration
-    skateboardDeceleration: 0.2,
+    skateboardDeceleration: 0.4, // Increased from 0.2 for more friction
+    skateboardFriction: 0.15, // New constant friction factor
     skateboardTurnSpeed: 3.0,
     
     // Rotation state
@@ -347,10 +348,9 @@ export function setupControls(camera, player, domElement, gameState, scene) {
       controls.skateboard.position.y = 0.01; // Position very close to the ground
       
       // Adjust player position to have feet on skateboard
-      player.position.y = 1.05; // Slightly higher than the default (1.0) to account for the skateboard
+      player.position.y = 0.6; // Match the skateboard height exactly
       
       // Set the skateboard's rotation to match the movement direction
-      // The 90-degree visual rotation is handled in main.js
       controls.skateboard.rotation.y = controls.targetRotation;
       
       // Update skateboard speed
@@ -359,11 +359,13 @@ export function setupControls(camera, player, domElement, gameState, scene) {
       } else if (controls.moveBackward) {
         controls.skateboardSpeed = Math.max(controls.skateboardSpeed - controls.skateboardAcceleration * delta, -controls.maxSkateboardSpeed / 2);
       } else {
-        // Apply deceleration
-        if (Math.abs(controls.skateboardSpeed) < controls.skateboardDeceleration * delta) {
+        // Apply deceleration and friction
+        if (Math.abs(controls.skateboardSpeed) < (controls.skateboardDeceleration + controls.skateboardFriction) * delta) {
           controls.skateboardSpeed = 0;
         } else {
-          controls.skateboardSpeed -= Math.sign(controls.skateboardSpeed) * controls.skateboardDeceleration * delta;
+          // Apply both deceleration and constant friction
+          const totalFriction = (controls.skateboardDeceleration + controls.skateboardFriction) * delta;
+          controls.skateboardSpeed -= Math.sign(controls.skateboardSpeed) * totalFriction;
         }
       }
       
@@ -409,9 +411,9 @@ export function setupControls(camera, player, domElement, gameState, scene) {
     player.position.y += controls.velocity.y * delta;
     
     // Simple ground collision
-    if (player.position.y < (controls.isSkateboardMode ? 1.05 : 1)) {
+    if (player.position.y < (controls.isSkateboardMode ? 0.6 : 1)) {
       controls.velocity.y = 0;
-      player.position.y = controls.isSkateboardMode ? 1.05 : 1; // Maintain proper height based on mode
+      player.position.y = controls.isSkateboardMode ? 0.6 : 1; // Match the skateboard height when in skateboard mode
       controls.canJump = true;
       controls.isJumping = false;
       
@@ -426,6 +428,14 @@ export function setupControls(camera, player, domElement, gameState, scene) {
           player.setMoving(isMoving);
         }
       }
+    }
+    
+    // Handle jumping if the player has pressed space and not in skateboard mode
+    if (controls.jump && player && player.jump && !player.userData.isJumping) {
+      // Play the jump animation
+      player.jump();
+      // The physics-based jump is already handled in controls.js
+      controls.jump = false; // Reset the jump flag
     }
     
     prevTime = time;
