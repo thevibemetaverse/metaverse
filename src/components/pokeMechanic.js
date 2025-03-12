@@ -724,7 +724,7 @@ export class PokeMechanic {
     leaderboardContainer.style.maxWidth = isMobile ? '220px' : '250px';
     leaderboardContainer.style.maxHeight = isMobile ? '250px' : '300px';
     leaderboardContainer.style.overflowY = 'auto';
-    leaderboardContainer.style.zIndex = '1000';
+    leaderboardContainer.style.zIndex = '100'; // Lower z-index to ensure emojis appear on top
     leaderboardContainer.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
     leaderboardContainer.style.boxShadow = '0 3px 10px rgba(0, 0, 0, 0.3)';
     leaderboardContainer.style.fontSize = isMobile ? '14px' : '16px';
@@ -907,7 +907,7 @@ export class PokeMechanic {
     // Convert 3D position to screen position
     const vector = new THREE.Vector3();
     vector.setFromMatrixPosition(object.matrixWorld);
-    vector.y += 3.5; // Position above the name label
+    vector.y += 2.8; // Reduced from 3.5 to account for lower position
     
     vector.project(this.camera);
     

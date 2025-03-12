@@ -480,7 +480,7 @@ try {
   console.log('Player avatar structure:', playerAvatar);
   
   // Setup controls
-  const controls = setupControls(camera, playerAvatar, renderer.domElement, gameState);
+  const controls = setupControls(camera, playerAvatar, renderer.domElement, gameState, scene);
   
   // Setup mobile controls if on a mobile device
   let mobileControls = null;
@@ -712,17 +712,111 @@ try {
     const isMoving = controls.moveForward || controls.moveBackward || 
                      controls.moveLeft || controls.moveRight;
     
-    // Update player avatar animation based on movement
-    if (playerAvatar && playerAvatar.setMoving) {
-      playerAvatar.setMoving(isMoving);
+    // Handle animations based on skateboard mode
+    if (playerAvatar) {
+      if (controls.isSkateboardMode) {
+        // In skateboard mode, explicitly stop all animations
+        if (playerAvatar.userData && playerAvatar.userData.animationActions) {
+          Object.values(playerAvatar.userData.animationActions).forEach(action => {
+            action.stop();
+          });
+          
+          // If we have an idle animation, play it at a very slow speed to create a subtle standing pose
+          if (playerAvatar.userData.animationActions && 
+              Object.keys(playerAvatar.userData.animationActions).some(name => name.toLowerCase().includes('idle'))) {
+            const idleAction = Object.entries(playerAvatar.userData.animationActions)
+              .find(([name]) => name.toLowerCase().includes('idle'))[1];
+            if (idleAction && !idleAction.isRunning()) {
+              idleAction.timeScale = 0.1; // Very slow speed
+              idleAction.play();
+            }
+          }
+        }
+      } else if (playerAvatar.setMoving) {
+        // Normal animation logic when not in skateboard mode
+        playerAvatar.setMoving(isMoving);
+      }
     }
     
-    // Handle jumping if the player has pressed space
-    if (controls.jump && playerAvatar && playerAvatar.jump && !playerAvatar.userData.isJumping) {
+    // Handle jumping if the player has pressed space and not in skateboard mode
+    if (controls.jump && playerAvatar && playerAvatar.jump && !playerAvatar.userData.isJumping && !controls.isSkateboardMode) {
       // Play the jump animation
       playerAvatar.jump();
       // The physics-based jump is already handled in controls.js
       controls.jump = false; // Reset the jump flag
+    }
+    
+    // Handle skateboard positioning and rotation
+    if (controls.isSkateboardMode && controls.skateboard) {
+      // Tilt the skateboard based on turning
+      const targetTilt = (controls.rotateLeft ? 0.2 : controls.rotateRight ? -0.2 : 0);
+      controls.skateboard.rotation.z = THREE.MathUtils.lerp(
+        controls.skateboard.rotation.z,
+        targetTilt,
+        0.1
+      );
+      
+      // Position the character in skateboarding stance (sideways)
+      if (playerAvatar) {
+        // Position the character in a proper skateboarding stance
+        // Skateboard points in direction of travel, character stands sideways on board
+        
+        // Calculate target rotations:
+        // Skateboard points in the direction of movement
+        const targetSkateboardRotation = controls.targetRotation + Math.PI/2;
+        
+        // Character is rotated 90 degrees relative to the skateboard (standing sideways on board)
+        const targetPlayerRotation = targetSkateboardRotation + Math.PI/2;
+        
+        // Apply the rotation with smooth interpolation to player
+        playerAvatar.rotation.y = THREE.MathUtils.lerp(
+          playerAvatar.rotation.y,
+          targetPlayerRotation,
+          0.15 // Slightly faster response to turns
+        );
+        
+        // Apply the rotation with smooth interpolation to skateboard
+        controls.skateboard.rotation.y = THREE.MathUtils.lerp(
+          controls.skateboard.rotation.y,
+          targetSkateboardRotation,
+          0.15 // Slightly faster response to turns
+        );
+        
+        // Apply skateboard tilt to character - enhanced for better synchronization
+        const tiltFactor = 1.2; // Enhanced tilt for more dramatic effect
+        playerAvatar.rotation.z = controls.skateboard.rotation.z * tiltFactor;
+        
+        // Add a slight forward lean based on speed
+        const speedLean = -Math.abs(controls.skateboardSpeed) / controls.maxSkateboardSpeed * 0.25; // Enhanced lean
+        playerAvatar.rotation.x = THREE.MathUtils.lerp(
+          playerAvatar.rotation.x,
+          speedLean,
+          0.15 // Faster response to speed changes
+        );
+        
+        // Store the original rotation if not already stored
+        if (!playerAvatar.userData.originalRotationY) {
+          playerAvatar.userData.originalRotationY = controls.targetRotation;
+        }
+      }
+    } else if (playerAvatar) {
+      // Reset rotations when not skateboarding
+      playerAvatar.rotation.z = 0;
+      playerAvatar.rotation.x = 0;
+      
+      // Restore normal player rotation (controlled by updateMovement in controls.js)
+      if (playerAvatar.userData.originalRotationY !== undefined) {
+        playerAvatar.rotation.y = THREE.MathUtils.lerp(
+          playerAvatar.rotation.y,
+          controls.targetRotation, // Restore original rotation direction
+          0.1
+        );
+        
+        // Remove the stored original rotation once fully restored
+        if (Math.abs(playerAvatar.rotation.y - controls.targetRotation) < 0.01) {
+          delete playerAvatar.userData.originalRotationY;
+        }
+      }
     }
     
     // Update NPCs
@@ -740,8 +834,9 @@ try {
           z: playerAvatar.position.z
         },
         rotation: playerAvatar.rotation.y,
-        isMoving: isMoving, // Report actual movement state
-        isJumping: playerAvatar.userData.isJumping || false // Report jumping state
+        isMoving: isMoving,
+        isJumping: playerAvatar.userData.isJumping || false,
+        isSkateboardMode: controls.isSkateboardMode || false
       });
     }
     
