@@ -1,18 +1,11 @@
 export function setupUI(gameState) {
   // Get UI elements
-  const usernameElement = document.getElementById('username');
-  const usersList = document.getElementById('users');
   const settingsButton = document.getElementById('settings-button');
   const settingsPanel = document.getElementById('settings-panel');
   const closeSettingsButton = document.getElementById('close-settings');
   const volumeSlider = document.getElementById('volume');
   const graphicsSelect = document.getElementById('graphics');
   const emojiButtons = document.querySelectorAll('.emoji-button');
-  
-  // Set initial username
-  if (usernameElement) {
-    usernameElement.textContent = gameState.username;
-  }
   
   // Settings panel toggle
   if (settingsButton && settingsPanel) {
@@ -73,27 +66,6 @@ export function setupUI(gameState) {
     });
   }
   
-  // Function to update the users list
-  function updateUsersList(players) {
-    if (!usersList) return;
-    
-    // Clear the list
-    usersList.innerHTML = '';
-    
-    // Add each player to the list
-    Object.values(players).forEach(player => {
-      const listItem = document.createElement('li');
-      listItem.textContent = player.username;
-      usersList.appendChild(listItem);
-    });
-    
-    // Add the local player
-    const localPlayerItem = document.createElement('li');
-    localPlayerItem.textContent = `${gameState.username} (You)`;
-    localPlayerItem.style.fontWeight = 'bold';
-    usersList.appendChild(localPlayerItem);
-  }
-  
   // Function to show emoji reaction
   function showEmojiReaction(emoji) {
     // Create a floating emoji element
@@ -141,7 +113,6 @@ export function setupUI(gameState) {
   
   // Expose methods that need to be called from outside
   return {
-    updateUsersList,
     showEmojiReaction
   };
 } 
