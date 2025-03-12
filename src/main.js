@@ -594,6 +594,30 @@ try {
   let emojiEffects = new EmojiEffects(scene, camera);
   console.log('EmojiEffects initialized with scene and camera');
   
+  // Add skateboard mode toggle listener
+  document.addEventListener('toggle-skateboard-mode', function(event) {
+    console.log('Skateboard mode toggle event received:', event.detail.isActive);
+    if (controls) {
+      controls.isSkateboardMode = event.detail.isActive;
+      console.log('Skateboard mode set to:', controls.isSkateboardMode);
+      
+      // Update skateboard visibility
+      if (controls.skateboard) {
+        controls.skateboard.visible = controls.isSkateboardMode;
+        console.log('Skateboard visibility set to:', controls.skateboard.visible);
+        
+        // Give an initial speed boost when entering skateboard mode
+        if (controls.isSkateboardMode) {
+          controls.skateboardSpeed = controls.maxSkateboardSpeed / 2; // Start at half max speed
+        } else {
+          controls.skateboardSpeed = 0;
+        }
+      } else {
+        console.warn('Skateboard model not loaded yet!');
+      }
+    }
+  });
+  
   // Override the showEmojiReaction function to use 3D emojis
   window.showEmojiReaction = function(emoji) {
     console.log('3D Emoji reaction triggered:', emoji);

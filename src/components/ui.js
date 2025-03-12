@@ -114,39 +114,61 @@ export function createEmojiBar() {
   emojiContainer.style.boxShadow = '0 3px 10px rgba(0, 0, 0, 0.5)';
   
   // Create emoji buttons
-  const emojis = ['👋', '👍', '❤️', '😂', '🎉'];
+  const emojis = ['👋', '👍', '❤️', '😂', '🎉', '🛹'];
   emojis.forEach(emoji => {
     const button = document.createElement('button');
     button.textContent = emoji;
     button.style.fontSize = '28px';
-    button.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-    button.style.border = '2px solid rgba(255, 255, 255, 0.3)';
-    button.style.borderRadius = '50%';
-    button.style.width = '45px';
-    button.style.height = '45px';
+    button.style.backgroundColor = 'transparent';
+    button.style.border = 'none';
     button.style.cursor = 'pointer';
     button.style.color = 'white';
-    button.style.display = 'flex';
-    button.style.alignItems = 'center';
-    button.style.justifyContent = 'center';
-    button.style.transition = 'all 0.2s ease';
-    
-    // Add hover effects
-    button.addEventListener('mouseenter', () => {
-      button.style.transform = 'scale(1.1)';
-      button.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-      button.style.borderColor = 'rgba(255, 255, 255, 0.5)';
-    });
-    
-    button.addEventListener('mouseleave', () => {
-      button.style.transform = 'scale(1)';
-      button.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-      button.style.borderColor = 'rgba(255, 255, 255, 0.3)';
-    });
+    button.style.padding = '5px';
     
     // Add click handler
     button.addEventListener('click', () => {
-      showEmojiReaction(emoji);
+      console.log('Emoji clicked:', emoji);
+      
+      if (emoji === '🛹') {
+        // Toggle skateboard mode
+        button.classList.toggle('active');
+        const event = new CustomEvent('toggle-skateboard-mode', { 
+          detail: { 
+            isActive: button.classList.contains('active')
+          }
+        });
+        document.dispatchEvent(event);
+      } else {
+        // Use the window.showEmojiReaction function if available
+        if (window.showEmojiReaction) {
+          window.showEmojiReaction(emoji);
+        } else {
+          // Fallback to 2D animation
+          // Create floating emoji element
+          const element = document.createElement('div');
+          element.textContent = emoji;
+          element.style.position = 'fixed';
+          element.style.fontSize = '60px';
+          element.style.left = '50%';
+          element.style.bottom = '40%';
+          element.style.transform = 'translateX(-50%)';
+          element.style.zIndex = '10000';
+          element.style.pointerEvents = 'none';
+          
+          // Add animation
+          element.style.animation = 'float-up 2s ease-out forwards';
+          
+          // Add to document
+          document.body.appendChild(element);
+          
+          // Remove after animation completes
+          setTimeout(() => {
+            if (document.body.contains(element)) {
+              document.body.removeChild(element);
+            }
+          }, 2000);
+        }
+      }
     });
     
     emojiContainer.appendChild(button);

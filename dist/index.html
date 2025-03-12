@@ -93,6 +93,37 @@
       background-color: rgba(0, 0, 0, 0.8) !important;
       border-color: rgba(255, 255, 255, 0.5) !important;
     }
+    .emoji-button:active {
+      transform: scale(0.95) !important;
+      background-color: rgba(255, 255, 255, 0.2) !important;
+      border-color: rgba(255, 255, 255, 0.8) !important;
+    }
+    .emoji-button.flash {
+      animation: emojiFlash 0.3s ease-out !important;
+    }
+    .emoji-button.active {
+      background-color: rgba(255, 255, 255, 0.3) !important;
+      border-color: rgba(255, 255, 255, 0.8) !important;
+      transform: scale(1.1) !important;
+    }
+    
+    @keyframes emojiFlash {
+      0% {
+        transform: scale(1);
+        background-color: rgba(0, 0, 0, 0.7);
+        border-color: rgba(255, 255, 255, 0.3);
+      }
+      50% {
+        transform: scale(0.95);
+        background-color: rgba(255, 255, 255, 0.2);
+        border-color: rgba(255, 255, 255, 0.8);
+      }
+      100% {
+        transform: scale(1);
+        background-color: rgba(0, 0, 0, 0.7);
+        border-color: rgba(255, 255, 255, 0.3);
+      }
+    }
     
     /* Mobile-specific styles */
     @media (max-width: 800px) {
@@ -114,11 +145,12 @@
   <div id="ui-container">
     <!-- UI elements will be added here -->
     <div class="emoji-reactions" style="position: fixed !important; bottom: 20px !important; z-index: 9999999 !important;">
-      <button class="emoji-button" onclick="console.log('Emoji button clicked: 👋'); window.showEmojiReaction('👋')">👋</button>
-      <button class="emoji-button" onclick="console.log('Emoji button clicked: 👍'); window.showEmojiReaction('👍')">👍</button>
-      <button class="emoji-button" onclick="console.log('Emoji button clicked: ❤️'); window.showEmojiReaction('❤️')">❤️</button>
-      <button class="emoji-button" onclick="console.log('Emoji button clicked: 😂'); window.showEmojiReaction('😂')">😂</button>
-      <button class="emoji-button" onclick="console.log('Emoji button clicked: 🎉'); window.showEmojiReaction('🎉')">🎉</button>
+      <button class="emoji-button" onclick="console.log('Emoji button clicked: 👋'); this.classList.add('flash'); setTimeout(() => this.classList.remove('flash'), 300); window.showEmojiReaction('👋')">👋</button>
+      <button class="emoji-button" onclick="console.log('Emoji button clicked: 👍'); this.classList.add('flash'); setTimeout(() => this.classList.remove('flash'), 300); window.showEmojiReaction('👍')">👍</button>
+      <button class="emoji-button" onclick="console.log('Emoji button clicked: ❤️'); this.classList.add('flash'); setTimeout(() => this.classList.remove('flash'), 300); window.showEmojiReaction('❤️')">❤️</button>
+      <button class="emoji-button" onclick="console.log('Emoji button clicked: 😂'); this.classList.add('flash'); setTimeout(() => this.classList.remove('flash'), 300); window.showEmojiReaction('😂')">😂</button>
+      <button class="emoji-button" onclick="console.log('Emoji button clicked: 🎉'); this.classList.add('flash'); setTimeout(() => this.classList.remove('flash'), 300); window.showEmojiReaction('🎉')">🎉</button>
+      <button class="emoji-button" id="skateboard-button" onclick="toggleSkateboardMode(this)">🛹</button>
     </div>
   </div>
 
@@ -510,6 +542,24 @@
     console.log('Debug panel initialized');
     console.log('Window dimensions:', window.innerWidth, 'x', window.innerHeight);
     console.log('User agent:', navigator.userAgent);
+
+    // Add skateboard mode toggle function
+    function toggleSkateboardMode(button) {
+      console.log('Skateboard mode toggled');
+      button.classList.toggle('active');
+      
+      // Dispatch a custom event for the 3D implementation
+      const event = new CustomEvent('toggle-skateboard-mode', { 
+        detail: { 
+          isActive: button.classList.contains('active')
+        }
+      });
+      document.dispatchEvent(event);
+      
+      // Add flash effect
+      button.classList.add('flash');
+      setTimeout(() => button.classList.remove('flash'), 300);
+    }
   </script>
 </body>
 </html> 
