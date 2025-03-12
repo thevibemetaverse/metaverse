@@ -7,6 +7,7 @@ import { createAvatar, createSimpleAvatar, createDirectAvatar, createCleanAvatar
 import { setupControls } from './components/controls.js';
 import { setupUI } from './components/ui.js';
 import { NPCManager } from './components/npcs.js';
+import { PokeMechanic } from './components/pokeMechanic.js';
 
 // Create loading screen
 const loadingScreen = document.createElement('div');
@@ -134,6 +135,9 @@ try {
   camera.position.set(0, 1.5, 5); // In front of the player, at face level
   camera.lookAt(0, 1.5, 0); // Looking directly at the player for selfie view
   
+  // Make camera available globally for raycasting
+  window.camera = camera;
+  
   // Temporarily disable camera following to allow viewing the landmarks
   const originalUpdateCamera = controls.updateCamera;
   controls.updateCamera = function() {}; // Empty function to prevent camera following
@@ -183,6 +187,14 @@ try {
   
   // Create NPC manager and initialize NPCs
   const npcManager = new NPCManager(scene, loadingManager);
+  
+  // Create poke mechanic
+  const pokeMechanic = new PokeMechanic(scene, camera);
+  
+  // Set poke mechanic for NPCs
+  npcManager.setPokeMechanic(pokeMechanic);
+  
+  // Initialize NPCs
   npcManager.initialize();
   
   // Setup socket connection for multiplayer
@@ -298,6 +310,9 @@ try {
     
     // Update NPCs
     npcManager.update(deltaTime, playerAvatar.position);
+    
+    // Update poke mechanic
+    pokeMechanic.update();
     
     // Update player position on server
     if (socket && socket.connected) {
