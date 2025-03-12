@@ -134,6 +134,10 @@ export function setupControls(camera, player, domElement, gameState) {
           controls.jump = true; // Set the jump flag for animation-based jumping
           controls.canJump = false; // Prevent multiple jumps until reset
           
+          // Add initial upward velocity for the jump
+          controls.velocity.y = 5.0; // Initial jump velocity
+          controls.isJumping = true; // Set jumping state
+          
           // Reset the canJump flag after a short delay to prevent spam jumping
           setTimeout(() => {
             controls.canJump = true;
@@ -260,8 +264,8 @@ export function setupControls(camera, player, domElement, gameState) {
     const time = performance.now();
     const delta = (time - prevTime) / 1000;
     
-    // Apply gravity
-    controls.velocity.y -= 9.8 * delta;
+    // Apply gravity - increased gravity for better jump feel
+    controls.velocity.y -= 9.8 * 1.5 * delta;
     
     // Update rotation from keyboard inputs
     if (controls.rotateLeft) {
@@ -307,6 +311,18 @@ export function setupControls(camera, player, domElement, gameState) {
       player.position.y = 1;
       controls.canJump = true;
       controls.isJumping = false;
+      
+      // If we were jumping and just landed, reset the animation state
+      if (player.userData && player.userData.isJumping) {
+        player.userData.isJumping = false;
+        
+        // If the player has a setMoving method, update the animation
+        if (player.setMoving) {
+          const isMoving = controls.moveForward || controls.moveBackward || 
+                          controls.moveLeft || controls.moveRight;
+          player.setMoving(isMoving);
+        }
+      }
     }
     
     prevTime = time;
