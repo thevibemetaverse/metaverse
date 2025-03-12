@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { VRButton } from 'three/examples/jsm/webxr/VRButton.js';
+import { XRControllerModelFactory } from 'three/examples/jsm/webxr/XRControllerModelFactory.js';
 import { io } from 'socket.io-client';
 
 import { createEnvironment } from './components/environment.js';
@@ -100,7 +102,345 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.shadowMap.enabled = true;
+renderer.xr.enabled = true;
 document.body.appendChild(renderer.domElement);
+
+// Function to show notifications
+function showNotification(message, type = 'info') {
+  const notification = document.createElement('div');
+  notification.className = `notification ${type}`;
+  notification.textContent = message;
+  
+  // Style the notification
+  notification.style.position = 'fixed';
+  notification.style.top = '60px';
+  notification.style.right = '10px';
+  notification.style.padding = '10px 15px';
+  notification.style.borderRadius = '5px';
+  notification.style.color = 'white';
+  notification.style.fontFamily = 'Arial, sans-serif';
+  notification.style.zIndex = '1000';
+  notification.style.maxWidth = '300px';
+  notification.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.2)';
+  notification.style.transition = 'opacity 0.5s ease';
+  
+  // Set background color based on type
+  if (type === 'error') {
+    notification.style.backgroundColor = 'rgba(220, 53, 69, 0.9)';
+  } else if (type === 'success') {
+    notification.style.backgroundColor = 'rgba(40, 167, 69, 0.9)';
+  } else {
+    notification.style.backgroundColor = 'rgba(0, 123, 255, 0.9)';
+  }
+  
+  document.body.appendChild(notification);
+  
+  // Remove notification after 5 seconds
+  setTimeout(() => {
+    notification.style.opacity = '0';
+    setTimeout(() => {
+      document.body.removeChild(notification);
+    }, 500);
+  }, 5000);
+}
+
+// Function to set up VR controllers
+function setupVRControllers(session) {
+  // Create controller models and add them to the scene
+  const controllerModelFactory = new THREE.XRControllerModelFactory();
+  
+  // Controller 1
+  const controller1 = renderer.xr.getController(0);
+  controller1.addEventListener('selectstart', onSelectStart);
+  controller1.addEventListener('selectend', onSelectEnd);
+  scene.add(controller1);
+  
+  // Controller 2
+  const controller2 = renderer.xr.getController(1);
+  controller2.addEventListener('selectstart', onSelectStart);
+  controller2.addEventListener('selectend', onSelectEnd);
+  scene.add(controller2);
+  
+  // Controller grip 1
+  const controllerGrip1 = renderer.xr.getControllerGrip(0);
+  controllerGrip1.add(controllerModelFactory.createControllerModel(controllerGrip1));
+  scene.add(controllerGrip1);
+  
+  // Controller grip 2
+  const controllerGrip2 = renderer.xr.getControllerGrip(1);
+  controllerGrip2.add(controllerModelFactory.createControllerModel(controllerGrip2));
+  scene.add(controllerGrip2);
+  
+  // Store controllers for later use
+  const vrControllers = {
+    controller1,
+    controller2,
+    controllerGrip1,
+    controllerGrip2
+  };
+  
+  return vrControllers;
+}
+
+// Controller event handlers
+function onSelectStart(event) {
+  const controller = event.target;
+  controller.userData.isSelecting = true;
+  
+  // Teleport or interact with objects
+  if (playerAvatar) {
+    // Get controller direction
+    const tempMatrix = new THREE.Matrix4();
+    tempMatrix.identity().extractRotation(controller.matrixWorld);
+    
+    const raycaster = new THREE.Raycaster();
+    raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
+    raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
+    
+    // Check for intersections with the ground
+    const intersects = raycaster.intersectObjects(scene.children, true);
+    
+    for (let i = 0; i < intersects.length; i++) {
+      const intersect = intersects[i];
+      
+      // Check if the intersected object is the ground
+      if (intersect.object.userData && intersect.object.userData.isGround) {
+        // Teleport to the intersection point
+        playerAvatar.position.set(
+          intersect.point.x,
+          playerAvatar.position.y, // Keep the same Y position
+          intersect.point.z
+        );
+        
+        // Update camera position in VR
+        const headPosition = new THREE.Vector3(
+          playerAvatar.position.x,
+          playerAvatar.position.y + 1.6, // Approximate head height
+          playerAvatar.position.z
+        );
+        
+        // Create a teleport marker effect
+        createTeleportMarker(intersect.point);
+        
+        break;
+      }
+    }
+  }
+}
+
+function onSelectEnd(event) {
+  const controller = event.target;
+  controller.userData.isSelecting = false;
+}
+
+// Create a visual marker for teleportation
+function createTeleportMarker(position) {
+  const markerGeometry = new THREE.RingGeometry(0.25, 0.3, 32);
+  const markerMaterial = new THREE.MeshBasicMaterial({ 
+    color: 0x0088ff,
+    opacity: 0.6,
+    transparent: true,
+    side: THREE.DoubleSide
+  });
+  
+  const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+  marker.position.copy(position);
+  marker.position.y += 0.01; // Slightly above the ground
+  marker.rotation.x = -Math.PI / 2; // Flat on the ground
+  
+  scene.add(marker);
+  
+  // Animate and remove the marker
+  const startTime = performance.now();
+  const duration = 1000; // 1 second
+  
+  function animateMarker() {
+    const elapsed = performance.now() - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    
+    marker.scale.set(1 + progress * 2, 1 + progress * 2, 1);
+    marker.material.opacity = 0.6 * (1 - progress);
+    
+    if (progress < 1) {
+      requestAnimationFrame(animateMarker);
+    } else {
+      scene.remove(marker);
+    }
+  }
+  
+  animateMarker();
+}
+
+// Function to create VR instructions
+function showVRInstructions() {
+  // Create a floating panel with instructions
+  const instructionsPanel = document.createElement('div');
+  instructionsPanel.id = 'vr-instructions';
+  instructionsPanel.style.position = 'fixed';
+  instructionsPanel.style.top = '50%';
+  instructionsPanel.style.left = '50%';
+  instructionsPanel.style.transform = 'translate(-50%, -50%)';
+  instructionsPanel.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+  instructionsPanel.style.color = 'white';
+  instructionsPanel.style.padding = '20px';
+  instructionsPanel.style.borderRadius = '10px';
+  instructionsPanel.style.fontFamily = 'Arial, sans-serif';
+  instructionsPanel.style.zIndex = '2000';
+  instructionsPanel.style.maxWidth = '400px';
+  instructionsPanel.style.textAlign = 'center';
+  
+  instructionsPanel.innerHTML = `
+    <h2>VR Mode Instructions</h2>
+    <p>You are about to enter VR mode. Here's how to navigate:</p>
+    <ul style="text-align: left; margin: 15px 0;">
+      <li><strong>Trigger Button:</strong> Teleport to location</li>
+      <li><strong>Grip Button:</strong> Grab objects</li>
+      <li><strong>Thumbstick:</strong> Rotate view</li>
+    </ul>
+    <p>Your avatar will follow your head movement.</p>
+    <button id="vr-instructions-close" style="padding: 10px 20px; background-color: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px;">Got it!</button>
+  `;
+  
+  document.body.appendChild(instructionsPanel);
+  
+  // Close button event
+  document.getElementById('vr-instructions-close').addEventListener('click', () => {
+    document.body.removeChild(instructionsPanel);
+  });
+  
+  // Auto-close after 10 seconds
+  setTimeout(() => {
+    if (document.body.contains(instructionsPanel)) {
+      document.body.removeChild(instructionsPanel);
+    }
+  }, 10000);
+}
+
+// Create VR button
+const vrButton = document.getElementById('vr-button');
+if (vrButton) {
+  // Check if WebXR is available
+  if ('xr' in navigator) {
+    navigator.xr.isSessionSupported('immersive-vr').then((supported) => {
+      if (supported) {
+        // WebXR is supported
+        vrButton.addEventListener('click', () => {
+          if (renderer.xr.isPresenting) {
+            renderer.xr.getSession().end();
+          } else {
+            // Show VR instructions before entering VR mode
+            showVRInstructions();
+            
+            // Enter VR mode after a short delay
+            setTimeout(() => {
+              // Enter VR mode
+              navigator.xr.requestSession('immersive-vr', {
+                optionalFeatures: ['local-floor', 'bounded-floor']
+              }).then((session) => {
+                renderer.xr.setSession(session);
+                
+                // Save current camera position and controls state
+                const savedCameraPosition = camera.position.clone();
+                const savedCameraRotation = camera.rotation.clone();
+                let savedControlsEnabled = false;
+                
+                if (controls) {
+                  savedControlsEnabled = controls.enabled;
+                  // Disable orbit controls in VR
+                  controls.enabled = false;
+                }
+                
+                // Position the camera at the avatar's head position for VR
+                if (playerAvatar) {
+                  // Get the avatar's head position
+                  const headPosition = new THREE.Vector3(
+                    playerAvatar.position.x,
+                    playerAvatar.position.y + 1.6, // Approximate head height
+                    playerAvatar.position.z
+                  );
+                  
+                  // Set the camera position to the head position
+                  camera.position.copy(headPosition);
+                  
+                  // Make the avatar invisible to the user in VR
+                  if (playerAvatar.visible) {
+                    playerAvatar.userData.wasVisible = playerAvatar.visible;
+                    playerAvatar.visible = false;
+                  }
+                }
+                
+                // Set up VR controllers
+                const vrControllers = setupVRControllers(session);
+                
+                // Set up session end event
+                session.addEventListener('end', () => {
+                  vrButton.classList.remove('active');
+                  console.log('VR session ended');
+                  
+                  // Restore camera position and controls
+                  camera.position.copy(savedCameraPosition);
+                  camera.rotation.copy(savedCameraRotation);
+                  
+                  if (controls) {
+                    controls.enabled = savedControlsEnabled;
+                  }
+                  
+                  // Restore avatar visibility
+                  if (playerAvatar && playerAvatar.userData.wasVisible !== undefined) {
+                    playerAvatar.visible = playerAvatar.userData.wasVisible;
+                    delete playerAvatar.userData.wasVisible;
+                  }
+                  
+                  // Remove VR controllers from the scene
+                  if (vrControllers) {
+                    scene.remove(vrControllers.controller1);
+                    scene.remove(vrControllers.controller2);
+                    scene.remove(vrControllers.controllerGrip1);
+                    scene.remove(vrControllers.controllerGrip2);
+                  }
+                  
+                  showNotification('Exited VR mode', 'info');
+                });
+                
+                vrButton.classList.add('active');
+                console.log('VR session started');
+                showNotification('Entered VR mode', 'success');
+              }).catch(error => {
+                console.error('Error starting VR session:', error);
+                showNotification('Failed to start VR session: ' + error.message, 'error');
+              });
+            }, 2000); // 2-second delay to allow reading the instructions
+          }
+        });
+        
+        console.log('WebXR VR supported');
+        vrButton.style.display = 'block';
+      } else {
+        // WebXR is not supported
+        console.log('WebXR VR not supported');
+        vrButton.style.display = 'block';
+        vrButton.disabled = true;
+        vrButton.style.opacity = '0.5';
+        vrButton.style.cursor = 'not-allowed';
+        vrButton.title = 'VR not supported on this device or browser';
+        vrButton.addEventListener('click', () => {
+          showNotification('VR is not supported on this device or browser', 'error');
+        });
+      }
+    });
+  } else {
+    // WebXR is not available
+    console.log('WebXR not available');
+    vrButton.style.display = 'block';
+    vrButton.disabled = true;
+    vrButton.style.opacity = '0.5';
+    vrButton.style.cursor = 'not-allowed';
+    vrButton.title = 'VR not supported on this device or browser';
+    vrButton.addEventListener('click', () => {
+      showNotification('VR is not supported on this device or browser', 'error');
+    });
+  }
+}
 
 // Setup lighting
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
@@ -600,3 +940,29 @@ try {
   errorDiv.innerHTML = `<h2>Error Loading Game</h2><p>${error.message}</p><p>Please check the console for more details.</p>`;
   document.body.appendChild(errorDiv);
 }
+
+// Use the WebXR animation loop instead of requestAnimationFrame
+renderer.setAnimationLoop(function() {
+  // Update controls
+  if (controls) {
+    controls.update();
+  }
+  
+  // Update avatar animations
+  if (playerAvatar && playerAvatar.updateAnimations) {
+    updateAvatarAnimations(playerAvatar, controls ? controls.moveState : null);
+  }
+  
+  // Update NPCs
+  if (npcManager) {
+    npcManager.update();
+  }
+  
+  // Update poke mechanic
+  if (pokeMechanic) {
+    pokeMechanic.update();
+  }
+  
+  // Render scene
+  renderer.render(scene, camera);
+});

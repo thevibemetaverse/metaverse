@@ -1,16 +1,18 @@
 export function setupUI(gameState) {
   // Get UI elements
-  const settingsButton = document.getElementById('settings-button');
+  const vrButton = document.getElementById('vr-button');
   const settingsPanel = document.getElementById('settings-panel');
   const closeSettingsButton = document.getElementById('close-settings');
   const volumeSlider = document.getElementById('volume');
   const graphicsSelect = document.getElementById('graphics');
   const emojiButtons = document.querySelectorAll('.emoji-button');
   
-  // Settings panel toggle
-  if (settingsButton && settingsPanel) {
-    settingsButton.addEventListener('click', () => {
-      settingsPanel.style.display = settingsPanel.style.display === 'block' ? 'none' : 'block';
+  // VR button toggle
+  if (vrButton) {
+    // VR button is now handled in main.js
+    // This is just for visual feedback
+    vrButton.addEventListener('click', () => {
+      vrButton.classList.toggle('active');
     });
   }
   
