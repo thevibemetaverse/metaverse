@@ -55,6 +55,15 @@ export class EmojiEffects {
   
   // Create a 3D emoji and add it to the scene
   createEmoji(emoji, position) {
+    console.log(`Creating emoji: ${emoji}, has material: ${!!this.emojiMaterials[emoji]}`);
+    
+    // Check if we have a material for this emoji
+    if (!this.emojiMaterials[emoji]) {
+      console.error(`No material found for emoji: ${emoji}`);
+      // Create a default material if none exists
+      this.emojiMaterials[emoji] = this.createEmojiMaterial(emoji, 0xFFFFFF);
+    }
+    
     // Create a plane geometry for the emoji
     const geometry = new THREE.PlaneGeometry(1, 1);
     
@@ -67,6 +76,7 @@ export class EmojiEffects {
     // Position the emoji - if no position provided, create in front of the camera
     if (position) {
       emojiMesh.position.copy(position);
+      console.log(`Using provided position: x=${position.x.toFixed(2)}, y=${position.y.toFixed(2)}, z=${position.z.toFixed(2)}`);
     } else {
       // If no position provided, create in front of the camera
       const cameraDirection = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
@@ -74,6 +84,7 @@ export class EmojiEffects {
       // Add some random offset
       emojiMesh.position.x += (Math.random() - 0.5) * 1;
       emojiMesh.position.y += (Math.random() - 0.5) * 1 + 1; // Start a bit higher
+      console.log(`Created position in front of camera: x=${emojiMesh.position.x.toFixed(2)}, y=${emojiMesh.position.y.toFixed(2)}, z=${emojiMesh.position.z.toFixed(2)}`);
     }
     
     // Add random scale variation - make them larger
@@ -102,10 +113,12 @@ export class EmojiEffects {
     
     // Add to emojis array
     this.emojis.push(emojiMesh);
+    console.log(`Total emojis in scene: ${this.emojis.length}`);
     
     // Remove oldest emoji if we exceed the maximum
     if (this.emojis.length > this.maxEmojis) {
       const oldestEmoji = this.emojis.shift();
+      console.log(`Removing oldest emoji to stay under limit of ${this.maxEmojis}`);
       this.scene.remove(oldestEmoji);
       oldestEmoji.geometry.dispose();
       oldestEmoji.material.dispose();
@@ -122,6 +135,11 @@ export class EmojiEffects {
       return;
     }
     
+    // Log the number of emojis being updated
+    if (this.emojis.length > 0) {
+      console.log(`Updating ${this.emojis.length} emojis`);
+    }
+    
     const currentTime = Date.now();
     
     // Update each emoji
@@ -132,6 +150,7 @@ export class EmojiEffects {
       
       if (age > lifespan) {
         // Remove emoji if it's too old
+        console.log(`Removing emoji ${emoji.userData.emoji} after ${age}ms`);
         this.scene.remove(emoji);
         emoji.geometry.dispose();
         emoji.material.dispose();
@@ -167,13 +186,16 @@ export class EmojiEffects {
   
   // Create a burst of emojis
   createEmojiBurst(emoji, position, count = 5) {
-    console.log(`Creating emoji burst: ${emoji}, count: ${count}`);
+    console.log(`Creating emoji burst: ${emoji}, count: ${count}, has position: ${!!position}`);
     
     // If position is not provided, create in front of the camera
     if (!position) {
       const cameraDirection = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
       position = this.camera.position.clone().add(cameraDirection.multiplyScalar(3));
       position.y += 0.5; // Slightly above eye level
+      console.log(`Created default position for burst: x=${position.x.toFixed(2)}, y=${position.y.toFixed(2)}, z=${position.z.toFixed(2)}`);
+    } else {
+      console.log(`Using provided position for burst: x=${position.x.toFixed(2)}, y=${position.y.toFixed(2)}, z=${position.z.toFixed(2)}`);
     }
     
     for (let i = 0; i < count; i++) {
@@ -185,6 +207,7 @@ export class EmojiEffects {
       );
       
       const burstPosition = position.clone().add(offset);
+      console.log(`Emoji ${i+1}/${count} position: x=${burstPosition.x.toFixed(2)}, y=${burstPosition.y.toFixed(2)}, z=${burstPosition.z.toFixed(2)}`);
       
       // Create emoji
       const emojiMesh = this.createEmoji(emoji, burstPosition);
