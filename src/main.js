@@ -758,10 +758,11 @@ try {
       
       // Position the character in skateboarding stance (sideways)
       if (playerAvatar) {
-        // Apply the 90-degree rotation to both the player and skateboard
-        // to create a sideways stance, but keep movement direction consistent
+        // Apply the correct rotation to both the player and skateboard
+        // We want the skateboard to point in the movement direction
         
-        // Calculate target rotation: base movement direction + 90 degrees for sideways stance
+        // Calculate target rotation for the player and skateboard
+        // The movement is now aligned with the skateboard's nose
         const targetPlayerRotation = controls.targetRotation + Math.PI/2;
         const targetSkateboardRotation = controls.targetRotation + Math.PI/2;
         

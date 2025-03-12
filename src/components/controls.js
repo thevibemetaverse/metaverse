@@ -114,7 +114,7 @@ export function setupControls(camera, player, domElement, gameState, scene) {
       '/assets/models/skateboard.glb', // This path is relative to the public directory
       (gltf) => {
         controls.skateboard = gltf.scene;
-        controls.skateboard.scale.set(1, 1, 1);
+        controls.skateboard.scale.set(0.25, 0.25, 0.25); // Reduced to 25% of original size
         controls.skateboard.visible = false;
         scene.add(controls.skateboard);
         console.log('Skateboard model loaded successfully');
@@ -338,7 +338,7 @@ export function setupControls(camera, player, domElement, gameState, scene) {
     // Update skateboard position and rotation if in skateboard mode
     if (controls.isSkateboardMode && controls.skateboard) {
       controls.skateboard.position.copy(player.position);
-      controls.skateboard.position.y = 0.1; // Position skateboard just above the ground
+      controls.skateboard.position.y = 0.05; // Adjusted for smaller skateboard size
       
       // Set the skateboard's rotation to match the movement direction
       // The 90-degree visual rotation is handled in main.js
