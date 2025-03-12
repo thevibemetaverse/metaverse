@@ -20,8 +20,8 @@ export function setupControls(camera, player, domElement, gameState, scene) {
     isSkateboardMode: false,
     skateboard: null,
     skateboardSpeed: 0,
-    maxSkateboardSpeed: 15,
-    skateboardAcceleration: 0.5,
+    maxSkateboardSpeed: 30, // Doubled from 15 to 30 for 2x faster skateboarding
+    skateboardAcceleration: 0.8, // Increased for faster acceleration
     skateboardDeceleration: 0.2,
     skateboardTurnSpeed: 3.0,
     
@@ -156,6 +156,11 @@ export function setupControls(camera, player, domElement, gameState, scene) {
           if (controls.skateboard) {
             controls.skateboard.visible = controls.isSkateboardMode;
             console.log('Skateboard visibility set to:', controls.skateboard.visible);
+            
+            // Give an initial speed boost when entering skateboard mode
+            if (controls.isSkateboardMode) {
+              controls.skateboardSpeed = controls.maxSkateboardSpeed / 2; // Start at half max speed
+            }
           } else {
             console.warn('Skateboard model not loaded yet!');
           }
@@ -378,14 +383,17 @@ export function setupControls(camera, player, domElement, gameState, scene) {
       const forwardDirection = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), player.rotation.y);
       const rightDirection = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), player.rotation.y);
       
+      // Basic walking speed is 5 units per second
+      const walkSpeed = 5;
+      
       if (controls.moveForward || controls.moveBackward) {
-        player.position.x += forwardDirection.x * controls.direction.z * 5 * delta;
-        player.position.z += forwardDirection.z * controls.direction.z * 5 * delta;
+        player.position.x += forwardDirection.x * controls.direction.z * walkSpeed * delta;
+        player.position.z += forwardDirection.z * controls.direction.z * walkSpeed * delta;
       }
       
       if (controls.moveLeft || controls.moveRight) {
-        player.position.x += rightDirection.x * controls.direction.x * 5 * delta;
-        player.position.z += rightDirection.z * controls.direction.x * 5 * delta;
+        player.position.x += rightDirection.x * controls.direction.x * walkSpeed * delta;
+        player.position.z += rightDirection.z * controls.direction.x * walkSpeed * delta;
       }
     }
     
