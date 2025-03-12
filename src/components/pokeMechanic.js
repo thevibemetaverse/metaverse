@@ -15,7 +15,6 @@ export class PokeMechanic {
     this.currentHoverObject = null; // Currently hovered object
     this.hoverAnimationFrame = null; // Animation frame for hover effect
     this.hoverStartTime = 0; // Time when hover started
-    this.tooltip = null; // Tooltip element
     this.customCursorElement = null; // Custom cursor element
     
     // Set up custom cursor
@@ -26,9 +25,6 @@ export class PokeMechanic {
     
     // Create leaderboard UI
     this.createLeaderboardUI();
-    
-    // Create tooltip (empty method for compatibility)
-    this.createTooltip();
     
     console.log('PokeMechanic initialized with custom cursor');
   }
@@ -96,6 +92,7 @@ export class PokeMechanic {
   // Update custom cursor position
   updateCustomCursor(event) {
     if (this.customCursorElement) {
+      // Adjust position to account for rotation
       this.customCursorElement.style.left = `${event.clientX}px`;
       this.customCursorElement.style.top = `${event.clientY}px`;
     }
@@ -967,21 +964,5 @@ export class PokeMechanic {
     
     // Continue the animation
     this.hoverAnimationFrame = requestAnimationFrame((time) => this.animateHover(time));
-  }
-  
-  // Create tooltip element (empty for compatibility)
-  createTooltip() {
-    // We're removing the tooltip functionality to fix the NPC pausing issue
-    // This method is kept empty for compatibility
-  }
-  
-  // Show tooltip at position (empty for compatibility)
-  showTooltip(x, y, objectName) {
-    // Tooltip functionality removed to fix NPC pausing issue
-  }
-  
-  // Hide tooltip (empty for compatibility)
-  hideTooltip() {
-    // Tooltip functionality removed to fix NPC pausing issue
   }
 } 
