@@ -2,141 +2,227 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Metaverse Simulator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#000000">
+  <title>Metaverse</title>
   <style>
-    body {
+    * {
       margin: 0;
-      overflow: hidden;
+      padding: 0;
+      box-sizing: border-box;
     }
+    
+    body {
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      touch-action: none;
+    }
+    
     canvas {
       display: block;
     }
+    
     #ui-container {
       position: absolute;
-      top: 10px;
-      left: 10px;
-      color: white;
-      font-family: Arial, sans-serif;
+      top: 0;
+      left: 0;
+      width: 100%;
       pointer-events: none;
     }
-    #username {
-      font-size: 24px;
-      margin-bottom: 10px;
-    }
-    #users-list {
-      background-color: rgba(0, 0, 0, 0.5);
-      padding: 10px;
-      border-radius: 5px;
-      max-height: 200px;
-      overflow-y: auto;
+    
+    #ui-container button {
       pointer-events: auto;
     }
+    
     #vr-button {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      padding: 12px;
+      border-radius: 4px;
+      background: rgba(0, 0, 0, 0.6);
+      color: white;
+      font-weight: bold;
+      border: 1px solid white;
+      cursor: pointer;
+      display: none;
+    }
+    
+    #vr-button.active {
+      background: rgba(0, 123, 255, 0.6);
+    }
+    
+    #show-debug {
       position: absolute;
       top: 10px;
       right: 10px;
-      padding: 10px 15px;
-      background-color: rgba(0, 0, 0, 0.6);
+      padding: 8px;
+      background: rgba(0, 0, 0, 0.6);
       color: white;
       border: none;
-      border-radius: 5px;
+      border-radius: 4px;
       cursor: pointer;
-      pointer-events: auto;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: bold;
-      font-size: 14px;
-      transition: all 0.3s ease;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+      font-size: 12px;
     }
-    #vr-button::before {
-      content: "🥽";
-      margin-right: 5px;
-      font-size: 16px;
-    }
-    #vr-button:hover {
-      background-color: rgba(0, 0, 0, 0.8);
-      transform: translateY(-2px);
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-    }
-    #vr-button.active {
-      background-color: rgba(0, 120, 255, 0.8);
-    }
-    #vr-button.active::before {
-      content: "✓";
-    }
-    #settings-panel {
+    
+    #debug-panel {
       position: absolute;
-      top: 50px;
+      top: 10px;
       right: 10px;
-      background-color: rgba(0, 0, 0, 0.7);
-      padding: 20px;
-      border-radius: 5px;
+      background: rgba(0, 0, 0, 0.8);
       color: white;
+      padding: 15px;
+      border-radius: 5px;
+      width: 300px;
       display: none;
-      pointer-events: auto;
+      z-index: 100;
     }
-    .emoji-reactions {
+    
+    #debug-panel h3 {
+      margin-top: 0;
+      margin-bottom: 10px;
+    }
+    
+    #debug-panel button {
+      margin: 5px 0;
+      padding: 5px 10px;
+      background: #444;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+      width: 100%;
+    }
+    
+    #debug-panel button:hover {
+      background: #555;
+    }
+    
+    #debug-panel .slider-container {
+      margin: 10px 0;
+    }
+    
+    #debug-panel label {
+      display: block;
+      margin-bottom: 5px;
+    }
+    
+    #debug-panel input[type="range"] {
+      width: 100%;
+    }
+    
+    #emoji-reactions {
       position: absolute;
-      bottom: 10px;
+      bottom: 20px;
       left: 50%;
       transform: translateX(-50%);
       display: flex;
       gap: 10px;
-      pointer-events: auto;
     }
+    
     .emoji-button {
       font-size: 24px;
-      background-color: rgba(0, 0, 0, 0.5);
+      background: rgba(255, 255, 255, 0.2);
       border: none;
       border-radius: 50%;
       width: 40px;
       height: 40px;
       cursor: pointer;
-      color: white;
+      transition: transform 0.2s;
+      pointer-events: auto;
+    }
+    
+    .emoji-button:hover {
+      transform: scale(1.2);
+      background: rgba(255, 255, 255, 0.3);
+    }
+    
+    /* Mobile-specific styles */
+    @media (max-width: 800px) {
+      #vr-button {
+        bottom: 80px;
+        right: 10px;
+        padding: 10px;
+        font-size: 14px;
+      }
+      
+      #emoji-reactions {
+        bottom: 80px;
+      }
+      
+      .emoji-button {
+        width: 36px;
+        height: 36px;
+        font-size: 20px;
+      }
+      
+      #show-debug {
+        top: 10px;
+        right: 10px;
+        padding: 6px;
+        font-size: 10px;
+      }
+      
+      #debug-panel {
+        width: 250px;
+      }
+    }
+    
+    /* Prevent text selection on mobile */
+    * {
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      -khtml-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
     }
   </style>
 </head>
 <body>
   <div id="ui-container">
-    <!-- UI elements will be added here -->
-  </div>
-
-  <button id="vr-button">Enter VR</button>
-  <div id="settings-panel">
-    <h3>Settings</h3>
-    <div>
-      <label for="volume">Volume: </label>
-      <input type="range" id="volume" min="0" max="100" value="50">
+    <div id="emoji-reactions">
+      <button class="emoji-button">👋</button>
+      <button class="emoji-button">👍</button>
+      <button class="emoji-button">❤️</button>
+      <button class="emoji-button">😂</button>
+      <button class="emoji-button">🎉</button>
     </div>
-    <div>
-      <label for="graphics">Graphics Quality: </label>
-      <select id="graphics">
-        <option value="low">Low</option>
-        <option value="medium" selected>Medium</option>
-        <option value="high">High</option>
-      </select>
-    </div>
-    <div>
-      <label for="camera-view">Camera View: </label>
-      <select id="camera-view">
-        <option value="first-person">First Person</option>
-        <option value="third-person" selected>Third Person</option>
-      </select>
-    </div>
-    <button id="close-settings">Close</button>
+    <button id="vr-button">Enter VR</button>
+    <button id="show-debug">Debug</button>
   </div>
-
-  <div class="emoji-reactions">
-    <button class="emoji-button">👋</button>
-    <button class="emoji-button">👍</button>
-    <button class="emoji-button">❤️</button>
-    <button class="emoji-button">😂</button>
+  
+  <div id="debug-panel">
+    <h3>Debug Controls</h3>
+    <button id="reload-model">Reload Avatar Model</button>
+    <button id="reset-model">Reset Model to Default</button>
+    
+    <div class="slider-container">
+      <label>Model Scale: <span id="scale-value">0.6</span></label>
+      <input type="range" id="model-scale" min="0.1" max="1.0" step="0.1" value="0.6">
+    </div>
+    
+    <div class="slider-container">
+      <label>Model Y Position: <span id="y-pos-value">0.0</span></label>
+      <input type="range" id="model-y-pos" min="-1.0" max="1.0" step="0.1" value="0.0">
+    </div>
+    
+    <div class="slider-container">
+      <label>Model Vertical Scale: <span id="vertical-scale-value">1.0</span></label>
+      <input type="range" id="model-vertical-scale" min="0.5" max="1.5" step="0.1" value="1.0">
+    </div>
+    
+    <div class="slider-container">
+      <label>Model Rotation: <span id="rotation-value">3.14</span></label>
+      <input type="range" id="model-rotation" min="0" max="6.28" step="0.01" value="3.14">
+    </div>
+    
+    <button id="toggle-debug">Show Debug Visuals</button>
+    <button id="toggle-npcs">Disable NPCs</button>
   </div>
-
-  <!-- Control instructions panel -->
+  
   <div id="controls-help" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: rgba(0, 0, 0, 0.8); padding: 20px; border-radius: 10px; color: white; text-align: center; font-family: Arial, sans-serif; max-width: 400px; z-index: 1000;">
     <h2>Controls</h2>
     <div style="text-align: left; margin: 10px 0;">
@@ -151,36 +237,6 @@
   </div>
 
   <!-- Debug controls -->
-  <div id="debug-panel" style="position: absolute; bottom: 10px; right: 10px; background-color: rgba(0, 0, 0, 0.7); padding: 10px; border-radius: 5px; color: white; display: none;">
-    <h3>Debug Controls</h3>
-    <button id="reload-model">Reload Zuckerberg Model</button>
-    <button id="reset-model">Reset to Fixed Settings</button>
-    <div>
-      <label for="model-scale">Scale:</label>
-      <input type="range" id="model-scale" min="0.1" max="5" step="0.1" value="0.6">
-      <span id="scale-value">0.6</span>
-    </div>
-    <div>
-      <label for="model-y-pos">Y Position:</label>
-      <input type="range" id="model-y-pos" min="-5" max="5" step="0.1" value="0.0">
-      <span id="y-pos-value">0.0</span>
-    </div>
-    <div>
-      <label for="model-rotation">Rotation:</label>
-      <input type="range" id="model-rotation" min="0" max="6.28" step="0.1" value="3.14">
-      <span id="rotation-value">3.14</span>
-    </div>
-    <div>
-      <label for="model-vertical-scale">Vertical Scale:</label>
-      <input type="range" id="model-vertical-scale" min="0.1" max="5" step="0.1" value="1.0">
-      <span id="vertical-scale-value">1.0</span>
-    </div>
-    <button id="toggle-debug">Toggle Debug Visuals</button>
-    <button id="toggle-npcs">Toggle NPCs</button>
-  </div>
-
-  <button id="show-debug" style="position: absolute; bottom: 10px; right: 10px; padding: 5px; background-color: rgba(255, 0, 0, 0.7); color: white; border: none; border-radius: 5px;">Debug</button>
-
   <script type="module" src="/src/main.js"></script>
 </body>
 </html> 

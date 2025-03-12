@@ -10,6 +10,11 @@ import { setupControls } from './components/controls.js';
 import { setupUI } from './components/ui.js';
 import { NPCManager } from './components/npcs.js';
 import { PokeMechanic } from './components/pokeMechanic.js';
+import { setupMobileControls, isMobileDevice, optimizeForMobile, setupDeviceOrientation, createMobileUI } from './components/mobileControls.js';
+
+// Detect if we're on a mobile device
+const isMobile = isMobileDevice();
+console.log(`Device detected as ${isMobile ? 'mobile' : 'desktop'}`);
 
 // Create loading screen
 const loadingScreen = document.createElement('div');
@@ -91,19 +96,25 @@ const gameState = {
   username: 'Metaverse Explorer',
   settings: {
     volume: 50,
-    graphics: 'medium',
+    graphics: isMobile ? 'low' : 'medium',
+    isMobile: isMobile
   }
 };
 
 // Initialize Three.js scene
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+const renderer = new THREE.WebGLRenderer({ antialias: !isMobile });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setPixelRatio(isMobile ? Math.min(window.devicePixelRatio, 1.5) : window.devicePixelRatio);
 renderer.shadowMap.enabled = true;
 renderer.xr.enabled = true;
 document.body.appendChild(renderer.domElement);
+
+// If on mobile, optimize renderer settings
+if (isMobile) {
+  optimizeForMobile(renderer);
+}
 
 // Function to show notifications
 function showNotification(message, type = 'info') {
@@ -471,6 +482,47 @@ try {
   // Setup controls
   const controls = setupControls(camera, playerAvatar, renderer.domElement, gameState);
   
+  // Setup mobile controls if on a mobile device
+  let mobileControls = null;
+  if (isMobile) {
+    console.log('Setting up mobile controls');
+    mobileControls = setupMobileControls(controls);
+    controls.mobileControls = mobileControls;
+    
+    // Setup device orientation for mobile
+    setupDeviceOrientation(controls);
+    
+    // Create mobile UI
+    const mobileUI = createMobileUI();
+    
+    // Listen for mobile settings changes
+    window.addEventListener('mobile-settings-changed', (event) => {
+      const { graphicsQuality, useGyroscope } = event.detail;
+      
+      // Update graphics quality
+      if (graphicsQuality === 'low') {
+        renderer.setPixelRatio(1);
+        renderer.shadowMap.enabled = false;
+      } else if (graphicsQuality === 'medium') {
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFShadowMap;
+      } else if (graphicsQuality === 'high') {
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      }
+      
+      // Update gyroscope usage
+      if (useGyroscope) {
+        setupDeviceOrientation(controls);
+      }
+      
+      // Force shadow map update
+      renderer.shadowMap.needsUpdate = true;
+    });
+  }
+  
   // Position camera for a selfie-style view - in front of player looking back
   camera.position.set(0, 1.5, 5); // In front of the player, at face level
   camera.lookAt(0, 1.5, 0); // Looking directly at the player for selfie view
@@ -616,6 +668,29 @@ try {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
+    
+    // Update mobile status on resize
+    const wasMobile = gameState.settings.isMobile;
+    const nowMobile = window.innerWidth <= 800;
+    
+    if (wasMobile !== nowMobile) {
+      gameState.settings.isMobile = nowMobile;
+      
+      // Toggle mobile controls
+      if (mobileControls) {
+        mobileControls.toggleMobileControls(nowMobile);
+      }
+      
+      // Adjust renderer settings
+      if (nowMobile) {
+        optimizeForMobile(renderer);
+      } else {
+        // Restore desktop settings
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      }
+    }
   });
   
   // Animation loop
@@ -922,6 +997,19 @@ try {
     closeControlsHelpButton.addEventListener('click', () => {
       controlsHelp.style.display = 'none';
     });
+  }
+  
+  // Update controls help for mobile
+  if (isMobile && controlsHelp) {
+    const controlsContent = controlsHelp.querySelector('div');
+    if (controlsContent) {
+      controlsContent.innerHTML = `
+        <p><strong>Left Joystick:</strong> Move</p>
+        <p><strong>Right Joystick:</strong> Rotate</p>
+        <p><strong>Jump Button:</strong> Jump</p>
+        <p><strong>Settings:</strong> Adjust graphics & controls</p>
+      `;
+    }
   }
 } catch (error) {
   console.error('Error initializing game:', error);
