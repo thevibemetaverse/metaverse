@@ -163,40 +163,10 @@ export function createEmojiBar() {
 export function showEmojiReaction(emoji) {
   console.log('Emoji clicked:', emoji);
   
-  // Create floating emoji element
-  const element = document.createElement('div');
-  element.textContent = emoji;
-  element.style.position = 'fixed';
-  element.style.fontSize = '60px';
-  element.style.left = '50%';
-  element.style.bottom = '40%';
-  element.style.transform = 'translateX(-50%)';
-  element.style.zIndex = '1002';
-  element.style.textShadow = '0 2px 10px rgba(0, 0, 0, 0.7)';
-  element.style.pointerEvents = 'none';
+  // This function will be overridden by the main.js file to use the 3D emoji effects
+  // We'll just dispatch the event for the main.js to handle
   
-  // Add animation
-  const animationName = 'float-up-' + Date.now();
-  const style = document.createElement('style');
-  style.textContent = `
-    @keyframes ${animationName} {
-      0% { opacity: 1; transform: translateX(-50%) translateY(0); }
-      100% { opacity: 0; transform: translateX(-50%) translateY(-200px); }
-    }
-  `;
-  document.head.appendChild(style);
-  element.style.animation = `${animationName} 2s ease-out forwards`;
-  
-  // Add to document
-  document.body.appendChild(element);
-  
-  // Remove after animation completes
-  setTimeout(() => {
-    if (document.body.contains(element)) {
-      document.body.removeChild(element);
-    }
-    if (document.head.contains(style)) {
-      document.head.removeChild(style);
-    }
-  }, 2000);
+  // Dispatch a custom event that main.js can listen for to create 3D emojis
+  const event = new CustomEvent('emoji-reaction', { detail: { emoji } });
+  document.dispatchEvent(event);
 } 

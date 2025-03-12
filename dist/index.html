@@ -114,11 +114,11 @@
   <div id="ui-container">
     <!-- UI elements will be added here -->
     <div class="emoji-reactions" style="position: fixed !important; bottom: 20px !important; z-index: 9999999 !important;">
-      <button class="emoji-button" onclick="showEmojiReaction('👋')">👋</button>
-      <button class="emoji-button" onclick="showEmojiReaction('👍')">👍</button>
-      <button class="emoji-button" onclick="showEmojiReaction('❤️')">❤️</button>
-      <button class="emoji-button" onclick="showEmojiReaction('😂')">😂</button>
-      <button class="emoji-button" onclick="showEmojiReaction('🎉')">🎉</button>
+      <button class="emoji-button" onclick="window.showEmojiReaction('👋')">👋</button>
+      <button class="emoji-button" onclick="window.showEmojiReaction('👍')">👍</button>
+      <button class="emoji-button" onclick="window.showEmojiReaction('❤️')">❤️</button>
+      <button class="emoji-button" onclick="window.showEmojiReaction('😂')">😂</button>
+      <button class="emoji-button" onclick="window.showEmojiReaction('🎉')">🎉</button>
     </div>
   </div>
 
@@ -255,6 +255,7 @@
       return true;
     }
 
+    // Function to show floating emoji animation
     // Create emoji bar directly in the DOM using the same approach as the poke leaderboard
     function createEmojiBar() {
       console.log('Creating emoji bar using poke leaderboard approach');
@@ -295,29 +296,35 @@
         button.addEventListener('click', () => {
           console.log('Emoji clicked:', emoji);
           
-          // Create floating emoji element
-          const element = document.createElement('div');
-          element.textContent = emoji;
-          element.style.position = 'fixed';
-          element.style.fontSize = '60px';
-          element.style.left = '50%';
-          element.style.bottom = '40%';
-          element.style.transform = 'translateX(-50%)';
-          element.style.zIndex = '10000';
-          element.style.pointerEvents = 'none';
-          
-          // Add animation
-          element.style.animation = 'float-up 2s ease-out forwards';
-          
-          // Add to document
-          document.body.appendChild(element);
-          
-          // Remove after animation completes
-          setTimeout(() => {
-            if (document.body.contains(element)) {
-              document.body.removeChild(element);
-            }
-          }, 2000);
+          // Use the window.showEmojiReaction function if available
+          if (window.showEmojiReaction) {
+            window.showEmojiReaction(emoji);
+          } else {
+            // Fallback to 2D animation
+            // Create floating emoji element
+            const element = document.createElement('div');
+            element.textContent = emoji;
+            element.style.position = 'fixed';
+            element.style.fontSize = '60px';
+            element.style.left = '50%';
+            element.style.bottom = '40%';
+            element.style.transform = 'translateX(-50%)';
+            element.style.zIndex = '10000';
+            element.style.pointerEvents = 'none';
+            
+            // Add animation
+            element.style.animation = 'float-up 2s ease-out forwards';
+            
+            // Add to document
+            document.body.appendChild(element);
+            
+            // Remove after animation completes
+            setTimeout(() => {
+              if (document.body.contains(element)) {
+                document.body.removeChild(element);
+              }
+            }, 2000);
+          }
         });
         
         emojiContainer.appendChild(button);
@@ -347,42 +354,16 @@
     function showEmojiReaction(emoji) {
       console.log('Emoji clicked:', emoji);
       
-      // Create floating emoji element
-      const element = document.createElement('div');
-      element.textContent = emoji;
-      element.style.position = 'fixed';
-      element.style.fontSize = '60px';
-      element.style.left = '50%';
-      element.style.bottom = '40%';
-      element.style.transform = 'translateX(-50%)';
-      element.style.zIndex = '1002';
-      element.style.textShadow = '0 2px 10px rgba(0, 0, 0, 0.7)';
-      element.style.pointerEvents = 'none';
-      
-      // Add animation
-      const animationName = 'float-up-' + Date.now();
-      const style = document.createElement('style');
-      style.textContent = `
-        @keyframes ${animationName} {
-          0% { opacity: 1; transform: translateX(-50%) translateY(0); }
-          100% { opacity: 0; transform: translateX(-50%) translateY(-200px); }
-        }
-      `;
-      document.head.appendChild(style);
-      element.style.animation = `${animationName} 2s ease-out forwards`;
-      
-      // Add to document
-      document.body.appendChild(element);
-      
-      // Remove after animation completes
-      setTimeout(() => {
-        if (document.body.contains(element)) {
-          document.body.removeChild(element);
-        }
-        if (document.head.contains(style)) {
-          document.head.removeChild(style);
-        }
-      }, 2000);
+      // Only dispatch the event for the 3D implementation
+      if (window.showEmojiReaction) {
+        window.showEmojiReaction(emoji);
+      } else {
+        console.log('3D emoji implementation not available yet');
+        
+        // Dispatch event anyway in case it's handled elsewhere
+        const event = new CustomEvent('emoji-reaction', { detail: { emoji } });
+        document.dispatchEvent(event);
+      }
     }
     
     // Create the emoji bar when the page loads
@@ -412,89 +393,17 @@
 
     // Add event listener for debug button
     document.getElementById('debug-emoji-bar').addEventListener('click', function() {
-      console.log('Debug button clicked, creating emoji bar...');
-      // Try to remove existing emoji bar if any
-      const existingBar = document.getElementById('emoji-bar-container');
-      if (existingBar) {
-        document.body.removeChild(existingBar);
+      console.log('Debug button clicked');
+      
+      // Try to create a 3D emoji directly
+      if (window.showEmojiReaction) {
+        console.log('Using 3D emoji reaction');
+        window.showEmojiReaction('🎉');
+      } else {
+        console.log('3D emoji implementation not available yet');
+        // Just create the emoji bar as fallback
+        createEmojiBar();
       }
-      
-      // Create emoji bar container
-      const emojiContainer = document.createElement('div');
-      emojiContainer.id = 'emoji-bar-container';
-      emojiContainer.style.position = 'fixed';
-      emojiContainer.style.bottom = '20px';
-      emojiContainer.style.left = '50%';
-      emojiContainer.style.transform = 'translateX(-50%)';
-      emojiContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-      emojiContainer.style.color = 'white';
-      emojiContainer.style.padding = '10px 15px';
-      emojiContainer.style.borderRadius = '25px';
-      emojiContainer.style.display = 'flex';
-      emojiContainer.style.gap = '15px';
-      emojiContainer.style.zIndex = '9999';
-      emojiContainer.style.boxShadow = '0 3px 10px rgba(0, 0, 0, 0.5)';
-      
-      // Create emoji buttons
-      const emojis = ['👋', '👍', '❤️', '😂', '🎉'];
-      emojis.forEach(emoji => {
-        const button = document.createElement('button');
-        button.textContent = emoji;
-        button.style.fontSize = '28px';
-        button.style.backgroundColor = 'transparent';
-        button.style.border = 'none';
-        button.style.cursor = 'pointer';
-        button.style.color = 'white';
-        button.style.padding = '5px';
-        
-        // Add click handler
-        button.addEventListener('click', () => {
-          console.log('Emoji clicked:', emoji);
-          
-          // Create floating emoji element
-          const element = document.createElement('div');
-          element.textContent = emoji;
-          element.style.position = 'fixed';
-          element.style.fontSize = '60px';
-          element.style.left = '50%';
-          element.style.bottom = '40%';
-          element.style.transform = 'translateX(-50%)';
-          element.style.zIndex = '10000';
-          element.style.pointerEvents = 'none';
-          
-          // Add animation
-          element.style.animation = 'float-up 2s ease-out forwards';
-          
-          // Add to document
-          document.body.appendChild(element);
-          
-          // Remove after animation completes
-          setTimeout(() => {
-            if (document.body.contains(element)) {
-              document.body.removeChild(element);
-            }
-          }, 2000);
-        });
-        
-        emojiContainer.appendChild(button);
-      });
-      
-      // Add animation style if it doesn't exist
-      if (!document.querySelector('#emoji-animation')) {
-        const style = document.createElement('style');
-        style.id = 'emoji-animation';
-        style.textContent = `
-          @keyframes float-up {
-            0% { opacity: 1; transform: translateX(-50%) translateY(0); }
-            100% { opacity: 0; transform: translateX(-50%) translateY(-200px); }
-          }
-        `;
-        document.head.appendChild(style);
-      }
-      
-      // Add the emoji bar to the document body
-      document.body.appendChild(emojiContainer);
-      console.log('Emoji bar created by debug button');
     });
 
     // Debug panel functionality
