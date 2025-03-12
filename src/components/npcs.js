@@ -16,6 +16,24 @@ export class NPCManager {
     
     // Poke mechanic will be set later when camera is available
     this.pokeMechanic = null;
+    
+    // Clean up any existing name labels from previous sessions
+    this.cleanupExistingLabels();
+  }
+
+  // Clean up any existing name labels
+  cleanupExistingLabels() {
+    const nameLabels = document.querySelectorAll('.npc-name');
+    if (nameLabels.length > 0) {
+      console.log(`Cleaning up ${nameLabels.length} existing name labels`);
+      nameLabels.forEach(label => {
+        try {
+          document.body.removeChild(label);
+        } catch (e) {
+          console.log('Error removing existing name label:', e);
+        }
+      });
+    }
   }
 
   // Set the poke mechanic
@@ -70,9 +88,6 @@ export class NPCManager {
         
         // Add the model to the scene
         this.scene.add(model);
-        
-        // Add name label
-        this.addNameLabel(model, npcName);
         
         // Register as pokeable if poke mechanic is available
         if (this.pokeMechanic) {
@@ -187,9 +202,6 @@ export class NPCManager {
         // Add the model to the scene
         this.scene.add(model);
         
-        // Add name label - increase height for the much larger model
-        this.addNameLabel(model, npcName, 100);
-        
         // Register as pokeable if poke mechanic is available
         if (this.pokeMechanic) {
           this.pokeMechanic.registerPokeableObject(model, npcName);
@@ -287,9 +299,6 @@ export class NPCManager {
           
           // Add the model to the scene
           this.scene.add(model);
-          
-          // Add name label with increased height
-          this.addNameLabel(model, "Colossal Entity", 100);
           
           // Register as pokeable if poke mechanic is available
           if (this.pokeMechanic) {
@@ -467,46 +476,16 @@ export class NPCManager {
     }
   }
 
-  // Add name label above NPC
+  // Add name label above NPC - modified to do nothing
   addNameLabel(model, name, height = 3) {
-    // Create a div for the name label
-    const nameLabel = document.createElement('div');
-    nameLabel.className = 'npc-name';
-    nameLabel.textContent = name;
-    nameLabel.style.position = 'absolute';
-    nameLabel.style.color = 'white';
-    nameLabel.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-    nameLabel.style.padding = '2px 5px';
-    nameLabel.style.borderRadius = '10px';
-    nameLabel.style.fontSize = '0.8em';
-    nameLabel.style.fontWeight = 'bold';
-    nameLabel.style.textAlign = 'center';
-    nameLabel.style.zIndex = '1000';
-    nameLabel.style.pointerEvents = 'none'; // Prevent the label from blocking clicks
-    
-    document.body.appendChild(nameLabel);
-    
-    // Store the label element and height in the model's userData
-    model.userData.nameLabel = nameLabel;
-    model.userData.labelHeight = height;
+    // Method now does nothing - name labels are disabled
+    console.log('Name labels are disabled');
   }
 
-  // Update label position to follow NPC
+  // Update label position to follow NPC - modified to do nothing
   updateLabelPosition(model, labelElement) {
-    // Convert 3D position to screen position
-    const vector = new THREE.Vector3();
-    vector.setFromMatrixPosition(model.matrixWorld);
-    vector.y += model.userData.labelHeight || 3; // Use stored height or default
-    
-    vector.project(window.camera);
-    
-    const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
-    const y = (-vector.y * 0.5 + 0.5) * window.innerHeight;
-    
-    // Update label position
-    labelElement.style.left = `${x}px`;
-    labelElement.style.top = `${y}px`;
-    labelElement.style.transform = 'translate(-50%, -50%)';
+    // Method now does nothing - name labels are disabled
+    // No need to update positions of non-existent labels
   }
 
   // Update method to be called in animation loop
@@ -539,10 +518,7 @@ export class NPCManager {
         npc.mixer.update(deltaTime);
       }
       
-      // Update name label position
-      if (npc.model.userData.nameLabel) {
-        this.updateLabelPosition(npc.model, npc.model.userData.nameLabel);
-      }
+      // Name label updates removed
     }
     
     // Update giant NPCs (if any)
@@ -554,10 +530,7 @@ export class NPCManager {
         giant.mixer.update(deltaTime);
       }
       
-      // Update name label position
-      if (giant.model.userData.nameLabel) {
-        this.updateLabelPosition(giant.model, giant.model.userData.nameLabel);
-      }
+      // Name label updates removed
     }
   }
 
@@ -565,14 +538,40 @@ export class NPCManager {
   removeAll() {
     // Remove regular NPCs
     this.npcs.forEach(npc => {
+      // Remove any existing name labels from the DOM
+      if (npc.model && npc.model.userData && npc.model.userData.nameLabel) {
+        try {
+          document.body.removeChild(npc.model.userData.nameLabel);
+        } catch (e) {
+          console.log('Error removing name label:', e);
+        }
+      }
       this.scene.remove(npc.model);
     });
     this.npcs = [];
     
     // Remove giant NPCs
     this.giantNPCs.forEach(giant => {
+      // Remove any existing name labels from the DOM
+      if (giant.model && giant.model.userData && giant.model.userData.nameLabel) {
+        try {
+          document.body.removeChild(giant.model.userData.nameLabel);
+        } catch (e) {
+          console.log('Error removing name label:', e);
+        }
+      }
       this.scene.remove(giant.model);
     });
     this.giantNPCs = [];
+    
+    // Clean up any orphaned name labels
+    const nameLabels = document.querySelectorAll('.npc-name');
+    nameLabels.forEach(label => {
+      try {
+        document.body.removeChild(label);
+      } catch (e) {
+        console.log('Error removing orphaned name label:', e);
+      }
+    });
   }
 } 
