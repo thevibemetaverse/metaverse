@@ -15,6 +15,8 @@ export function setupControls(camera, player, domElement, gameState, scene) {
     canJump: true,
     isJumping: false,
     jump: false, // New flag for animation-based jumping
+    jumpStartTime: 0, // Track when jump started
+    jumpLeanAmount: 0, // Amount of backward lean during jump
     
     // Skateboard state
     isSkateboardMode: false,
@@ -430,29 +432,44 @@ export function setupControls(camera, player, domElement, gameState, scene) {
       player.position.y = controls.isSkateboardMode ? 0.6 : 1; // Match the skateboard height when in skateboard mode
       if (controls.isSkateboardMode && controls.skateboard) {
         controls.skateboard.position.y = 0.01; // Reset skateboard position
-      }
-      controls.canJump = true;
-      controls.isJumping = false;
-      
-      // If we were jumping and just landed, reset the animation state
-      if (player.userData && player.userData.isJumping) {
-        player.userData.isJumping = false;
         
-        // If the player has a setMoving method and we're not in skateboard mode, update the animation
-        if (player.setMoving && !controls.isSkateboardMode) {
-          const isMoving = controls.moveForward || controls.moveBackward || 
-                          controls.moveLeft || controls.moveRight;
-          player.setMoving(isMoving);
+        // Immediately reset rotation to avoid bouncing effect
+        player.rotation.x = 0;
+        controls.skateboard.rotation.x = 0;
+      }
+      
+      // Only consider landing if we were previously jumping
+      if (controls.isJumping) {
+        controls.isJumping = false;
+        controls.canJump = true;
+        
+        // If we were jumping and just landed, reset the animation state
+        if (player.userData && player.userData.isJumping) {
+          player.userData.isJumping = false;
+          
+          // If the player has a setMoving method and we're not in skateboard mode, update the animation
+          if (player.setMoving && !controls.isSkateboardMode) {
+            const isMoving = controls.moveForward || controls.moveBackward || 
+                            controls.moveLeft || controls.moveRight;
+            player.setMoving(isMoving);
+          }
         }
       }
     }
     
     // Handle jumping if the player has pressed space
     if (controls.jump && controls.canJump) {
+      // Create a jump effect (particles) at the start of the jump
+      if (controls.isSkateboardMode && controls.skateboard) {
+        createJumpEffect(player.position.x, 0.1, player.position.z); // Fixed Y position at ground level
+      }
+      
       // Add initial upward velocity for the jump
       controls.velocity.y = 7.0; // Increased from 5.0 for better visibility on skateboard
       controls.isJumping = true;
       controls.canJump = false; // Prevent multiple jumps
+      controls.jumpStartTime = performance.now(); // Record jump start time
+      controls.jumpLeanAmount = 0.3; // Set initial backward lean amount
       
       // Reset the canJump flag after a short delay to prevent spam jumping
       setTimeout(() => {
@@ -464,8 +481,110 @@ export function setupControls(camera, player, domElement, gameState, scene) {
       console.log("Jump initiated, velocity.y:", controls.velocity.y); // Debug log
     }
     
+    // Update jump lean effect
+    if (controls.isJumping && controls.isSkateboardMode) {
+      const jumpTime = (performance.now() - controls.jumpStartTime) / 1000; // Time since jump in seconds
+      
+      // Apply a leaning effect based on jump phase
+      if (jumpTime < 0.3) {
+        // Initial phase - lean back
+        player.rotation.x = -controls.jumpLeanAmount;
+        if (controls.skateboard) {
+          controls.skateboard.rotation.x = -controls.jumpLeanAmount;
+        }
+      } else if (controls.velocity.y > 0) {
+        // Rising phase - gradually level out
+        const leanFactor = Math.max(0, controls.jumpLeanAmount * (1 - (jumpTime - 0.3) / 0.5));
+        player.rotation.x = -leanFactor;
+        if (controls.skateboard) {
+          controls.skateboard.rotation.x = -leanFactor;
+        }
+      } else if (controls.velocity.y < 0) {
+        // Falling phase - start leaning forward slightly
+        const fallLean = Math.min(0.2, Math.abs(controls.velocity.y) / 20);
+        player.rotation.x = fallLean;
+        if (controls.skateboard) {
+          controls.skateboard.rotation.x = fallLean;
+        }
+      }
+    } else if (!controls.isJumping && controls.isSkateboardMode) {
+      // Smoothly restore normal rotation when not jumping
+      player.rotation.x *= 0.9;
+      if (controls.skateboard) {
+        controls.skateboard.rotation.x *= 0.9;
+      }
+    }
+    
     prevTime = time;
   };
+  
+  // Function to create a jump effect
+  function createJumpEffect(x, y, z) {
+    // Create a small dust cloud effect
+    const numParticles = 15; // Increased from 10 for more visible effect
+    
+    for (let i = 0; i < numParticles; i++) {
+      // Create a simple particle as a small sphere
+      const particle = new THREE.Mesh(
+        new THREE.SphereGeometry(0.07, 8, 8), // Larger particles
+        new THREE.MeshBasicMaterial({
+          color: 0xDDDDDD, // Lighter color for better visibility
+          transparent: true,
+          opacity: 0.8
+        })
+      );
+      
+      // Position at ground level, spreading out in a half-circle behind the skateboard
+      const angle = Math.PI * (Math.random() - 0.5); // -PI/2 to PI/2 range
+      const distance = 0.1 + Math.random() * 0.2; // Random distance from center
+      
+      particle.position.set(
+        x + Math.sin(angle) * distance, 
+        y, // Fixed at ground level
+        z + Math.cos(angle) * distance - 0.1 // Slightly behind skateboard
+      );
+      
+      // Give each particle a random velocity with higher vertical component
+      particle.userData.velocity = {
+        x: (Math.random() - 0.5) * 0.3,
+        y: 0.3 + Math.random() * 0.5, // More upward velocity
+        z: (Math.random() - 0.5) * 0.3
+      };
+      
+      // Add to scene
+      scene.add(particle);
+      
+      // Animate the particle
+      const startTime = performance.now();
+      const duration = 300 + Math.random() * 300; // Faster effect
+      
+      function animateParticle() {
+        const elapsed = performance.now() - startTime;
+        
+        if (elapsed < duration) {
+          // Move particle
+          particle.position.x += particle.userData.velocity.x * 0.02;
+          particle.position.y += particle.userData.velocity.y * 0.02;
+          particle.position.z += particle.userData.velocity.z * 0.02;
+          
+          // Add gravity
+          particle.userData.velocity.y -= 0.01;
+          
+          // Fade out
+          particle.material.opacity = 0.8 * (1 - elapsed / duration);
+          
+          // Continue animation
+          requestAnimationFrame(animateParticle);
+        } else {
+          // Remove particle
+          scene.remove(particle);
+        }
+      }
+      
+      // Start animation
+      animateParticle();
+    }
+  }
   
   // Camera update
   controls.updateCamera = function() {
