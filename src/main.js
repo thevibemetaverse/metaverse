@@ -304,7 +304,9 @@ try {
     
     // Handle jumping if the player has pressed space
     if (controls.jump && playerAvatar && playerAvatar.jump && !playerAvatar.userData.isJumping) {
+      // Play the jump animation
       playerAvatar.jump();
+      // The physics-based jump is already handled in controls.js
       controls.jump = false; // Reset the jump flag
     }
     
