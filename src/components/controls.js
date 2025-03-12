@@ -342,8 +342,12 @@ export function setupControls(camera, player, domElement, gameState, scene) {
     
     // Update skateboard position and rotation if in skateboard mode
     if (controls.isSkateboardMode && controls.skateboard) {
+      // Position skateboard - adjust height to be closer to the ground
       controls.skateboard.position.copy(player.position);
-      controls.skateboard.position.y = 0.05; // Adjusted for smaller skateboard size
+      controls.skateboard.position.y = 0.01; // Position very close to the ground
+      
+      // Adjust player position to have feet on skateboard
+      player.position.y = 1.05; // Slightly higher than the default (1.0) to account for the skateboard
       
       // Set the skateboard's rotation to match the movement direction
       // The 90-degree visual rotation is handled in main.js
@@ -405,9 +409,9 @@ export function setupControls(camera, player, domElement, gameState, scene) {
     player.position.y += controls.velocity.y * delta;
     
     // Simple ground collision
-    if (player.position.y < 1) {
+    if (player.position.y < (controls.isSkateboardMode ? 1.05 : 1)) {
       controls.velocity.y = 0;
-      player.position.y = 1;
+      player.position.y = controls.isSkateboardMode ? 1.05 : 1; // Maintain proper height based on mode
       controls.canJump = true;
       controls.isJumping = false;
       

@@ -758,38 +758,46 @@ try {
       
       // Position the character in skateboarding stance (sideways)
       if (playerAvatar) {
-        // Apply the correct rotation to both the player and skateboard
-        // We want the skateboard to point in the movement direction
+        // Position the character in a proper skateboarding stance
+        // Skateboard points in direction of travel, character stands sideways on board
         
-        // Calculate target rotation for the player and skateboard
-        // The movement is now aligned with the skateboard's nose
-        const targetPlayerRotation = controls.targetRotation + Math.PI/2;
+        // Calculate target rotations:
+        // Skateboard points in the direction of movement
         const targetSkateboardRotation = controls.targetRotation + Math.PI/2;
+        
+        // Character is rotated 90 degrees relative to the skateboard (standing sideways on board)
+        const targetPlayerRotation = targetSkateboardRotation + Math.PI/2;
         
         // Apply the rotation with smooth interpolation to player
         playerAvatar.rotation.y = THREE.MathUtils.lerp(
           playerAvatar.rotation.y,
           targetPlayerRotation,
-          0.1
+          0.15 // Slightly faster response to turns
         );
         
         // Apply the rotation with smooth interpolation to skateboard
         controls.skateboard.rotation.y = THREE.MathUtils.lerp(
           controls.skateboard.rotation.y,
           targetSkateboardRotation,
-          0.1
+          0.15 // Slightly faster response to turns
         );
         
-        // Apply skateboard tilt to character
-        playerAvatar.rotation.z = controls.skateboard.rotation.z;
+        // Apply skateboard tilt to character - enhanced for better synchronization
+        const tiltFactor = 1.2; // Enhanced tilt for more dramatic effect
+        playerAvatar.rotation.z = controls.skateboard.rotation.z * tiltFactor;
         
         // Add a slight forward lean based on speed
-        const speedLean = -Math.abs(controls.skateboardSpeed) / controls.maxSkateboardSpeed * 0.2;
+        const speedLean = -Math.abs(controls.skateboardSpeed) / controls.maxSkateboardSpeed * 0.25; // Enhanced lean
         playerAvatar.rotation.x = THREE.MathUtils.lerp(
           playerAvatar.rotation.x,
           speedLean,
-          0.1
+          0.15 // Faster response to speed changes
         );
+        
+        // Store the original rotation if not already stored
+        if (!playerAvatar.userData.originalRotationY) {
+          playerAvatar.userData.originalRotationY = controls.targetRotation;
+        }
       }
     } else if (playerAvatar) {
       // Reset rotations when not skateboarding
