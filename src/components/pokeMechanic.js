@@ -724,7 +724,7 @@ export class PokeMechanic {
     leaderboardContainer.style.maxWidth = isMobile ? '220px' : '250px';
     leaderboardContainer.style.maxHeight = isMobile ? '250px' : '300px';
     leaderboardContainer.style.overflowY = 'auto';
-    leaderboardContainer.style.zIndex = '1000';
+    leaderboardContainer.style.zIndex = '100'; // Lower z-index to ensure emojis appear on top
     leaderboardContainer.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
     leaderboardContainer.style.boxShadow = '0 3px 10px rgba(0, 0, 0, 0.3)';
     leaderboardContainer.style.fontSize = isMobile ? '14px' : '16px';

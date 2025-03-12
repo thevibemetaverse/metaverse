@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 // Removing PointerLockControls import since we're eliminating first-person view
 // import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
 
-export function setupControls(camera, player, domElement, gameState) {
+export function setupControls(camera, player, domElement, gameState, scene) {
   // Create a controls object to return
   const controls = {
     // Movement state
@@ -14,6 +15,15 @@ export function setupControls(camera, player, domElement, gameState) {
     canJump: true,
     isJumping: false,
     jump: false, // New flag for animation-based jumping
+    
+    // Skateboard state
+    isSkateboardMode: false,
+    skateboard: null,
+    skateboardSpeed: 0,
+    maxSkateboardSpeed: 15,
+    skateboardAcceleration: 0.5,
+    skateboardDeceleration: 0.2,
+    skateboardTurnSpeed: 3.0,
     
     // Rotation state
     rotateLeft: false,
@@ -97,6 +107,29 @@ export function setupControls(camera, player, domElement, gameState) {
   orbitControls.target.set(0, 1.5, 0); // Looking directly at the player
   orbitControls.update();
   
+  // Load skateboard model
+  if (scene) { // Only load if scene is available
+    const gltfLoader = new GLTFLoader();
+    gltfLoader.load(
+      '/assets/models/skateboard.glb', // This path is relative to the public directory
+      (gltf) => {
+        controls.skateboard = gltf.scene;
+        controls.skateboard.scale.set(1, 1, 1);
+        controls.skateboard.visible = false;
+        scene.add(controls.skateboard);
+        console.log('Skateboard model loaded successfully');
+      },
+      (xhr) => {
+        console.log('Skateboard loading progress: ' + (xhr.loaded / xhr.total * 100) + '%');
+      },
+      (error) => {
+        console.error('Error loading skateboard:', error);
+      }
+    );
+  } else {
+    console.error('Scene not provided to setupControls, skateboard cannot be loaded');
+  }
+  
   // Setup keyboard controls
   const onKeyDown = function(event) {
     switch (event.code) {
@@ -111,8 +144,25 @@ export function setupControls(camera, player, domElement, gameState) {
         break;
         
       case 'ArrowDown':
-      case 'KeyS':
         controls.moveBackward = true;
+        break;
+        
+      case 'KeyS':
+        if (event.shiftKey || event.ctrlKey || event.metaKey || event.altKey) {
+          controls.moveBackward = true;
+        } else if (!event.repeat) {
+          controls.isSkateboardMode = !controls.isSkateboardMode;
+          console.log('Skateboard mode toggled:', controls.isSkateboardMode);
+          if (controls.skateboard) {
+            controls.skateboard.visible = controls.isSkateboardMode;
+            console.log('Skateboard visibility set to:', controls.skateboard.visible);
+          } else {
+            console.warn('Skateboard model not loaded yet!');
+          }
+          if (!controls.isSkateboardMode) {
+            controls.skateboardSpeed = 0;
+          }
+        }
         break;
         
       case 'ArrowRight':
@@ -177,6 +227,9 @@ export function setupControls(camera, player, domElement, gameState) {
         break;
         
       case 'ArrowDown':
+        controls.moveBackward = false;
+        break;
+        
       case 'KeyS':
         controls.moveBackward = false;
         break;
@@ -269,33 +322,71 @@ export function setupControls(camera, player, domElement, gameState) {
     
     // Update rotation from keyboard inputs
     if (controls.rotateLeft) {
-      controls.targetRotation += 2.0 * delta; // Rotation speed
+      controls.targetRotation += (controls.isSkateboardMode ? controls.skateboardTurnSpeed : 2.0) * delta;
     }
     if (controls.rotateRight) {
-      controls.targetRotation -= 2.0 * delta; // Rotation speed
+      controls.targetRotation -= (controls.isSkateboardMode ? controls.skateboardTurnSpeed : 2.0) * delta;
     }
     
     // Apply smooth rotation (lerp current rotation toward target)
-    player.rotation.y += (controls.targetRotation - player.rotation.y) * 10 * delta;
-    
-    // Calculate movement direction
-    controls.direction.z = Number(controls.moveForward) - Number(controls.moveBackward);
-    controls.direction.x = Number(controls.moveRight) - Number(controls.moveLeft);
-    controls.direction.normalize();
-    
-    // Get the player's current rotation to determine forward direction
-    const forwardDirection = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), player.rotation.y);
-    const rightDirection = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), player.rotation.y);
-    
-    // Apply movement in the correct world directions
-    if (controls.moveForward || controls.moveBackward) {
-      player.position.x += forwardDirection.x * controls.direction.z * 5 * delta;
-      player.position.z += forwardDirection.z * controls.direction.z * 5 * delta;
+    // In skateboard mode, the visual rotation is handled in main.js
+    // Here we're just updating the underlying target rotation
+    if (!controls.isSkateboardMode) {
+      player.rotation.y += (controls.targetRotation - player.rotation.y) * 10 * delta;
     }
     
-    if (controls.moveLeft || controls.moveRight) {
-      player.position.x += rightDirection.x * controls.direction.x * 5 * delta;
-      player.position.z += rightDirection.z * controls.direction.x * 5 * delta;
+    // Update skateboard position and rotation if in skateboard mode
+    if (controls.isSkateboardMode && controls.skateboard) {
+      controls.skateboard.position.copy(player.position);
+      controls.skateboard.position.y = 0.1; // Position skateboard just above the ground
+      
+      // Set the skateboard's rotation to match the movement direction
+      // The 90-degree visual rotation is handled in main.js
+      controls.skateboard.rotation.y = controls.targetRotation;
+      
+      // Update skateboard speed
+      if (controls.moveForward) {
+        controls.skateboardSpeed = Math.min(controls.skateboardSpeed + controls.skateboardAcceleration * delta, controls.maxSkateboardSpeed);
+      } else if (controls.moveBackward) {
+        controls.skateboardSpeed = Math.max(controls.skateboardSpeed - controls.skateboardAcceleration * delta, -controls.maxSkateboardSpeed / 2);
+      } else {
+        // Apply deceleration
+        if (Math.abs(controls.skateboardSpeed) < controls.skateboardDeceleration * delta) {
+          controls.skateboardSpeed = 0;
+        } else {
+          controls.skateboardSpeed -= Math.sign(controls.skateboardSpeed) * controls.skateboardDeceleration * delta;
+        }
+      }
+      
+      // Calculate movement direction based on the skateboard's orientation 
+      // Since the skateboard is rotated 90 degrees, we need to add PI/2 to the target rotation
+      // This makes the character move toward the nose of the skateboard instead of the side
+      const skateboardForwardDirection = new THREE.Vector3(0, 0, -1).applyAxisAngle(
+        new THREE.Vector3(0, 1, 0), 
+        controls.targetRotation + Math.PI/2
+      );
+      
+      // Apply skateboard movement in the direction of the skateboard's nose
+      player.position.x += skateboardForwardDirection.x * controls.skateboardSpeed * delta;
+      player.position.z += skateboardForwardDirection.z * controls.skateboardSpeed * delta;
+    } else {
+      // Normal movement code
+      controls.direction.z = Number(controls.moveForward) - Number(controls.moveBackward);
+      controls.direction.x = Number(controls.moveRight) - Number(controls.moveLeft);
+      controls.direction.normalize();
+      
+      const forwardDirection = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), player.rotation.y);
+      const rightDirection = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), player.rotation.y);
+      
+      if (controls.moveForward || controls.moveBackward) {
+        player.position.x += forwardDirection.x * controls.direction.z * 5 * delta;
+        player.position.z += forwardDirection.z * controls.direction.z * 5 * delta;
+      }
+      
+      if (controls.moveLeft || controls.moveRight) {
+        player.position.x += rightDirection.x * controls.direction.x * 5 * delta;
+        player.position.z += rightDirection.z * controls.direction.x * 5 * delta;
+      }
     }
     
     // Update orbit controls target to follow player
@@ -316,8 +407,8 @@ export function setupControls(camera, player, domElement, gameState) {
       if (player.userData && player.userData.isJumping) {
         player.userData.isJumping = false;
         
-        // If the player has a setMoving method, update the animation
-        if (player.setMoving) {
+        // If the player has a setMoving method and we're not in skateboard mode, update the animation
+        if (player.setMoving && !controls.isSkateboardMode) {
           const isMoving = controls.moveForward || controls.moveBackward || 
                           controls.moveLeft || controls.moveRight;
           player.setMoving(isMoving);
