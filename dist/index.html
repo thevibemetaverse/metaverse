@@ -114,11 +114,11 @@
   <div id="ui-container">
     <!-- UI elements will be added here -->
     <div class="emoji-reactions" style="position: fixed !important; bottom: 20px !important; z-index: 9999999 !important;">
-      <button class="emoji-button" onclick="window.showEmojiReaction('👋')">👋</button>
-      <button class="emoji-button" onclick="window.showEmojiReaction('👍')">👍</button>
-      <button class="emoji-button" onclick="window.showEmojiReaction('❤️')">❤️</button>
-      <button class="emoji-button" onclick="window.showEmojiReaction('😂')">😂</button>
-      <button class="emoji-button" onclick="window.showEmojiReaction('🎉')">🎉</button>
+      <button class="emoji-button" onclick="console.log('Emoji button clicked: 👋'); window.showEmojiReaction('👋')">👋</button>
+      <button class="emoji-button" onclick="console.log('Emoji button clicked: 👍'); window.showEmojiReaction('👍')">👍</button>
+      <button class="emoji-button" onclick="console.log('Emoji button clicked: ❤️'); window.showEmojiReaction('❤️')">❤️</button>
+      <button class="emoji-button" onclick="console.log('Emoji button clicked: 😂'); window.showEmojiReaction('😂')">😂</button>
+      <button class="emoji-button" onclick="console.log('Emoji button clicked: 🎉'); window.showEmojiReaction('🎉')">🎉</button>
     </div>
   </div>
 
@@ -181,7 +181,7 @@
 
   <!-- Debug button for emoji bar -->
   <button id="debug-emoji-bar" style="position: fixed; top: 10px; right: 10px; z-index: 9999; background-color: #ff5722; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer;">
-    Show Emoji Bar
+    Test Emoji 🎉
   </button>
 
   <script>
@@ -393,16 +393,19 @@
 
     // Add event listener for debug button
     document.getElementById('debug-emoji-bar').addEventListener('click', function() {
-      console.log('Debug button clicked');
+      console.log('Debug emoji button clicked');
       
       // Try to create a 3D emoji directly
-      if (window.showEmojiReaction) {
+      if (typeof window.showEmojiReaction === 'function') {
         console.log('Using 3D emoji reaction');
         window.showEmojiReaction('🎉');
       } else {
-        console.log('3D emoji implementation not available yet');
-        // Just create the emoji bar as fallback
-        createEmojiBar();
+        console.log('3D emoji implementation not available yet, window.showEmojiReaction =', window.showEmojiReaction);
+        
+        // Dispatch custom event as fallback
+        const event = new CustomEvent('emoji-reaction', { detail: { emoji: '🎉' } });
+        document.dispatchEvent(event);
+        console.log('Dispatched emoji-reaction event');
       }
     });
 
