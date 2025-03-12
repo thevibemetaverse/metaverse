@@ -63,43 +63,12 @@ export function setupUI(gameState) {
   if (emojiButtons) {
     emojiButtons.forEach(button => {
       button.addEventListener('click', () => {
-        showEmojiReaction(button.textContent);
+        const emoji = button.getAttribute('data-emoji');
+        if (emoji) {
+          showEmojiReaction(emoji);
+        }
       });
     });
-  }
-  
-  // Function to show emoji reaction
-  function showEmojiReaction(emoji) {
-    // Create a floating emoji element
-    const emojiElement = document.createElement('div');
-    emojiElement.textContent = emoji;
-    emojiElement.style.position = 'absolute';
-    emojiElement.style.fontSize = '2rem';
-    emojiElement.style.left = '50%';
-    emojiElement.style.bottom = '20%';
-    emojiElement.style.transform = 'translateX(-50%)';
-    emojiElement.style.animation = 'float-up 2s ease-out forwards';
-    document.body.appendChild(emojiElement);
-    
-    // Add animation style if it doesn't exist
-    if (!document.querySelector('#emoji-animation')) {
-      const style = document.createElement('style');
-      style.id = 'emoji-animation';
-      style.textContent = `
-        @keyframes float-up {
-          0% { opacity: 1; transform: translateX(-50%) translateY(0); }
-          100% { opacity: 0; transform: translateX(-50%) translateY(-100px); }
-        }
-      `;
-      document.head.appendChild(style);
-    }
-    
-    // Remove the element after animation completes
-    setTimeout(() => {
-      document.body.removeChild(emojiElement);
-    }, 2000);
-    
-    // In a multiplayer implementation, this would also send the emoji to other players
   }
   
   // Function to apply graphics settings
@@ -113,9 +82,14 @@ export function setupUI(gameState) {
     // - High: High shadow quality, enable advanced antialiasing and effects
   }
   
-  // Expose methods that need to be called from outside
+  // Return the UI elements for external use
   return {
-    showEmojiReaction
+    vrButton,
+    settingsPanel,
+    closeSettingsButton,
+    volumeSlider,
+    graphicsSelect,
+    emojiButtons
   };
 }
 
@@ -186,7 +160,7 @@ export function createEmojiBar() {
 }
 
 // Function to show floating emoji animation
-function showEmojiReaction(emoji) {
+export function showEmojiReaction(emoji) {
   console.log('Emoji clicked:', emoji);
   
   // Create floating emoji element

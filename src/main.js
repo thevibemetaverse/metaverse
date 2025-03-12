@@ -829,6 +829,12 @@ try {
     // Update poke mechanic
     pokeMechanic.update();
     
+    // Check if emoji bar exists and create it if not
+    if (!document.getElementById('emoji-bar-container')) {
+      console.log('Emoji bar not found in animate loop, recreating...');
+      createEmojiBar();
+    }
+    
     // Update player position on server
     if (socket && socket.connected) {
       socket.emit('player-update', {
