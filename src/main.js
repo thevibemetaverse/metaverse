@@ -676,7 +676,20 @@ try {
   // Setup socket connection for multiplayer
   let socket;
   try {
-    socket = io('http://localhost:3000');
+    // Determine server URL based on environment
+    const socketServerUrl = import.meta.env.DEV 
+      ? 'http://localhost:3000' 
+      : 'https://your-game-server.railway.app'; // Replace with your actual Railway URL
+    
+    console.log(`Connecting to multiplayer server at: ${socketServerUrl}`);
+    socket = io(socketServerUrl, {
+      transports: ['websocket', 'polling'],
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000
+    });
+    
+    // Make socket available globally for UI components
+    window.socket = socket;
     
     socket.on('connect', () => {
       console.log('Connected to server');
@@ -692,6 +705,20 @@ try {
         },
         rotation: playerAvatar.rotation.y
       });
+    });
+    
+    socket.on('connect_error', (error) => {
+      console.error('Connection error:', error);
+      displayMessage('Multiplayer server connection failed. Playing in single-player mode.');
+    });
+    
+    socket.on('reconnect_attempt', (attemptNumber) => {
+      console.log(`Attempting to reconnect (${attemptNumber})...`);
+    });
+    
+    socket.on('reconnect_failed', () => {
+      console.log('Failed to reconnect to multiplayer server');
+      displayMessage('Could not reconnect to multiplayer server. Playing in single-player mode.');
     });
     
     socket.on('players-update', (players) => {
@@ -743,8 +770,53 @@ try {
       }
     });
     
+    // Add handler for emoji reactions from other players
+    socket.on('emoji-reaction', (data) => {
+      console.log(`Emoji reaction received from ${data.senderName}: ${data.emoji}`);
+      
+      if (!emojiEffects) {
+        console.error('EmojiEffects not initialized!');
+        return;
+      }
+      
+      // Create a position object from the data
+      const position = new THREE.Vector3(
+        data.position.x,
+        data.position.y + 1.5, // Slightly above the player's head
+        data.position.z
+      );
+      
+      // Create a burst of emojis at the sender's position
+      emojiEffects.createEmojiBurst(data.emoji, position, 5);
+    });
+    
   } catch (error) {
     console.error('Failed to connect to server:', error);
+    displayMessage('Multiplayer connection failed. Playing in single-player mode.');
+  }
+  
+  // Helper function to display messages to the user
+  function displayMessage(message, duration = 5000) {
+    const messageElement = document.createElement('div');
+    messageElement.textContent = message;
+    messageElement.style.position = 'fixed';
+    messageElement.style.bottom = '20px';
+    messageElement.style.left = '50%';
+    messageElement.style.transform = 'translateX(-50%)';
+    messageElement.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+    messageElement.style.color = 'white';
+    messageElement.style.padding = '10px 20px';
+    messageElement.style.borderRadius = '5px';
+    messageElement.style.zIndex = '1000';
+    document.body.appendChild(messageElement);
+    
+    setTimeout(() => {
+      messageElement.style.opacity = '0';
+      messageElement.style.transition = 'opacity 0.5s ease';
+      setTimeout(() => {
+        document.body.removeChild(messageElement);
+      }, 500);
+    }, duration);
   }
   
   // Handle window resize
