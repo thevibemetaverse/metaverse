@@ -10,6 +10,7 @@ export class BBQModel {
     this.mixer = null;
     this.animations = [];
     this.clock = new THREE.Clock();
+    this.shouldRotate = false; // Disable rotation by default
     
     // Path to the model
     this.modelPath = '/assets/models/sweet_baby_rays_bbq_sauce.glb';
@@ -66,6 +67,14 @@ export class BBQModel {
     );
   }
   
+  // Create a single BBQ sauce bottle at a specific position and height
+  createSingleBBQ(x = 0, z = 0, height = 5, scale = 2) {
+    console.log(`Creating a single BBQ bottle at position (${x}, ${height}, ${z})`);
+    
+    const position = new THREE.Vector3(x, height, z);
+    this.loadModel(position, scale);
+  }
+  
   // Create a simple placeholder object
   createPlaceholder() {
     const geometry = new THREE.BoxGeometry(0.5, 1, 0.5);
@@ -79,8 +88,8 @@ export class BBQModel {
       this.mixer.update(this.clock.getDelta());
     }
     
-    // Add some rotation to make it more interesting
-    if (this.model) {
+    // Only rotate if rotation is enabled
+    if (this.model && this.shouldRotate) {
       this.model.rotation.y += 0.005;
     }
   }

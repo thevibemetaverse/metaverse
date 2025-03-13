@@ -596,7 +596,8 @@ try {
   
   // Initialize BBQ sauce model
   const bbqModel = new BBQModel(scene, loadingManager);
-  bbqModel.createRandomBBQs(7, 10, 30, 0.5); // Create 7 random BBQ bottles in the scene
+  // Create a single BBQ bottle positioned higher up
+  bbqModel.createSingleBBQ(10, -50, 18, 10); // Position at center (0,0), height of 10, scale of 3
   
   // Add skateboard mode toggle listener
   document.addEventListener('toggle-skateboard-mode', function(event) {
