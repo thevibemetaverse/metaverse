@@ -676,12 +676,18 @@ try {
   // Setup socket connection for multiplayer
   let socket;
   try {
-    // Determine server URL based on environment
-    const socketServerUrl = import.meta.env.DEV 
-      ? 'http://localhost:3000' 
-      : 'https://metaverse-production-821f.up.railway.app'; // The actual Railway URL
+    // More reliable environment detection - check if the current URL is localhost
+    const isLocalDevelopment = window.location.hostname === 'localhost' || 
+                               window.location.hostname === '127.0.0.1';
     
+    // Determine server URL based on more reliable environment detection
+    const socketServerUrl = isLocalDevelopment
+      ? 'http://localhost:3000' 
+      : 'https://metaverse-production-821f.up.railway.app';
+    
+    console.log(`Running in ${isLocalDevelopment ? 'development' : 'production'} mode`);
     console.log(`Connecting to multiplayer server at: ${socketServerUrl}`);
+    
     socket = io(socketServerUrl, {
       transports: ['websocket', 'polling'],
       reconnectionAttempts: 5,
