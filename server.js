@@ -43,7 +43,14 @@ const players = {};
 // Game state
 const gameState = {
   players,
-  worldTime: Date.now()
+  worldTime: Date.now(),
+  // Add NPC tracking
+  npcs: {
+    regularNPCs: [], // For standard NPCs
+    giantNPCs: [],   // For giant NPCs
+    initialized: false,
+    lastUpdate: Date.now()
+  }
 };
 
 // Socket.io connection handling
@@ -71,6 +78,11 @@ io.on('connection', (socket) => {
     
     // Send the current players to the new player
     io.emit('players-update', players);
+    
+    // If NPCs have been initialized, send them to the new player too
+    if (gameState.npcs.initialized) {
+      socket.emit('npcs-update', gameState.npcs);
+    }
   });
   
   // Handle player updates (position, rotation)
@@ -93,8 +105,46 @@ io.on('connection', (socket) => {
         players[socket.id].isSkateboardMode = data.isSkateboardMode;
       }
       
+      // Add skateboard-specific data
+      if (data.tilt !== undefined) {
+        players[socket.id].tilt = data.tilt;
+      }
+      
+      if (data.speed !== undefined) {
+        players[socket.id].speed = data.speed;
+      }
+      
       // Broadcast updated players to all clients
       socket.broadcast.emit('players-update', players);
+    }
+  });
+  
+  // Handle NPC updates from host player (first player to connect becomes NPC host)
+  socket.on('npcs-initialize', (npcsData) => {
+    // Only accept NPC initialization if not already initialized
+    // or if this is the host player (first to connect)
+    if (!gameState.npcs.initialized || socket.id === Object.keys(players)[0]) {
+      console.log('Initializing NPCs from host player');
+      gameState.npcs.regularNPCs = npcsData.regularNPCs;
+      gameState.npcs.giantNPCs = npcsData.giantNPCs;
+      gameState.npcs.initialized = true;
+      gameState.npcs.lastUpdate = Date.now();
+      
+      // Broadcast NPC data to all clients except the sender
+      socket.broadcast.emit('npcs-update', gameState.npcs);
+    }
+  });
+  
+  // Handle NPC updates from host player
+  socket.on('npcs-update', (npcsData) => {
+    // Only accept updates from host player (first to connect)
+    if (socket.id === Object.keys(players)[0]) {
+      gameState.npcs.regularNPCs = npcsData.regularNPCs;
+      gameState.npcs.giantNPCs = npcsData.giantNPCs;
+      gameState.npcs.lastUpdate = Date.now();
+      
+      // Broadcast updated NPCs to all clients except the sender
+      socket.broadcast.emit('npcs-update', gameState.npcs);
     }
   });
   
@@ -123,6 +173,15 @@ io.on('connection', (socket) => {
       // Broadcast to all clients that a player left
       io.emit('player-left', socket.id);
       console.log(`Player ${username} left the game`);
+      
+      // If the disconnected player was the host (first player), 
+      // reassign host to the next player if any exist
+      const remainingPlayers = Object.keys(players);
+      if (remainingPlayers.length > 0) {
+        const newHostId = remainingPlayers[0];
+        io.to(newHostId).emit('become-npc-host');
+        console.log(`New NPC host assigned: ${players[newHostId].username}`);
+      }
     }
   });
 });
