@@ -325,14 +325,29 @@ export function createEmojiBar() {
   return emojiContainer;
 }
 
-// Function to show floating emoji animation
+// Emit emoji reactions to the server
+function emitEmojiReaction(emoji) {
+  // Get the socket from main.js (assuming it's set as a global)
+  if (window.socket && window.socket.connected) {
+    window.socket.emit('emoji-reaction', { emoji });
+    console.log(`Emitted emoji ${emoji} to server`);
+  } else {
+    console.warn('Socket not connected, emoji reaction not sent to server');
+  }
+}
+
 export function showEmojiReaction(emoji) {
-  console.log('Emoji clicked:', emoji);
+  console.log('Showing emoji reaction:', emoji);
   
-  // This function will be overridden by the main.js file to use the 3D emoji effects
-  // We'll just dispatch the event for the main.js to handle
-  
-  // Dispatch a custom event that main.js can listen for to create 3D emojis
-  const event = new CustomEvent('emoji-reaction', { detail: { emoji } });
+  // Dispatch event for 3D emoji effects
+  const event = new CustomEvent('emoji-reaction', { 
+    detail: { emoji } 
+  });
   document.dispatchEvent(event);
+  
+  // Emit to the server
+  emitEmojiReaction(emoji);
+  
+  // Create UI emoji effect (optional - we're already using 3D emojis)
+  // ... existing code for any 2D emoji UI effects ...
 } 
