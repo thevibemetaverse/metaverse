@@ -14,7 +14,7 @@ app.use(cors());
 const io = new Server(server, {
   cors: {
     origin: process.env.NODE_ENV === 'production' 
-      ? ['https://your-vercel-app.vercel.app', 'https://*.vercel.app'] 
+      ? ['https://metaverse-simulator.vercel.app', 'https://*.vercel.app', 'http://localhost:5173'] 
       : '*',
     methods: ['GET', 'POST']
   },

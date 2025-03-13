@@ -679,7 +679,7 @@ try {
     // Determine server URL based on environment
     const socketServerUrl = import.meta.env.DEV 
       ? 'http://localhost:3000' 
-      : 'https://your-game-server.railway.app'; // Replace with your actual Railway URL
+      : 'https://metaverse-production-821f.up.railway.app'; // The actual Railway URL
     
     console.log(`Connecting to multiplayer server at: ${socketServerUrl}`);
     socket = io(socketServerUrl, {
