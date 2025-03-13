@@ -474,7 +474,7 @@ export class NPCManager {
     const gltfLoader = new GLTFLoader(this.loadingManager);
     
     gltfLoader.load(
-      '/assets/models/zuckerberg.glb', // Use same model file as player and other NPCs
+      '/assets/models/zuckerberg2.glb', // Use zuckerberg2.glb for giant NPCs
       (gltf) => {
         const model = gltf.scene;
         const animations = gltf.animations;
@@ -568,11 +568,11 @@ export class NPCManager {
 
   // Try to load an alternative Zuckerberg model
   tryAlternativeZuckerberg(x, z, isGiant = false) {
-    // For giant NPCs, try zuckerberg.glb first before falling back to createAvatar
+    // For giant NPCs, try zuckerberg2.glb first before falling back to createAvatar
     if (isGiant) {
       const gltfLoader = new GLTFLoader(this.loadingManager);
       gltfLoader.load(
-        '/assets/models/zuckerberg.glb', // Use consistent model
+        '/assets/models/zuckerberg2.glb', // Use zuckerberg2.glb for giant NPCs
         (gltf) => {
           const model = gltf.scene;
           const animations = gltf.animations;
@@ -644,7 +644,7 @@ export class NPCManager {
         },
         undefined,
         (error) => {
-          console.error('Error loading alternative giant Zuckerberg model:', error);
+          console.error('Error loading alternative giant Zuckerberg2 model:', error);
           // Fall back to createAvatar
           this.createFallbackGiant(x, z);
         }
