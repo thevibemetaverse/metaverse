@@ -12,6 +12,7 @@ import { NPCManager } from './components/npcs.js';
 import { PokeMechanic } from './components/pokeMechanic.js';
 import { EmojiEffects } from './components/emojiEffects.js';
 import { setupMobileControls, isMobileDevice, optimizeForMobile, setupDeviceOrientation, createMobileUI } from './components/mobileControls.js';
+import { BBQModel } from './components/bbqModel.js';
 
 // Detect if we're on a mobile device
 const isMobile = isMobileDevice();
@@ -590,9 +591,12 @@ try {
   // We'll initialize NPCs in the socket connection handler
   // instead of calling npcManager.initialize() directly
   
-  // Initialize emoji effects
+  // Setup emoji effects
   let emojiEffects = new EmojiEffects(scene, camera);
-  console.log('EmojiEffects initialized with scene and camera');
+  
+  // Initialize BBQ sauce model
+  const bbqModel = new BBQModel(scene, loadingManager);
+  bbqModel.createRandomBBQs(7, 10, 30, 0.5); // Create 7 random BBQ bottles in the scene
   
   // Add skateboard mode toggle listener
   document.addEventListener('toggle-skateboard-mode', function(event) {
@@ -1073,6 +1077,11 @@ try {
       console.warn('EmojiEffects not available in animation loop');
     }
     
+    // Update BBQ model
+    if (bbqModel) {
+      bbqModel.update();
+    }
+    
     // Check if emoji bar exists and create it if not
     if (!document.getElementById('emoji-bar-container')) {
       console.log('Emoji bar not found in animate loop, recreating...');
@@ -1406,6 +1415,13 @@ renderer.setAnimationLoop(function() {
   // Update emoji effects
   if (emojiEffects) {
     emojiEffects.update();
+  } else {
+    console.warn('EmojiEffects not available in animation loop');
+  }
+  
+  // Update BBQ model
+  if (bbqModel) {
+    bbqModel.update();
   }
   
   // Render scene
