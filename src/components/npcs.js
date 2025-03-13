@@ -17,6 +17,11 @@ export class NPCManager {
     // Poke mechanic will be set later when camera is available
     this.pokeMechanic = null;
     
+    // Multiplayer synchronization
+    this.isNPCHost = false; // Whether this client is responsible for NPC updates
+    this.syncInterval = 1000; // How often to sync NPCs in ms (1 second)
+    this.lastSyncTime = 0; // Last time NPCs were synced
+    
     // Clean up any existing name labels from previous sessions
     this.cleanupExistingLabels();
   }
@@ -39,6 +44,293 @@ export class NPCManager {
   // Set the poke mechanic
   setPokeMechanic(pokeMechanic) {
     this.pokeMechanic = pokeMechanic;
+  }
+  
+  // Set this client as the NPC host
+  setAsNPCHost() {
+    this.isNPCHost = true;
+    console.log('This client is now the NPC host');
+  }
+  
+  // Set up multiplayer - pass socket instance
+  setupMultiplayer(socket) {
+    this.socket = socket;
+    
+    // Default to being the NPC host if we're the first player
+    if (socket && socket.id && !this.isNPCHost) {
+      this.setAsNPCHost();
+    }
+    
+    // Listen for NPC updates from the server
+    if (socket) {
+      // Handle NPC updates received from server
+      socket.on('npcs-update', (npcsData) => {
+        // Only apply updates if we're not the host
+        if (!this.isNPCHost) {
+          this.applyNPCsFromServer(npcsData);
+        }
+      });
+      
+      // Listen for becoming the NPC host (if the original host disconnects)
+      socket.on('become-npc-host', () => {
+        this.setAsNPCHost();
+        // Send the current NPC state to the server
+        this.syncNPCsToServer();
+      });
+    }
+  }
+  
+  // Apply NPCs data received from the server
+  applyNPCsFromServer(npcsData) {
+    console.log('Applying NPC data from server');
+    
+    // First, remove all existing NPCs
+    this.removeAll();
+    
+    // Create NPCs from server data
+    if (npcsData.regularNPCs && npcsData.regularNPCs.length > 0) {
+      npcsData.regularNPCs.forEach(npcData => {
+        this.createNPCFromData(npcData);
+      });
+    }
+    
+    // Create giant NPCs from server data
+    if (npcsData.giantNPCs && npcsData.giantNPCs.length > 0) {
+      npcsData.giantNPCs.forEach(giantData => {
+        this.createGiantNPCFromData(giantData);
+      });
+    }
+  }
+  
+  // Create a regular NPC from server data
+  createNPCFromData(npcData) {
+    // Load the Zuckerberg model
+    const gltfLoader = new GLTFLoader(this.loadingManager);
+    
+    gltfLoader.load(
+      '/assets/models/zuckerberg.glb',
+      (gltf) => {
+        const model = gltf.scene;
+        const animations = gltf.animations;
+        
+        // Scale and position the model
+        model.scale.set(0.8, 0.8, 0.8);
+        model.position.set(npcData.position.x, npcData.position.y, npcData.position.z);
+        model.rotation.y = npcData.rotation || 0;
+        
+        // Add shadows
+        model.traverse(function(node) {
+          if (node.isMesh) {
+            node.castShadow = true;
+            node.receiveShadow = true;
+          }
+        });
+        
+        // Add the model to the scene
+        this.scene.add(model);
+        
+        // Register as pokeable if poke mechanic is available
+        if (this.pokeMechanic) {
+          this.pokeMechanic.registerPokeableObject(model, npcData.name);
+        }
+        
+        // Setup animations if available
+        let mixer = null;
+        let runAction = null;
+        let idleAction = null;
+        
+        if (animations && animations.length > 0) {
+          mixer = new THREE.AnimationMixer(model);
+          
+          // Find a running or walking animation
+          for (const animation of animations) {
+            // Convert to lowercase to make comparison easier
+            const lowerName = animation.name.toLowerCase();
+            
+            // Check for run or walk animations
+            if (lowerName.includes('run') || lowerName.includes('walk')) {
+              runAction = mixer.clipAction(animation);
+              break; // Found a running animation, exit the loop
+            }
+            
+            // Check for idle animations as fallback
+            if (lowerName.includes('idle') || lowerName.includes('stand')) {
+              idleAction = mixer.clipAction(animation);
+              // Don't break here, continue looking for a running animation
+            }
+          }
+          
+          // If we found a run animation, play it
+          if (runAction) {
+            runAction.reset().play();
+          } else if (idleAction) {
+            // Fallback to idle if no run animation
+            idleAction.reset().play();
+          }
+        }
+        
+        // Store NPC data with the data from server
+        const npc = {
+          model: model,
+          name: npcData.name,
+          position: model.position,
+          // Use server direction or create a new one
+          direction: npcData.direction ? 
+            new THREE.Vector3(npcData.direction.x, npcData.direction.y, npcData.direction.z) : 
+            new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize(),
+          timeToChangeDirection: npcData.timeToChangeDirection || (Math.random() * this.changeDirectionInterval),
+          mixer: mixer,
+          runAction: runAction,
+          idleAction: idleAction,
+          serverId: npcData.id // Store server ID if available
+        };
+        
+        this.npcs.push(npc);
+      },
+      undefined,
+      (error) => {
+        console.error('Error loading synchronized NPC model:', error);
+      }
+    );
+  }
+  
+  // Create a giant NPC from server data
+  createGiantNPCFromData(giantData) {
+    // Load the Zuckerberg model
+    const gltfLoader = new GLTFLoader(this.loadingManager);
+    
+    gltfLoader.load(
+      '/assets/models/zuckerberg.glb', // Use same model for consistency
+      (gltf) => {
+        const model = gltf.scene;
+        const animations = gltf.animations;
+        
+        // Scale and position the model - make it MUCH bigger (50x instead of 3x)
+        model.scale.set(50, 50, 50);
+        model.position.set(giantData.position.x, giantData.position.y, giantData.position.z);
+        
+        // Add shadows
+        model.traverse(function(node) {
+          if (node.isMesh) {
+            node.castShadow = true;
+            node.receiveShadow = true;
+          }
+        });
+        
+        // Add the model to the scene
+        this.scene.add(model);
+        
+        // Register as pokeable if poke mechanic is available
+        if (this.pokeMechanic) {
+          this.pokeMechanic.registerPokeableObject(model, giantData.name);
+        }
+        
+        // Setup animations if available
+        let mixer = null;
+        let idleAction = null;
+        
+        if (animations && animations.length > 0) {
+          mixer = new THREE.AnimationMixer(model);
+          
+          // Find idle animation
+          for (const animation of animations) {
+            const lowerName = animation.name.toLowerCase();
+            
+            // Check for idle animations
+            if (lowerName.includes('idle') || lowerName.includes('stand')) {
+              idleAction = mixer.clipAction(animation);
+              break; // Found an idle animation, exit the loop
+            }
+          }
+          
+          // Play idle animation if found
+          if (idleAction) {
+            idleAction.reset().play();
+          }
+        }
+        
+        // Store giant NPC data
+        const giant = {
+          model: model,
+          name: giantData.name,
+          position: model.position,
+          mixer: mixer,
+          idleAction: idleAction,
+          serverId: giantData.id // Store server ID if available
+        };
+        
+        this.giantNPCs.push(giant);
+      },
+      undefined,
+      (error) => {
+        console.error('Error loading synchronized giant NPC model:', error);
+      }
+    );
+  }
+  
+  // Get serializable NPC data to send to server
+  getNPCsData() {
+    // Prepare regular NPCs data
+    const regularNPCs = this.npcs.map(npc => {
+      return {
+        id: npc.serverId || crypto.randomUUID(),
+        name: npc.name,
+        position: {
+          x: npc.position.x,
+          y: npc.position.y,
+          z: npc.position.z
+        },
+        rotation: npc.model.rotation.y,
+        direction: {
+          x: npc.direction.x,
+          y: npc.direction.y,
+          z: npc.direction.z
+        },
+        timeToChangeDirection: npc.timeToChangeDirection
+      };
+    });
+    
+    // Prepare giant NPCs data
+    const giantNPCs = this.giantNPCs.map(giant => {
+      return {
+        id: giant.serverId || crypto.randomUUID(),
+        name: giant.name,
+        position: {
+          x: giant.position.x,
+          y: giant.position.y,
+          z: giant.position.z
+        }
+      };
+    });
+    
+    return {
+      regularNPCs,
+      giantNPCs
+    };
+  }
+  
+  // Sync NPCs to the server if we're the host
+  syncNPCsToServer() {
+    if (this.socket && this.isNPCHost) {
+      const npcsData = this.getNPCsData();
+      
+      // Send to server
+      this.socket.emit('npcs-update', npcsData);
+      console.log('Sent NPC update to server');
+    }
+  }
+  
+  // Initialize NPCs for multiplayer
+  initializeForMultiplayer() {
+    if (this.socket && this.isNPCHost) {
+      // Create NPCs locally first
+      this.initialize();
+      
+      // Then send to server
+      const npcsData = this.getNPCsData();
+      this.socket.emit('npcs-initialize', npcsData);
+      console.log('Initialized NPCs for multiplayer');
+    }
   }
 
   // Initialize NPCs
@@ -490,35 +782,50 @@ export class NPCManager {
 
   // Update method to be called in animation loop
   update(deltaTime, playerPosition) {
-    // Update NPC positions and animations
+    // Only update NPC movement if we're the host
+    if (this.isNPCHost) {
+      // Update NPC positions and animations
+      for (let i = 0; i < this.npcs.length; i++) {
+        const npc = this.npcs[i];
+        
+        // Update direction change timer
+        npc.timeToChangeDirection -= deltaTime;
+        if (npc.timeToChangeDirection <= 0) {
+          // Change to a new random direction
+          npc.direction.set(Math.random() - 0.5, 0, Math.random() - 0.5).normalize();
+          npc.timeToChangeDirection = Math.random() * this.changeDirectionInterval;
+        }
+        
+        // Move NPC in current direction
+        const moveDistance = this.moveSpeed * deltaTime;
+        npc.position.x += npc.direction.x * moveDistance;
+        npc.position.z += npc.direction.z * moveDistance;
+        
+        // Rotate NPC to face movement direction
+        if (npc.direction.length() > 0.1) {
+          const targetRotation = Math.atan2(npc.direction.x, npc.direction.z);
+          npc.model.rotation.y = targetRotation;
+        }
+      }
+      
+      // Sync to server if it's time
+      if (this.socket) {
+        const now = Date.now();
+        if (now - this.lastSyncTime > this.syncInterval) {
+          this.syncNPCsToServer();
+          this.lastSyncTime = now;
+        }
+      }
+    }
+    
+    // Always update animations for all clients
     for (let i = 0; i < this.npcs.length; i++) {
       const npc = this.npcs[i];
-      
-      // Update direction change timer
-      npc.timeToChangeDirection -= deltaTime;
-      if (npc.timeToChangeDirection <= 0) {
-        // Change to a new random direction
-        npc.direction.set(Math.random() - 0.5, 0, Math.random() - 0.5).normalize();
-        npc.timeToChangeDirection = Math.random() * this.changeDirectionInterval;
-      }
-      
-      // Move NPC in current direction
-      const moveDistance = this.moveSpeed * deltaTime;
-      npc.position.x += npc.direction.x * moveDistance;
-      npc.position.z += npc.direction.z * moveDistance;
-      
-      // Rotate NPC to face movement direction
-      if (npc.direction.length() > 0.1) {
-        const targetRotation = Math.atan2(npc.direction.x, npc.direction.z);
-        npc.model.rotation.y = targetRotation;
-      }
       
       // Update animation mixer if available
       if (npc.mixer) {
         npc.mixer.update(deltaTime);
       }
-      
-      // Name label updates removed
     }
     
     // Update giant NPCs (if any)
@@ -529,8 +836,6 @@ export class NPCManager {
       if (giant.mixer) {
         giant.mixer.update(deltaTime);
       }
-      
-      // Name label updates removed
     }
   }
 

@@ -587,8 +587,8 @@ try {
   // Set poke mechanic for NPCs
   npcManager.setPokeMechanic(pokeMechanic);
   
-  // Initialize NPCs
-  npcManager.initialize();
+  // We'll initialize NPCs in the socket connection handler
+  // instead of calling npcManager.initialize() directly
   
   // Initialize emoji effects
   let emojiEffects = new EmojiEffects(scene, camera);
@@ -700,6 +700,12 @@ try {
     socket.on('connect', () => {
       console.log('Connected to server');
       
+      // Set up NPC multiplayer synchronization
+      npcManager.setupMultiplayer(socket);
+      
+      // Initialize NPCs for multiplayer (this will only create NPCs if this client is the host)
+      npcManager.initializeForMultiplayer();
+      
       // Send player info to server
       socket.emit('player-join', {
         id: socket.id,
@@ -799,6 +805,9 @@ try {
   } catch (error) {
     console.error('Failed to connect to server:', error);
     displayMessage('Multiplayer connection failed. Playing in single-player mode.');
+    
+    // Initialize NPCs in single-player mode
+    npcManager.initialize();
   }
   
   // Helper function to display messages to the user
