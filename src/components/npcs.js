@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { createAvatar } from './avatar.js';
+import { createAvatar, createPureAvatar } from './avatar.js';
 
 // Class to manage NPCs
 export class NPCManager {
@@ -474,7 +474,7 @@ export class NPCManager {
     const gltfLoader = new GLTFLoader(this.loadingManager);
     
     gltfLoader.load(
-      '/assets/models/zuckerberg2.glb',
+      '/assets/models/zuckerberg.glb', // Use same model file as player and other NPCs
       (gltf) => {
         const model = gltf.scene;
         const animations = gltf.animations;
@@ -568,11 +568,11 @@ export class NPCManager {
 
   // Try to load an alternative Zuckerberg model
   tryAlternativeZuckerberg(x, z, isGiant = false) {
-    // For giant NPCs, try zuckerberg2.glb first before falling back to createAvatar
+    // For giant NPCs, try zuckerberg.glb first before falling back to createAvatar
     if (isGiant) {
       const gltfLoader = new GLTFLoader(this.loadingManager);
       gltfLoader.load(
-        '/assets/models/zuckerberg2.glb',
+        '/assets/models/zuckerberg.glb', // Use consistent model
         (gltf) => {
           const model = gltf.scene;
           const animations = gltf.animations;
@@ -644,7 +644,7 @@ export class NPCManager {
         },
         undefined,
         (error) => {
-          console.error('Error loading alternative giant Zuckerberg2 model:', error);
+          console.error('Error loading alternative giant Zuckerberg model:', error);
           // Fall back to createAvatar
           this.createFallbackGiant(x, z);
         }
@@ -657,8 +657,8 @@ export class NPCManager {
   
   // Create a fallback giant NPC using createAvatar
   createFallbackGiant(x, z) {
-    // Create a basic avatar as fallback
-    const avatar = createAvatar(this.scene, "Colossal Entity");
+    // Create a basic avatar as fallback using createPureAvatar instead of createAvatar
+    const avatar = createPureAvatar(this.scene, "Colossal Entity", this.loadingManager);
     
     // Scale and position the avatar - make it MUCH bigger (50x)
     avatar.scale.set(50, 50, 50);
@@ -672,7 +672,7 @@ export class NPCManager {
       model: avatar,
       name: "Colossal Entity",
       position: avatar.position,
-      // The avatar created by createAvatar should already have animation setup
+      // The avatar created by createPureAvatar should already have animation setup
       mixer: avatar.userData.mixer || null,
       idleAction: avatar.userData.idleAction || null
     };
@@ -703,10 +703,10 @@ export class NPCManager {
   
   // Create a fallback regular NPC using createAvatar
   createFallbackNPC(x, z) {
-    // Create a basic avatar as fallback with a fun name
+    // Create a basic avatar as fallback with a fun name using createPureAvatar
     const npcNames = ["Metaverse Citizen", "Digital Dweller", "Virtual Visitor", "Pixel Person", "Data Denizen"];
     const npcName = npcNames[Math.floor(Math.random() * npcNames.length)];
-    const avatar = createAvatar(this.scene, npcName);
+    const avatar = createPureAvatar(this.scene, npcName, this.loadingManager);
     
     // Position the avatar
     avatar.position.set(x, 0, z);
@@ -721,7 +721,7 @@ export class NPCManager {
       position: avatar.position,
       direction: new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize(),
       timeToChangeDirection: Math.random() * this.changeDirectionInterval,
-      // The avatar created by createAvatar should already have animation setup
+      // The avatar created by createPureAvatar should already have animation setup
       mixer: avatar.userData.mixer || null,
       runAction: avatar.userData.runAction || null,
       idleAction: avatar.userData.idleAction || null

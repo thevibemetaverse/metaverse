@@ -741,7 +741,8 @@ try {
           
           // If player doesn't exist in our game state, create them
           if (!gameState.players[id]) {
-            const newPlayerAvatar = createAvatar(scene, playerData.username, loadingManager);
+            // Use createPureAvatar instead of createAvatar to ensure consistent models
+            const newPlayerAvatar = createPureAvatar(scene, playerData.username, loadingManager);
             gameState.players[id] = {
               avatar: newPlayerAvatar,
               username: playerData.username
