@@ -755,9 +755,69 @@ try {
           avatar.position.set(playerData.position.x, playerData.position.y, playerData.position.z);
           avatar.rotation.y = playerData.rotation;
           
-          // Update animation state if available
+          // Synchronized animation handling - apply all animation states
+          
+          // Handle standard moving animation
           if (avatar.setMoving && playerData.isMoving !== undefined) {
             avatar.setMoving(playerData.isMoving);
+          }
+          
+          // Handle jumping animation
+          if (avatar.jump && playerData.isJumping && !avatar.userData.isJumping) {
+            avatar.jump();
+          }
+          
+          // Handle skateboard mode
+          if (playerData.isSkateboardMode !== undefined) {
+            // Store skateboard mode state
+            avatar.userData.isSkateboardMode = playerData.isSkateboardMode;
+            
+            if (playerData.isSkateboardMode) {
+              // In skateboard mode, explicitly stop all animations
+              if (avatar.userData && avatar.userData.animationActions) {
+                Object.values(avatar.userData.animationActions).forEach(action => {
+                  action.stop();
+                });
+                
+                // Play idle animation at slow speed for skating stance
+                if (avatar.userData.animationActions && 
+                    Object.keys(avatar.userData.animationActions).some(name => name.toLowerCase().includes('idle'))) {
+                  const idleAction = Object.entries(avatar.userData.animationActions)
+                    .find(([name]) => name.toLowerCase().includes('idle'))[1];
+                  if (idleAction && !idleAction.isRunning()) {
+                    idleAction.timeScale = 0.1; // Very slow speed
+                    idleAction.play();
+                  }
+                }
+                
+                // Apply skateboard-specific rotations
+                if (playerData.rotation !== undefined) {
+                  // Calculate stance rotations based on direction of travel
+                  const skateboardRotation = playerData.rotation + Math.PI/2;
+                  const playerRotation = skateboardRotation + Math.PI/2;
+                  
+                  // Apply rotation to match skateboard stance
+                  avatar.rotation.y = playerRotation;
+                  
+                  // Apply tilt if available in the data
+                  if (playerData.tilt !== undefined) {
+                    avatar.rotation.z = playerData.tilt * 1.2; // Apply tilt with enhanced effect
+                    // Add slight forward lean
+                    avatar.rotation.x = -0.15; // Slight forward lean for skating posture
+                  }
+                }
+              }
+            } else if (avatar.userData.isSkateboardMode) {
+              // Just switched from skateboard mode to normal mode
+              // Reset additional rotations
+              avatar.rotation.z = 0;
+              avatar.rotation.x = 0;
+              
+              // Resume normal animations based on movement state
+              if (avatar.setMoving && playerData.isMoving !== undefined) {
+                avatar.setMoving(playerData.isMoving);
+              }
+            }
           }
         }
       });
@@ -886,6 +946,9 @@ try {
     
     // Handle animations based on skateboard mode
     if (playerAvatar) {
+      // Track animation states in userData for synchronization
+      playerAvatar.userData.isMoving = isMoving;
+      
       if (controls.isSkateboardMode) {
         // In skateboard mode, explicitly stop all animations
         if (playerAvatar.userData && playerAvatar.userData.animationActions) {
@@ -904,9 +967,15 @@ try {
             }
           }
         }
+        
+        // Track skateboard mode state
+        playerAvatar.userData.isSkateboardMode = true;
       } else if (playerAvatar.setMoving) {
         // Normal animation logic when not in skateboard mode
         playerAvatar.setMoving(isMoving);
+        
+        // Track skateboard mode state
+        playerAvatar.userData.isSkateboardMode = false;
       }
     }
     
@@ -1021,7 +1090,10 @@ try {
         rotation: playerAvatar.rotation.y,
         isMoving: isMoving,
         isJumping: playerAvatar.userData.isJumping || false,
-        isSkateboardMode: controls.isSkateboardMode || false
+        isSkateboardMode: controls.isSkateboardMode || false,
+        // Add skateboard-specific data
+        tilt: controls.isSkateboardMode ? playerAvatar.rotation.z : 0,
+        speed: controls.isSkateboardMode ? controls.skateboardSpeed : 0
       });
     }
     

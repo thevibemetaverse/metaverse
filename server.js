@@ -105,6 +105,15 @@ io.on('connection', (socket) => {
         players[socket.id].isSkateboardMode = data.isSkateboardMode;
       }
       
+      // Add skateboard-specific data
+      if (data.tilt !== undefined) {
+        players[socket.id].tilt = data.tilt;
+      }
+      
+      if (data.speed !== undefined) {
+        players[socket.id].speed = data.speed;
+      }
+      
       // Broadcast updated players to all clients
       socket.broadcast.emit('players-update', players);
     }
