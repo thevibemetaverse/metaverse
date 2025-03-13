@@ -7,8 +7,8 @@ avatarLoadingManager.onProgress = function(url, itemsLoaded, itemsTotal) {
   console.log(`Loading avatar: ${url} (${itemsLoaded}/${itemsTotal})`);
 };
 
-// Debug mode - set to true to show bounding boxes and extra logging
-const DEBUG_MODE = true;
+// Debug mode - set to false to hide bounding boxes and extra logging
+const DEBUG_MODE = false;
 
 // Cache for the Zuckerberg model to avoid loading it multiple times
 let zuckerbergModelCache = null;
@@ -75,7 +75,7 @@ export function createAvatar(scene, username, loadingManager = avatarLoadingMana
   // Load the Zuckerberg GLTF model
   const gltfLoader = new GLTFLoader(loadingManager);
   // In Vite, assets in the public folder are served at the root path
-  const modelPath = '/assets/models/zuckerberg2.glb';
+  const modelPath = '/assets/models/zuckerberg.glb';
   console.log('Attempting to load Zuckerberg model from:', modelPath);
   
   gltfLoader.load(
