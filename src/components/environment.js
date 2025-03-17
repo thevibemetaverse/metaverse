@@ -853,6 +853,39 @@ function createBillboard(parent, imagePath, position, scale, rotationY) {
   textureLoader.load(
     imagePath,
     function(texture) {
+      // Check if this is an AffordiHome billboard
+      const isAffordiHome = imagePath.toLowerCase().includes('affordihome');
+      
+      // If it's AffordiHome, create a canvas to add text to the image
+      if (isAffordiHome) {
+        // Create a canvas to combine image and text
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        
+        // Set canvas size to match texture
+        canvas.width = texture.image.width;
+        canvas.height = texture.image.height;
+        
+        // Draw the original image
+        context.drawImage(texture.image, 0, 0, canvas.width, canvas.height);
+        
+        // Add text
+        context.font = 'bold 48px Arial';
+        context.fillStyle = '#ffffff'; // White text
+        context.strokeStyle = '#000000'; // Black outline
+        context.lineWidth = 2;
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        
+        // Position text at the bottom center of the image
+        const text = "AffordiHome";
+        context.strokeText(text, canvas.width / 2, canvas.height * 0.85);
+        context.fillText(text, canvas.width / 2, canvas.height * 0.85);
+        
+        // Create a new texture from the canvas
+        texture = new THREE.CanvasTexture(canvas);
+      }
+      
       // Use a sprite instead of a plane for true billboarding (always faces camera)
       const material = new THREE.SpriteMaterial({
         map: texture,
