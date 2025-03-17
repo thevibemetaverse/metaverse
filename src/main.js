@@ -103,6 +103,176 @@ const gameState = {
   }
 };
 
+// Global variables for God Mode
+let godModeEnabled = false;
+let godCamera = null;
+let godCameraControls = null;
+let originalCamera = null;
+let godModeSpeed = 0.5;
+let disableBillboarding = false; // New variable to control billboarding
+
+// Expose disableBillboarding to window for access from other files
+if (typeof window !== 'undefined') {
+  window.disableBillboarding = disableBillboarding;
+}
+
+// God Mode camera movement keys
+const godModeKeys = {
+  forward: false,
+  backward: false,
+  left: false,
+  right: false,
+  up: false,
+  down: false,
+  boost: false
+};
+let isMiddleMouseDown = false;
+let lastMouseX = 0;
+let lastMouseY = 0;
+let godCameraDistance = 20;
+let godCameraTarget = new THREE.Vector3(0, 0, 0);
+
+// Handle God Mode keyboard input
+function handleGodModeKeyDown(event) {
+  if (!godModeEnabled) return;
+  
+  switch (event.key.toLowerCase()) {
+    case 'w':
+      godModeKeys.forward = true;
+      break;
+    case 's':
+      godModeKeys.backward = true;
+      break;
+    case 'a':
+      godModeKeys.left = true;
+      break;
+    case 'd':
+      godModeKeys.right = true;
+      break;
+    case 'q':
+      godModeKeys.up = true;
+      break;
+    case 'e':
+      godModeKeys.down = true;
+      break;
+    case 'shift':
+      godModeKeys.boost = true;
+      break;
+  }
+}
+
+function handleGodModeKeyUp(event) {
+  if (!godModeEnabled) return;
+  
+  switch (event.key.toLowerCase()) {
+    case 'w':
+      godModeKeys.forward = false;
+      break;
+    case 's':
+      godModeKeys.backward = false;
+      break;
+    case 'a':
+      godModeKeys.left = false;
+      break;
+    case 'd':
+      godModeKeys.right = false;
+      break;
+    case 'q':
+      godModeKeys.up = false;
+      break;
+    case 'e':
+      godModeKeys.down = false;
+      break;
+    case 'shift':
+      godModeKeys.boost = false;
+      break;
+  }
+}
+
+// Handle mouse wheel for zooming
+function handleGodModeWheel(event) {
+  if (!godModeEnabled || !godCamera) return;
+  
+  // Prevent default scrolling behavior
+  event.preventDefault();
+  
+  // Calculate zoom factor based on wheel delta
+  const zoomFactor = event.deltaY * 0.01;
+  
+  // Update camera distance
+  godCameraDistance += zoomFactor;
+  
+  // Clamp distance to reasonable values
+  godCameraDistance = Math.max(2, Math.min(100, godCameraDistance));
+  
+  // Update camera position based on current orientation and distance
+  const direction = new THREE.Vector3();
+  godCamera.getWorldDirection(direction);
+  direction.multiplyScalar(-godCameraDistance);
+  
+  // Set camera position relative to target
+  godCameraTarget.copy(godCamera.position).add(direction);
+  
+  // Update controls
+  godCameraControls.update();
+}
+
+// Handle middle mouse button down
+function handleGodModeMouseDown(event) {
+  if (!godModeEnabled || !godCamera) return;
+  
+  // Check if middle mouse button is pressed (button 1)
+  if (event.button === 1) {
+    isMiddleMouseDown = true;
+    lastMouseX = event.clientX;
+    lastMouseY = event.clientY;
+    
+    // Disable OrbitControls temporarily
+    godCameraControls.enabled = false;
+  }
+}
+
+// Handle mouse movement for rotation
+function handleGodModeMouseMove(event) {
+  if (!godModeEnabled || !godCamera || !isMiddleMouseDown) return;
+  
+  // Calculate mouse movement
+  const deltaX = event.clientX - lastMouseX;
+  const deltaY = event.clientY - lastMouseY;
+  lastMouseX = event.clientX;
+  lastMouseY = event.clientY;
+  
+  // Rotate camera based on mouse movement
+  const rotationSpeed = 0.005;
+  godCamera.rotation.y -= deltaX * rotationSpeed;
+  godCamera.rotation.x -= deltaY * rotationSpeed;
+  
+  // Clamp vertical rotation to avoid flipping
+  godCamera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, godCamera.rotation.x));
+  
+  // Update camera position based on current orientation and distance
+  const direction = new THREE.Vector3();
+  godCamera.getWorldDirection(direction);
+  direction.multiplyScalar(-godCameraDistance);
+  
+  // Update target based on camera direction
+  godCameraTarget.copy(godCamera.position).sub(direction);
+  godCameraControls.target.copy(godCameraTarget);
+}
+
+// Handle middle mouse button up
+function handleGodModeMouseUp(event) {
+  if (!godModeEnabled || !godCamera) return;
+  
+  // Check if middle mouse button is released (button 1)
+  if (event.button === 1) {
+    isMiddleMouseDown = false;
+    
+    // Re-enable OrbitControls
+    godCameraControls.enabled = true;
+  }
+}
+
 // Initialize Three.js scene
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -467,7 +637,7 @@ directionalLight.shadow.mapSize.height = 1024;
 scene.add(directionalLight);
 
 // Create environment
-const environment = createEnvironment(scene, loadingManager);
+const environment = createEnvironment(scene, camera, loadingManager);
 
 // Create player avatar
 console.log('Creating player avatar...');
@@ -930,6 +1100,49 @@ try {
     }
   });
   
+  // Update God Mode camera position in the animation loop
+  function updateGodModeCamera(deltaTime) {
+    if (!godModeEnabled || !godCamera) return;
+    
+    // Calculate movement speed (faster with boost)
+    const currentSpeed = godModeKeys.boost ? godModeSpeed * 3 : godModeSpeed;
+    
+    // Get camera direction vectors
+    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(godCamera.quaternion).normalize();
+    forward.y = 0; // Keep movement in horizontal plane
+    forward.normalize();
+    
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(godCamera.quaternion).normalize();
+    right.y = 0; // Keep movement in horizontal plane
+    right.normalize();
+    
+    const up = new THREE.Vector3(0, 1, 0);
+    
+    // Calculate movement direction
+    const moveDirection = new THREE.Vector3(0, 0, 0);
+    
+    if (godModeKeys.forward) moveDirection.add(forward);
+    if (godModeKeys.backward) moveDirection.sub(forward);
+    if (godModeKeys.right) moveDirection.add(right);
+    if (godModeKeys.left) moveDirection.sub(right);
+    if (godModeKeys.up) moveDirection.add(up);
+    if (godModeKeys.down) moveDirection.sub(up);
+    
+    // Normalize movement direction if moving diagonally
+    if (moveDirection.length() > 0) {
+      moveDirection.normalize();
+    }
+    
+    // Move both camera and target
+    const movement = moveDirection.multiplyScalar(currentSpeed * deltaTime);
+    godCamera.position.add(movement);
+    godCameraTarget.add(movement);
+    godCameraControls.target.copy(godCameraTarget);
+    
+    // Update orbit controls
+    godCameraControls.update();
+  }
+  
   // Animation loop
   function animate() {
     requestAnimationFrame(animate);
@@ -941,6 +1154,11 @@ try {
     
     // Update controls
     controls.update();
+    
+    // Update God Mode camera if enabled
+    if (godModeEnabled && godCamera) {
+      updateGodModeCamera(deltaTime);
+    }
     
     // Update avatar animations - ensure this is called every frame
     updateAvatarAnimations();
@@ -1107,6 +1325,15 @@ try {
       });
     }
     
+    // Update username labels billboarding status
+    if (scene) {
+      scene.traverse((object) => {
+        if (object.userData && object.userData.isUsernameLabel && object.updateBillboarding) {
+          object.updateBillboarding();
+        }
+      });
+    }
+    
     // Render scene
     renderer.render(scene, camera);
   }
@@ -1131,6 +1358,10 @@ try {
   const verticalScaleValueSpan = document.getElementById('vertical-scale-value');
   const toggleDebugButton = document.getElementById('toggle-debug');
   const toggleNPCsButton = document.getElementById('toggle-npcs');
+  const toggleGodModeButton = document.getElementById('toggle-god-mode');
+  const godModeControls = document.getElementById('god-mode-controls');
+  const godModeSpeedSlider = document.getElementById('god-mode-speed');
+  const godSpeedValueSpan = document.getElementById('god-speed-value');
   
   if (showDebugButton) {
     showDebugButton.addEventListener('click', () => {
@@ -1347,6 +1578,139 @@ try {
           // Remove all NPCs
           npcManager.removeAll();
         }
+      });
+    }
+    
+    // Toggle God Mode
+    if (toggleGodModeButton) {
+      toggleGodModeButton.addEventListener('click', () => {
+        if (!godModeEnabled) {
+          // Enable God Mode
+          console.log('Enabling God Mode');
+          
+          // Store original camera
+          originalCamera = camera;
+          
+          // Disable billboarding
+          disableBillboarding = true;
+          window.disableBillboarding = true; // Update window object
+          
+          // Show God Mode controls
+          document.getElementById('god-mode-controls').style.display = 'block';
+          
+          // Update speed display
+          document.getElementById('god-speed-value').textContent = godModeSpeed.toFixed(1);
+          
+          // Create a new camera if it doesn't exist yet
+          if (!godCamera) {
+            godCamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            godCamera.position.copy(camera.position);
+            godCamera.rotation.copy(camera.rotation);
+            
+            // Create orbit controls for the god camera
+            godCameraControls = new OrbitControls(godCamera, renderer.domElement);
+            godCameraControls.enableDamping = true;
+            godCameraControls.dampingFactor = 0.05;
+            godCameraControls.screenSpacePanning = false;
+            godCameraControls.minDistance = 1;
+            godCameraControls.maxDistance = 500;
+            godCameraControls.maxPolarAngle = Math.PI;
+            
+            // Set initial target to player position
+            godCameraTarget.copy(playerAvatar.position);
+            godCameraControls.target.copy(godCameraTarget);
+            
+            // Set initial camera position
+            godCamera.position.set(
+              playerAvatar.position.x, 
+              playerAvatar.position.y + 10, 
+              playerAvatar.position.z + 20
+            );
+            
+            // Add mouse wheel event for zoom
+            renderer.domElement.addEventListener('wheel', handleGodModeWheel);
+            
+            // Add middle mouse button events for rotation
+            renderer.domElement.addEventListener('mousedown', handleGodModeMouseDown);
+            renderer.domElement.addEventListener('mousemove', handleGodModeMouseMove);
+            renderer.domElement.addEventListener('mouseup', handleGodModeMouseUp);
+            
+            // Add keyboard event listeners for god camera movement
+            document.addEventListener('keydown', handleGodModeKeyDown);
+            document.addEventListener('keyup', handleGodModeKeyUp);
+          } else {
+            // Update god camera position to current camera
+            godCamera.position.copy(camera.position);
+            godCamera.rotation.copy(camera.rotation);
+            
+            // Set target to player position
+            godCameraTarget.copy(playerAvatar.position);
+            godCameraControls.target.copy(godCameraTarget);
+            
+            // Re-add event listeners
+            renderer.domElement.addEventListener('wheel', handleGodModeWheel);
+            renderer.domElement.addEventListener('mousedown', handleGodModeMouseDown);
+            renderer.domElement.addEventListener('mousemove', handleGodModeMouseMove);
+            renderer.domElement.addEventListener('mouseup', handleGodModeMouseUp);
+            document.addEventListener('keydown', handleGodModeKeyDown);
+            document.addEventListener('keyup', handleGodModeKeyUp);
+          }
+          
+          // Switch to god camera
+          camera = godCamera;
+          
+          // Show a notification
+          showNotification('God Mode Enabled', 'success');
+          
+          // Update the button text
+          this.textContent = 'Disable God Mode';
+          
+          // Set the flag
+          godModeEnabled = true;
+        } else {
+          // Disable God Mode
+          console.log('Disabling God Mode');
+          
+          // Re-enable billboarding
+          disableBillboarding = false;
+          window.disableBillboarding = false; // Update window object
+          
+          // Remove event listeners
+          renderer.domElement.removeEventListener('wheel', handleGodModeWheel);
+          renderer.domElement.removeEventListener('mousedown', handleGodModeMouseDown);
+          renderer.domElement.removeEventListener('mousemove', handleGodModeMouseMove);
+          renderer.domElement.removeEventListener('mouseup', handleGodModeMouseUp);
+          document.removeEventListener('keydown', handleGodModeKeyDown);
+          document.removeEventListener('keyup', handleGodModeKeyUp);
+          
+          // Hide God Mode controls
+          document.getElementById('god-mode-controls').style.display = 'none';
+          
+          // Switch back to original camera
+          if (originalCamera) {
+            camera = originalCamera;
+          }
+          
+          // Show a notification
+          showNotification('God Mode Disabled', 'info');
+          
+          // Update the button text
+          this.textContent = 'Enable God Mode';
+          
+          // Set the flag
+          godModeEnabled = false;
+        }
+      });
+    }
+    
+    // God Mode speed slider
+    if (godModeSpeedSlider) {
+      godModeSpeedSlider.addEventListener('input', () => {
+        godModeSpeed = parseFloat(godModeSpeedSlider.value);
+        if (godSpeedValueSpan) {
+          godSpeedValueSpan.textContent = godModeSpeed.toFixed(1);
+        }
+        console.log(`God Mode speed set to: ${godModeSpeed}`);
       });
     }
   }

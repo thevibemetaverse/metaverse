@@ -9,7 +9,22 @@ loadingManager.onProgress = function(url, itemsLoaded, itemsTotal) {
   console.log(`Loading file: ${url} (${itemsLoaded}/${itemsTotal})`);
 };
 
-export function createEnvironment(scene, loadingManager = new THREE.LoadingManager()) {
+// Global variables for billboard dragging
+let isDragging = false;
+let selectedBillboard = null;
+let selectedAxis = null;
+let dragStartPosition = new THREE.Vector3();
+let dragPlane = new THREE.Plane();
+let dragOffset = new THREE.Vector3();
+let raycaster = new THREE.Raycaster();
+let mouse = new THREE.Vector2();
+let camera = null;
+let billboards = [];
+
+export function createEnvironment(scene, mainCamera, loadingManager = new THREE.LoadingManager()) {
+  // Store camera reference for dragging
+  camera = mainCamera;
+  
   // Create a group to hold all environment objects
   const environment = new THREE.Group();
   scene.add(environment);
@@ -26,6 +41,9 @@ export function createEnvironment(scene, loadingManager = new THREE.LoadingManag
   
   // Reduce the number of trees to make landmarks more visible
   createTrees(environment, 50); // Reduced number of trees
+  
+  // Setup event listeners for dragging
+  setupDragControls();
   
   return environment;
 }
@@ -178,6 +196,9 @@ function createEiffelTower(environment, loadingManager) {
       // Add the model to the placeholder
       placeholder.add(model);
       
+      // Add billboards to the Eiffel Tower
+      addBillboardsToEiffelTower(placeholder);
+      
       // Add collision detection
       placeholder.userData.isObstacle = true;
       
@@ -221,6 +242,9 @@ function createEiffelTower(environment, loadingManager) {
             // Add the model to the placeholder
             placeholder.add(object);
             
+            // Add billboards to the Eiffel Tower
+            addBillboardsToEiffelTower(placeholder);
+            
             console.log('Eiffel Tower OBJ model loaded successfully');
           },
           function(xhr) {
@@ -254,19 +278,23 @@ function createEiffelTower(environment, loadingManager) {
               }
             });
             
-            // Scale and position the model
-            object.scale.set(5, 5, 5); // Adjust scale as needed
+            // Scale the model
+            object.scale.set(5, 5, 5);
             
             // Add the model to the placeholder
             placeholder.add(object);
             
-            console.log('Eiffel Tower OBJ model loaded without materials');
+            // Add billboards to the Eiffel Tower
+            addBillboardsToEiffelTower(placeholder);
+            
+            console.log('Eiffel Tower OBJ model loaded successfully without materials');
           },
           function(xhr) {
             // Loading progress
+            console.log('Eiffel Tower OBJ (no materials): ' + (xhr.loaded / xhr.total * 100) + '% loaded');
           },
           function(error) {
-            // Error loading OBJ without materials, fall back to basic geometries
+            // Error loading OBJ, fall back to basic geometries
             console.warn('Error loading OBJ model without materials, falling back to basic geometries:', error);
             createBasicEiffelTower(placeholder);
           }
@@ -275,64 +303,98 @@ function createEiffelTower(environment, loadingManager) {
     );
   }
   
-  // Function to create a basic Eiffel Tower with geometries as fallback
+  // Function to create a basic Eiffel Tower using simple geometries
   function createBasicEiffelTower(placeholder) {
-    console.log('Creating basic Eiffel Tower with geometries');
-    
-    // Create a simplified Eiffel Tower using basic geometries
+    // Create a basic tower using simple geometries
     const towerGroup = new THREE.Group();
     
     // Base of the tower (four legs)
+    const legGeometry = new THREE.BoxGeometry(1, 10, 1);
     const legMaterial = new THREE.MeshStandardMaterial({ color: 0x555555 });
     
-    for (let i = 0; i < 4; i++) {
-      const leg = new THREE.Mesh(
-        new THREE.BoxGeometry(2, 20, 2),
-        legMaterial
-      );
-      
-      const angle = (i * Math.PI / 2);
-      leg.position.set(
-        10 * Math.cos(angle),
-        10,
-        10 * Math.sin(angle)
-      );
-      
-      leg.rotation.z = -Math.atan2(leg.position.x, 20);
-      leg.rotation.x = Math.atan2(leg.position.z, 20);
-      
-      towerGroup.add(leg);
-    }
+    // Create four legs
+    const leg1 = new THREE.Mesh(legGeometry, legMaterial);
+    leg1.position.set(2, 5, 2);
+    leg1.rotation.z = Math.PI / 12; // Slight angle
+    towerGroup.add(leg1);
+    
+    const leg2 = new THREE.Mesh(legGeometry, legMaterial);
+    leg2.position.set(-2, 5, 2);
+    leg2.rotation.z = -Math.PI / 12; // Slight angle
+    towerGroup.add(leg2);
+    
+    const leg3 = new THREE.Mesh(legGeometry, legMaterial);
+    leg3.position.set(2, 5, -2);
+    leg3.rotation.z = Math.PI / 12; // Slight angle
+    towerGroup.add(leg3);
+    
+    const leg4 = new THREE.Mesh(legGeometry, legMaterial);
+    leg4.position.set(-2, 5, -2);
+    leg4.rotation.z = -Math.PI / 12; // Slight angle
+    towerGroup.add(leg4);
     
     // Middle section
-    const middleSection = new THREE.Mesh(
-      new THREE.CylinderGeometry(5, 8, 15, 4),
-      legMaterial
-    );
-    middleSection.position.y = 25;
-    towerGroup.add(middleSection);
+    const middleGeometry = new THREE.BoxGeometry(3, 15, 3);
+    const middleMaterial = new THREE.MeshStandardMaterial({ color: 0x666666 });
+    const middle = new THREE.Mesh(middleGeometry, middleMaterial);
+    middle.position.y = 17.5;
+    towerGroup.add(middle);
     
-    // Upper section
-    const upperSection = new THREE.Mesh(
-      new THREE.CylinderGeometry(1, 5, 15, 4),
-      legMaterial
-    );
-    upperSection.position.y = 40;
-    towerGroup.add(upperSection);
+    // Top section
+    const topGeometry = new THREE.ConeGeometry(1.5, 10, 4);
+    const topMaterial = new THREE.MeshStandardMaterial({ color: 0x777777 });
+    const top = new THREE.Mesh(topGeometry, topMaterial);
+    top.position.y = 30;
+    towerGroup.add(top);
     
-    // Top spire
-    const spire = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.1, 1, 10, 8),
-      legMaterial
-    );
-    spire.position.y = 52.5;
-    towerGroup.add(spire);
+    // Add shadows
+    towerGroup.traverse(function(node) {
+      if (node.isMesh) {
+        node.castShadow = true;
+        node.receiveShadow = true;
+      }
+    });
     
-    // Add the basic tower to the placeholder
+    // Add the tower to the placeholder
     placeholder.add(towerGroup);
     
-    // Add collision detection
-    placeholder.userData.isObstacle = true;
+    // Add billboards to the basic Eiffel Tower
+    addBillboardsToEiffelTower(placeholder);
+    
+    console.log('Basic Eiffel Tower created using geometries');
+  }
+  
+  // Function to add billboards to the Eiffel Tower
+  function addBillboardsToEiffelTower(towerGroup) {
+    console.log('Adding billboards to Eiffel Tower');
+    
+    // Create Bidtreat billboard
+    createBillboard(
+      towerGroup,
+      '/assets/images/Bidtreat.png',
+      new THREE.Vector3(0, 10, 0), // Position at middle height of tower, offset to the right
+      new THREE.Vector3(10, 10, 1),  // Size of billboard
+      0                            // Rotation around Y axis
+    );
+    
+    // Create Affordihome billboard on the opposite side
+    createBillboard(
+      towerGroup,
+      '/assets/images/affordihome.png',
+      new THREE.Vector3(0, 0, 0), // Same height, offset to the left
+      new THREE.Vector3(10, 10, 1),  // Size of billboard
+      0                      // Face same direction for better visibility
+    );
+    
+    
+    // Add a fifth, extra large billboard at the very top
+    createBillboard(
+      towerGroup,
+      '/assets/images/Bidtreat.png',
+      new THREE.Vector3(0, 45, 0), // Position at the very top
+      new THREE.Vector3(15, 15, 1),  // Extra large size
+      0                            // Rotation around Y axis
+    );
   }
   
   return placeholder;
@@ -530,4 +592,401 @@ function createTree() {
   treeGroup.userData.isObstacle = true;
   
   return treeGroup;
+}
+
+// Setup event listeners for dragging billboards
+function setupDragControls() {
+  // Add event listeners to the document
+  document.addEventListener('mousedown', onMouseDown, false);
+  document.addEventListener('mousemove', onMouseMove, false);
+  document.addEventListener('mouseup', onMouseUp, false);
+  
+  // Touch events for mobile
+  document.addEventListener('touchstart', onTouchStart, false);
+  document.addEventListener('touchmove', onTouchMove, false);
+  document.addEventListener('touchend', onTouchEnd, false);
+  
+  console.log('Billboard drag controls initialized');
+}
+
+// Mouse event handlers
+function onMouseDown(event) {
+  // Calculate mouse position in normalized device coordinates (-1 to +1)
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+  
+  checkDragStart();
+}
+
+function onMouseMove(event) {
+  if (!isDragging) return;
+  
+  // Calculate mouse position in normalized device coordinates (-1 to +1)
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+  
+  handleDrag();
+}
+
+function onMouseUp(event) {
+  isDragging = false;
+  selectedBillboard = null;
+  selectedAxis = null;
+}
+
+// Touch event handlers
+function onTouchStart(event) {
+  if (event.touches.length > 0) {
+    // Prevent default to avoid scrolling
+    event.preventDefault();
+    
+    // Calculate touch position in normalized device coordinates (-1 to +1)
+    mouse.x = (event.touches[0].clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.touches[0].clientY / window.innerHeight) * 2 + 1;
+    
+    checkDragStart();
+  }
+}
+
+function onTouchMove(event) {
+  if (!isDragging || event.touches.length === 0) return;
+  
+  // Prevent default to avoid scrolling
+  event.preventDefault();
+  
+  // Calculate touch position in normalized device coordinates (-1 to +1)
+  mouse.x = (event.touches[0].clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.touches[0].clientY / window.innerHeight) * 2 + 1;
+  
+  handleDrag();
+}
+
+function onTouchEnd(event) {
+  isDragging = false;
+  selectedBillboard = null;
+  selectedAxis = null;
+}
+
+// Check if we're starting to drag a billboard or axis
+function checkDragStart() {
+  if (!camera) return;
+  
+  // Update the raycaster with the mouse position and camera
+  raycaster.setFromCamera(mouse, camera);
+  
+  // Check for intersections with axis handles first
+  const axisIntersects = raycaster.intersectObjects(
+    billboards.flatMap(billboard => [
+      billboard.userData.xAxis,
+      billboard.userData.yAxis,
+      billboard.userData.zAxis
+    ].filter(axis => axis)), // Filter out any undefined axes
+    true
+  );
+  
+  if (axisIntersects.length > 0) {
+    // We've clicked on an axis handle
+    const axisHandle = axisIntersects[0].object;
+    selectedAxis = axisHandle;
+    selectedBillboard = axisHandle.userData.billboard;
+    
+    // Store the starting position
+    dragStartPosition.copy(selectedBillboard.position);
+    
+    // Create a drag plane perpendicular to the camera
+    const planeNormal = new THREE.Vector3().subVectors(
+      camera.position,
+      selectedBillboard.position
+    ).normalize();
+    
+    dragPlane.setFromNormalAndCoplanarPoint(
+      planeNormal,
+      selectedBillboard.position
+    );
+    
+    isDragging = true;
+    return;
+  }
+  
+  // If we didn't click an axis, check if we clicked a billboard
+  const billboardIntersects = raycaster.intersectObjects(billboards, true);
+  
+  if (billboardIntersects.length > 0) {
+    // We've clicked on a billboard
+    selectedBillboard = billboardIntersects[0].object;
+    
+    // Show the axis handles for this billboard
+    if (selectedBillboard.userData.xAxis) {
+      selectedBillboard.userData.xAxis.visible = true;
+      selectedBillboard.userData.yAxis.visible = true;
+      selectedBillboard.userData.zAxis.visible = true;
+    }
+    
+    // Hide axes for all other billboards
+    billboards.forEach(billboard => {
+      if (billboard !== selectedBillboard && billboard.userData.xAxis) {
+        billboard.userData.xAxis.visible = false;
+        billboard.userData.yAxis.visible = false;
+        billboard.userData.zAxis.visible = false;
+      }
+    });
+  } else {
+    // Clicked on nothing, hide all axes
+    billboards.forEach(billboard => {
+      if (billboard.userData.xAxis) {
+        billboard.userData.xAxis.visible = false;
+        billboard.userData.yAxis.visible = false;
+        billboard.userData.zAxis.visible = false;
+      }
+    });
+  }
+}
+
+// Handle dragging along the selected axis
+function handleDrag() {
+  if (!isDragging || !selectedBillboard || !selectedAxis || !camera) return;
+  
+  // Cast a ray from the mouse into the scene
+  raycaster.setFromCamera(mouse, camera);
+  
+  // Determine which axis we're dragging along
+  const axisDirection = new THREE.Vector3();
+  
+  if (selectedAxis === selectedBillboard.userData.xAxis) {
+    axisDirection.set(1, 0, 0);
+  } else if (selectedAxis === selectedBillboard.userData.yAxis) {
+    axisDirection.set(0, 1, 0);
+  } else if (selectedAxis === selectedBillboard.userData.zAxis) {
+    axisDirection.set(0, 0, 1);
+  }
+  
+  // Transform axis direction to world space
+  selectedBillboard.parent.localToWorld(axisDirection.add(selectedBillboard.position));
+  selectedBillboard.parent.localToWorld(dragStartPosition.clone());
+  
+  // Create a line representing the drag axis
+  const axisLine = new THREE.Line3(
+    selectedBillboard.position.clone(),
+    axisDirection
+  );
+  
+  // Find the closest point on the axis to the ray
+  const closestPoint = new THREE.Vector3();
+  const ray = raycaster.ray;
+  
+  // Calculate the closest point between the ray and the axis line
+  const rayPointToLine = new THREE.Vector3();
+  ray.closestPointToPoint(axisLine.start, rayPointToLine);
+  
+  const rayToLineDistance = rayPointToLine.distanceTo(axisLine.start);
+  const rayDirection = ray.direction.clone();
+  const pointOnRay = ray.origin.clone().add(
+    rayDirection.multiplyScalar(rayToLineDistance)
+  );
+  
+  // Project the point onto the axis
+  const axisVector = new THREE.Vector3().subVectors(
+    axisLine.end,
+    axisLine.start
+  ).normalize();
+  
+  const projectedPoint = axisLine.start.clone().add(
+    axisVector.multiplyScalar(
+      new THREE.Vector3().subVectors(pointOnRay, axisLine.start).dot(axisVector)
+    )
+  );
+  
+  // Update the billboard position along the selected axis
+  const newPosition = new THREE.Vector3();
+  
+  if (selectedAxis === selectedBillboard.userData.xAxis) {
+    newPosition.set(
+      projectedPoint.x,
+      selectedBillboard.position.y,
+      selectedBillboard.position.z
+    );
+  } else if (selectedAxis === selectedBillboard.userData.yAxis) {
+    newPosition.set(
+      selectedBillboard.position.x,
+      projectedPoint.y,
+      selectedBillboard.position.z
+    );
+  } else if (selectedAxis === selectedBillboard.userData.zAxis) {
+    newPosition.set(
+      selectedBillboard.position.x,
+      selectedBillboard.position.y,
+      projectedPoint.z
+    );
+  }
+  
+  // Convert the world position back to local space
+  selectedBillboard.parent.worldToLocal(newPosition);
+  
+  // Update the billboard position
+  selectedBillboard.position.copy(newPosition);
+  
+  // Update the axis handles position
+  updateAxisHandles(selectedBillboard);
+  
+  // Log the new position for debugging
+  console.log(`Billboard position: ${newPosition.x.toFixed(2)}, ${newPosition.y.toFixed(2)}, ${newPosition.z.toFixed(2)}`);
+}
+
+// Update the position of axis handles for a billboard
+function updateAxisHandles(billboard) {
+  if (!billboard.userData.xAxis) return;
+  
+  const axisLength = billboard.scale.x * 0.5;
+  
+  // Position the axis handles relative to the billboard
+  billboard.userData.xAxis.position.set(axisLength, 0, 0);
+  billboard.userData.yAxis.position.set(0, axisLength, 0);
+  billboard.userData.zAxis.position.set(0, 0, axisLength);
+}
+
+// Function to create a billboard with an image
+function createBillboard(parent, imagePath, position, scale, rotationY) {
+  // Create a loader for the texture
+  const textureLoader = new THREE.TextureLoader();
+  
+  // Load the image texture
+  textureLoader.load(
+    imagePath,
+    function(texture) {
+      // Check if this is an AffordiHome billboard
+      const isAffordiHome = imagePath.toLowerCase().includes('affordihome');
+      
+      // If it's AffordiHome, create a canvas to add text to the image
+      if (isAffordiHome) {
+        // Create a canvas to combine image and text
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        
+        // Set canvas size to match texture
+        canvas.width = texture.image.width;
+        canvas.height = texture.image.height;
+        
+        // Draw the original image
+        context.drawImage(texture.image, 0, 0, canvas.width, canvas.height);
+        
+        // Add text
+        context.font = 'bold 48px Arial';
+        context.fillStyle = '#ffffff'; // White text
+        context.strokeStyle = '#000000'; // Black outline
+        context.lineWidth = 2;
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        
+        // Position text at the bottom center of the image
+        const text = "AffordiHome";
+        context.strokeText(text, canvas.width / 2, canvas.height * 0.85);
+        context.fillText(text, canvas.width / 2, canvas.height * 0.85);
+        
+        // Create a new texture from the canvas
+        texture = new THREE.CanvasTexture(canvas);
+      }
+      
+      // Use a sprite instead of a plane for true billboarding (always faces camera)
+      const material = new THREE.SpriteMaterial({
+        map: texture,
+        transparent: true,
+        color: 0xffffff
+      });
+      
+      // Create the billboard sprite
+      const billboard = new THREE.Sprite(material);
+      
+      // Set position and scale
+      billboard.position.copy(position);
+      billboard.scale.copy(scale);
+      
+      // Add the billboard to the parent
+      parent.add(billboard);
+      
+      // Add to the global billboards array for dragging
+      billboards.push(billboard);
+      
+      // Create axis handles for dragging
+      createAxisHandles(billboard);
+      
+      console.log(`Billboard created with image: ${imagePath}`);
+    },
+    undefined,
+    function(error) {
+      console.error(`Error loading billboard image ${imagePath}:`, error);
+    }
+  );
+}
+
+// Create axis handles for dragging
+function createAxisHandles(billboard) {
+  // Create a group to hold the axis handles
+  const axisGroup = new THREE.Group();
+  billboard.add(axisGroup);
+  
+  // Calculate axis length based on billboard scale
+  const axisLength = billboard.scale.x * 0.5;
+  
+  // Create X axis (red)
+  const xAxisGeometry = new THREE.CylinderGeometry(0.1, 0.1, axisLength, 8);
+  xAxisGeometry.rotateZ(Math.PI / 2); // Rotate to point along X axis
+  const xAxisMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+  const xAxis = new THREE.Mesh(xAxisGeometry, xAxisMaterial);
+  xAxis.position.set(axisLength / 2, 0, 0);
+  
+  // Create X axis arrow cone
+  const xArrowGeometry = new THREE.ConeGeometry(0.2, 0.5, 8);
+  xArrowGeometry.rotateZ(-Math.PI / 2); // Rotate to point along X axis
+  const xArrow = new THREE.Mesh(xArrowGeometry, xAxisMaterial);
+  xArrow.position.set(axisLength, 0, 0);
+  
+  // Create Y axis (green)
+  const yAxisGeometry = new THREE.CylinderGeometry(0.1, 0.1, axisLength, 8);
+  const yAxisMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+  const yAxis = new THREE.Mesh(yAxisGeometry, yAxisMaterial);
+  yAxis.position.set(0, axisLength / 2, 0);
+  
+  // Create Y axis arrow cone
+  const yArrowGeometry = new THREE.ConeGeometry(0.2, 0.5, 8);
+  const yArrow = new THREE.Mesh(yArrowGeometry, yAxisMaterial);
+  yArrow.position.set(0, axisLength, 0);
+  
+  // Create Z axis (blue)
+  const zAxisGeometry = new THREE.CylinderGeometry(0.1, 0.1, axisLength, 8);
+  zAxisGeometry.rotateX(Math.PI / 2); // Rotate to point along Z axis
+  const zAxisMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff });
+  const zAxis = new THREE.Mesh(zAxisGeometry, zAxisMaterial);
+  zAxis.position.set(0, 0, axisLength / 2);
+  
+  // Create Z axis arrow cone
+  const zArrowGeometry = new THREE.ConeGeometry(0.2, 0.5, 8);
+  zArrowGeometry.rotateX(Math.PI / 2); // Rotate to point along Z axis
+  const zArrow = new THREE.Mesh(zArrowGeometry, zAxisMaterial);
+  zArrow.position.set(0, 0, axisLength);
+  
+  // Add all axes to the group
+  axisGroup.add(xAxis);
+  axisGroup.add(xArrow);
+  axisGroup.add(yAxis);
+  axisGroup.add(yArrow);
+  axisGroup.add(zAxis);
+  axisGroup.add(zArrow);
+  
+  // Store references to the axis handles
+  billboard.userData.xAxis = xAxis;
+  billboard.userData.yAxis = yAxis;
+  billboard.userData.zAxis = zAxis;
+  
+  // Store reference to the billboard on each axis
+  xAxis.userData.billboard = billboard;
+  yAxis.userData.billboard = billboard;
+  zAxis.userData.billboard = billboard;
+  xArrow.userData.billboard = billboard;
+  yArrow.userData.billboard = billboard;
+  zArrow.userData.billboard = billboard;
+  
+  // Hide axes by default
+  axisGroup.visible = false;
+  
+  return axisGroup;
 } 

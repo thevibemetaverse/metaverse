@@ -16,6 +16,7 @@ export class PokeMechanic {
     this.hoverAnimationFrame = null; // Animation frame for hover effect
     this.hoverStartTime = 0; // Time when hover started
     this.customCursorElement = null; // Custom cursor element
+    this.playerPokeCount = 0; // Track player's total pokes
     
     // Set up custom cursor
     this.setupCustomCursor();
@@ -164,12 +165,14 @@ export class PokeMechanic {
     // Add to pokeable objects array
     this.pokeableObjects.push(object);
     
-    // Add to leaderboard
-    this.leaderboard.push({
-      name: name,
-      pokeCount: 0,
-      object: object
-    });
+    // Add to leaderboard (now tracking player's pokes)
+    if (!this.leaderboard.find(entry => entry.name === 'Player')) {
+      this.leaderboard.push({
+        name: 'Player',
+        pokeCount: 0,
+        isPlayer: true
+      });
+    }
     
     // Sort leaderboard
     this.sortLeaderboard();
@@ -247,26 +250,19 @@ export class PokeMechanic {
   
   // Poke an object
   pokeObject(object) {
-    // Increment poke count
-    object.userData.pokeCount++;
+    // Increment player's poke count instead of object's count
+    this.playerPokeCount++;
     
-    // Find the object in the leaderboard
-    let leaderboardEntry = null;
-    for (let i = 0; i < this.leaderboard.length; i++) {
-      if (this.leaderboard[i].object === object) {
-        leaderboardEntry = this.leaderboard[i];
-        break;
-      }
-    }
-    
-    if (leaderboardEntry) {
-      leaderboardEntry.pokeCount = object.userData.pokeCount;
+    // Update the player's entry in the leaderboard
+    let playerEntry = this.leaderboard.find(entry => entry.isPlayer);
+    if (playerEntry) {
+      playerEntry.pokeCount = this.playerPokeCount;
     }
     
     // Update poke counter display
     if (object.userData.pokeCounter) {
       const counterElement = object.userData.pokeCounter;
-      counterElement.textContent = `Pokes: ${object.userData.pokeCount}`;
+      counterElement.textContent = `Poked by Player: ${this.playerPokeCount}`;
       
       // Show the counter
       counterElement.style.opacity = '1';
@@ -291,6 +287,13 @@ export class PokeMechanic {
     
     // Start cooldown
     this.startCooldown();
+    
+    // Special effects for milestone numbers
+    if (this.playerPokeCount === 10 || 
+        this.playerPokeCount === 50 || 
+        this.playerPokeCount === 100) {
+      this.playMilestoneEffect(object, this.playerPokeCount);
+    }
   }
   
   // Play poke animation
@@ -504,13 +507,6 @@ export class PokeMechanic {
     };
     
     animateImpact();
-    
-    // Special effects for milestone numbers
-    if (object.userData.pokeCount === 10 || 
-        object.userData.pokeCount === 50 || 
-        object.userData.pokeCount === 100) {
-      this.playMilestoneEffect(object, object.userData.pokeCount);
-    }
   }
   
   // Elastic easing function
@@ -860,13 +856,13 @@ export class PokeMechanic {
     // Clear the list
     leaderboardList.innerHTML = '';
     
-    // Add top 10 objects to the list
-    const topObjects = this.leaderboard.slice(0, 10);
+    // Add top 10 entries to the list
+    const topEntries = this.leaderboard.slice(0, 10);
     
-    topObjects.forEach((entry, index) => {
+    topEntries.forEach((entry, index) => {
       const listItem = document.createElement('li');
       listItem.style.padding = isMobile ? '4px 0' : '5px 0';
-      listItem.style.borderBottom = index < topObjects.length - 1 ? '1px solid rgba(255, 255, 255, 0.2)' : 'none';
+      listItem.style.borderBottom = index < topEntries.length - 1 ? '1px solid rgba(255, 255, 255, 0.2)' : 'none';
       listItem.style.fontSize = isMobile ? '12px' : '14px';
       
       // Add medal for top 3
@@ -885,6 +881,13 @@ export class PokeMechanic {
       // Highlight if it has pokes
       if (entry.pokeCount > 0) {
         listItem.style.color = index === 0 ? '#FFC107' : index === 1 ? '#E0E0E0' : index === 2 ? '#CD7F32' : 'white';
+      }
+      
+      // Add special highlight for player
+      if (entry.isPlayer) {
+        listItem.style.backgroundColor = 'rgba(255, 87, 34, 0.2)';
+        listItem.style.borderRadius = '3px';
+        listItem.style.padding = '4px 8px';
       }
       
       leaderboardList.appendChild(listItem);
