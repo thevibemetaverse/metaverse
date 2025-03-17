@@ -467,6 +467,32 @@ function createUsernameLabel(avatarGroup, username) {
   // Add the sprite to the avatar group
   avatarGroup.add(sprite);
   
+  // Add an update method to check billboarding status
+  sprite.updateBillboarding = function() {
+    // Check if billboarding should be disabled (from window object)
+    if (window.disableBillboarding) {
+      // If we're in God Mode, we want to show a fixed label
+      // Store the original quaternion if we haven't already
+      if (!this.userData.originalQuaternion) {
+        this.userData.originalQuaternion = this.quaternion.clone();
+      }
+      
+      // Set a fixed rotation so the label doesn't follow the camera
+      this.quaternion.set(0, 0, 0, 1);
+      
+      // Make sure it's visible
+      this.visible = true;
+    } else {
+      // If billboarding is enabled, restore the original quaternion if we have one
+      if (this.userData.originalQuaternion) {
+        this.quaternion.copy(this.userData.originalQuaternion);
+      }
+      
+      // Make sure it's visible
+      this.visible = true;
+    }
+  };
+  
   return sprite;
 }
 
