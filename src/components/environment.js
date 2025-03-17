@@ -368,32 +368,21 @@ function createEiffelTower(environment, loadingManager) {
   function addBillboardsToEiffelTower(towerGroup) {
     console.log('Adding billboards to Eiffel Tower');
     
-    // Create Bidtreat billboard
-    createBillboard(
-      towerGroup,
-      '/assets/images/Bidtreat.png',
-      new THREE.Vector3(0, 10, 0), // Position at middle height of tower, offset to the right
-      new THREE.Vector3(10, 10, 1),  // Size of billboard
-      0                            // Rotation around Y axis
-    );
     
-    // Create Affordihome billboard on the opposite side
+    // Create Affordihome billboard - position it to face outward on the opposite side
     createBillboard(
       towerGroup,
       '/assets/images/affordihome.png',
-      new THREE.Vector3(0, 0, 0), // Same height, offset to the left
-      new THREE.Vector3(10, 10, 1),  // Size of billboard
-      0                      // Face same direction for better visibility
+      new THREE.Vector3(-15, 10, 0), // Position further out from the tower
+      -Math.PI / 2                  // Rotate -90 degrees to face outward
     );
     
-    
-    // Add a fifth, extra large billboard at the very top
+    // Add a third billboard facing the player's starting position
     createBillboard(
       towerGroup,
       '/assets/images/Bidtreat.png',
-      new THREE.Vector3(0, 45, 0), // Position at the very top
-      new THREE.Vector3(15, 15, 1),  // Extra large size
-      0                            // Rotation around Y axis
+      new THREE.Vector3(0, 15, 15), // Position facing toward player spawn
+      0                            // No rotation needed to face player
     );
   }
   
@@ -836,16 +825,19 @@ function handleDrag() {
 function updateAxisHandles(billboard) {
   if (!billboard.userData.xAxis) return;
   
-  const axisLength = billboard.scale.x * 0.5;
+  // Calculate axis length based on billboard geometry
+  const geometry = billboard.geometry;
+  const parameters = geometry.parameters;
+  const axisLength = Math.max(parameters.width, parameters.height) * 0.5;
   
   // Position the axis handles relative to the billboard
-  billboard.userData.xAxis.position.set(axisLength, 0, 0);
-  billboard.userData.yAxis.position.set(0, axisLength, 0);
-  billboard.userData.zAxis.position.set(0, 0, axisLength);
+  billboard.userData.xAxis.position.set(axisLength / 2, 0, 0);
+  billboard.userData.yAxis.position.set(0, axisLength / 2, 0);
+  billboard.userData.zAxis.position.set(0, 0, axisLength / 2);
 }
 
 // Function to create a billboard with an image
-function createBillboard(parent, imagePath, position, scale, rotationY) {
+function createBillboard(parent, imagePath, position, rotationY) {
   // Create a loader for the texture
   const textureLoader = new THREE.TextureLoader();
   
@@ -886,19 +878,36 @@ function createBillboard(parent, imagePath, position, scale, rotationY) {
         texture = new THREE.CanvasTexture(canvas);
       }
       
-      // Use a sprite instead of a plane for true billboarding (always faces camera)
-      const material = new THREE.SpriteMaterial({
+      // Get the aspect ratio of the image
+      const imageWidth = texture.image.width;
+      const imageHeight = texture.image.height;
+      const aspectRatio = imageWidth / imageHeight;
+      
+      // Create a plane with the correct aspect ratio
+      const width = 10; // Increased base width in world units for better visibility
+      const height = width / aspectRatio;
+      const geometry = new THREE.PlaneGeometry(width, height);
+      
+      // Use MeshStandardMaterial instead of MeshBasicMaterial for better lighting
+      const material = new THREE.MeshStandardMaterial({
         map: texture,
         transparent: true,
-        color: 0xffffff
+        side: THREE.DoubleSide,
+        emissive: 0xffffff,     // Add emissive to make it glow slightly
+        emissiveMap: texture,   // Use the same texture for the glow
+        emissiveIntensity: 0.2, // Subtle glow
+        roughness: 0.5,         // Semi-glossy finish
+        metalness: 0.1          // Slight metallic look
       });
       
-      // Create the billboard sprite
-      const billboard = new THREE.Sprite(material);
+      // Create the billboard mesh
+      const billboard = new THREE.Mesh(geometry, material);
       
-      // Set position and scale
+      // Set position
       billboard.position.copy(position);
-      billboard.scale.copy(scale);
+      
+      // Apply rotation if specified
+      billboard.rotation.y = rotationY;
       
       // Add the billboard to the parent
       parent.add(billboard);
@@ -924,8 +933,10 @@ function createAxisHandles(billboard) {
   const axisGroup = new THREE.Group();
   billboard.add(axisGroup);
   
-  // Calculate axis length based on billboard scale
-  const axisLength = billboard.scale.x * 0.5;
+  // Calculate axis length based on billboard geometry
+  const geometry = billboard.geometry;
+  const parameters = geometry.parameters;
+  const axisLength = Math.max(parameters.width, parameters.height) * 0.5;
   
   // Create X axis (red)
   const xAxisGeometry = new THREE.CylinderGeometry(0.1, 0.1, axisLength, 8);
