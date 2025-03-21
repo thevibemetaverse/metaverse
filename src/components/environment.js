@@ -173,50 +173,94 @@ function createBackgroundHills(environment) {
 }
 
 // Function to create a billboard with an image
-function createBillboard(imageUrl, width = 50, height = 5) {
-  // Create a canvas to draw the image
-  const canvas = document.createElement('canvas');
-  canvas.width = 1000; // High resolution for better quality
-  canvas.height = 1000;
-  const context = canvas.getContext('2d');
+function createBillboard(parent, imagePath, position, rotationY) {
+  // Create a loader for the texture
+  const textureLoader = new THREE.TextureLoader();
   
-  // Create a new image
-  const img = new Image();
-  img.crossOrigin = 'anonymous'; // Enable CORS
-  
-  // Create a promise to handle image loading
-  return new Promise((resolve, reject) => {
-    img.onload = () => {
-      // Clear canvas
-      context.clearRect(0, 0, canvas.width, canvas.height);
+  // Load the image texture
+  textureLoader.load(
+    imagePath,
+    function(texture) {
+      // Check if this is an AffordiHome billboard
+      const isAffordiHome = imagePath.toLowerCase().includes('affordihome');
       
-      // Draw image centered and scaled
-      const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
-      const x = (canvas.width - img.width * scale) / 2;
-      const y = (canvas.height - img.height * scale) / 2;
-      context.drawImage(img, x, y, img.width * scale, img.height * scale);
+      // If it's AffordiHome, create a canvas to add text to the image
+      if (isAffordiHome) {
+        // Create a canvas to combine image and text
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        
+        // Set canvas size to match texture
+        canvas.width = texture.image.width;
+        canvas.height = texture.image.height;
+        
+        // Draw the original image
+        context.drawImage(texture.image, 0, 0, canvas.width, canvas.height);
+        
+        // Add text
+        context.font = 'bold 48px Arial';
+        context.fillStyle = '#ffffff'; // White text
+        context.strokeStyle = '#000000'; // Black outline
+        context.lineWidth = 2;
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        
+        // Position text at the bottom center of the image
+        const text = "AffordiHome";
+        context.strokeText(text, canvas.width / 2, canvas.height * 0.85);
+        context.fillText(text, canvas.width / 2, canvas.height * 0.85);
+        
+        // Create a new texture from the canvas
+        texture = new THREE.CanvasTexture(canvas);
+      }
       
-      // Create texture from canvas
-      const texture = new THREE.CanvasTexture(canvas);
-      texture.needsUpdate = true;
+      // Get the aspect ratio of the image
+      const imageWidth = texture.image.width;
+      const imageHeight = texture.image.height;
+      const aspectRatio = imageWidth / imageHeight;
       
-      // Create material
-      const material = new THREE.MeshBasicMaterial({
+      // Create a plane with the correct aspect ratio
+      const width = 10; // Increased base width in world units for better visibility
+      const height = width / aspectRatio;
+      const geometry = new THREE.PlaneGeometry(width, height);
+      
+      // Use MeshStandardMaterial instead of MeshBasicMaterial for better lighting
+      const material = new THREE.MeshStandardMaterial({
         map: texture,
         transparent: true,
-        side: THREE.DoubleSide
+        side: THREE.DoubleSide,
+        emissive: 0xffffff,     // Add emissive to make it glow slightly
+        emissiveMap: texture,   // Use the same texture for the glow
+        emissiveIntensity: 0.2, // Subtle glow
+        roughness: 0.5,         // Semi-glossy finish
+        metalness: 0.1          // Slight metallic look
       });
       
-      // Create mesh
-      const geometry = new THREE.PlaneGeometry(width, height);
+      // Create the billboard mesh
       const billboard = new THREE.Mesh(geometry, material);
       
-      resolve(billboard);
-    };
-    
-    img.onerror = reject;
-    img.src = imageUrl;
-  });
+      // Set position
+      billboard.position.copy(position);
+      
+      // Apply rotation if specified
+      billboard.rotation.y = rotationY;
+      
+      // Add the billboard to the parent
+      parent.add(billboard);
+      
+      // Add to the global billboards array for dragging
+      billboards.push(billboard);
+      
+      // Create axis handles for dragging
+      createAxisHandles(billboard);
+      
+      console.log(`Billboard created with image: ${imagePath}`);
+    },
+    undefined,
+    function(error) {
+      console.error(`Error loading billboard image ${imagePath}:`, error);
+    }
+  );
 }
 
 function createEiffelTower(environment, loadingManager) {
@@ -249,39 +293,14 @@ function createEiffelTower(environment, loadingManager) {
       // Add the model to the placeholder
       placeholder.add(model);
       
-      // Add billboards to the Eiffel Tower
-      addBillboardsToEiffelTower(placeholder);
-      
       // Add collision detection
       placeholder.userData.isObstacle = true;
       
       // Add billboard to the Eiffel Tower
-      createBillboard('/assets/images/Bidtreat.jpg', 8, 6)
-        .then(billboard => {
-          // Position the billboard much closer to the starting position
-          billboard.position.set(0, 20, 8);
-          
-          // Make the billboard face the camera          
-          // Add the billboard to the placeholder
-          placeholder.add(billboard);
-          
-          console.log('Bidtreat billboard added to Eiffel Tower');
-          
-          // Add second billboard for afforihome
-          return createBillboard('/assets/images/affordihome.jpg', 8, 6);
-        })
-        .then(billboard => {
-          // Position the second billboard directly below the first one
-          billboard.position.set(0, 15, 8); // Changed z from 4 to 8 to bring it closer
-          
-          // Add the second billboard to the placeholder
-          placeholder.add(billboard);
-          
-          console.log('Afforihome billboard added to Eiffel Tower');
-        })
-        .catch(error => {
-          console.error('Error creating billboards:', error);
-        });
+      createBillboard(placeholder, '/assets/images/Bidtreat.jpg', new THREE.Vector3(0, 20, 8), 0);
+      
+      // Add second billboard for afforihome
+      createBillboard(placeholder, '/assets/images/affordihome.jpg', new THREE.Vector3(0, 15, 8), 0);
       
       console.log('Eiffel Tower model loaded successfully - positioned in the distance');
     },
@@ -445,26 +464,10 @@ function createEiffelTower(environment, loadingManager) {
     console.log('Basic Eiffel Tower created using geometries');
   }
   
-  // Function to add billboards to the Eiffel Tower
+  // Function to add billboards to the Eiffel Tower - removing duplicate billboard creation
   function addBillboardsToEiffelTower(towerGroup) {
     console.log('Adding billboards to Eiffel Tower');
-    
-    
-    // Create Affordihome billboard - position it to face outward on the opposite side
-    createBillboard(
-      towerGroup,
-      '/assets/images/affordihome.png',
-      new THREE.Vector3(-15, 10, 0), // Position further out from the tower
-      -Math.PI / 2                  // Rotate -90 degrees to face outward
-    );
-    
-    // Add a third billboard facing the player's starting position
-    createBillboard(
-      towerGroup,
-      '/assets/images/Bidtreat.png',
-      new THREE.Vector3(0, 15, 15), // Position facing toward player spawn
-      0                            // No rotation needed to face player
-    );
+    // Removed duplicate billboard creation calls
   }
   
   return placeholder;
@@ -1201,97 +1204,6 @@ function updateAxisHandles(billboard) {
   billboard.userData.xAxis.position.set(axisLength / 2, 0, 0);
   billboard.userData.yAxis.position.set(0, axisLength / 2, 0);
   billboard.userData.zAxis.position.set(0, 0, axisLength / 2);
-}
-
-// Function to create a billboard with an image
-function createBillboard(parent, imagePath, position, rotationY) {
-  // Create a loader for the texture
-  const textureLoader = new THREE.TextureLoader();
-  
-  // Load the image texture
-  textureLoader.load(
-    imagePath,
-    function(texture) {
-      // Check if this is an AffordiHome billboard
-      const isAffordiHome = imagePath.toLowerCase().includes('affordihome');
-      
-      // If it's AffordiHome, create a canvas to add text to the image
-      if (isAffordiHome) {
-        // Create a canvas to combine image and text
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
-        
-        // Set canvas size to match texture
-        canvas.width = texture.image.width;
-        canvas.height = texture.image.height;
-        
-        // Draw the original image
-        context.drawImage(texture.image, 0, 0, canvas.width, canvas.height);
-        
-        // Add text
-        context.font = 'bold 48px Arial';
-        context.fillStyle = '#ffffff'; // White text
-        context.strokeStyle = '#000000'; // Black outline
-        context.lineWidth = 2;
-        context.textAlign = 'center';
-        context.textBaseline = 'middle';
-        
-        // Position text at the bottom center of the image
-        const text = "AffordiHome";
-        context.strokeText(text, canvas.width / 2, canvas.height * 0.85);
-        context.fillText(text, canvas.width / 2, canvas.height * 0.85);
-        
-        // Create a new texture from the canvas
-        texture = new THREE.CanvasTexture(canvas);
-      }
-      
-      // Get the aspect ratio of the image
-      const imageWidth = texture.image.width;
-      const imageHeight = texture.image.height;
-      const aspectRatio = imageWidth / imageHeight;
-      
-      // Create a plane with the correct aspect ratio
-      const width = 10; // Increased base width in world units for better visibility
-      const height = width / aspectRatio;
-      const geometry = new THREE.PlaneGeometry(width, height);
-      
-      // Use MeshStandardMaterial instead of MeshBasicMaterial for better lighting
-      const material = new THREE.MeshStandardMaterial({
-        map: texture,
-        transparent: true,
-        side: THREE.DoubleSide,
-        emissive: 0xffffff,     // Add emissive to make it glow slightly
-        emissiveMap: texture,   // Use the same texture for the glow
-        emissiveIntensity: 0.2, // Subtle glow
-        roughness: 0.5,         // Semi-glossy finish
-        metalness: 0.1          // Slight metallic look
-      });
-      
-      // Create the billboard mesh
-      const billboard = new THREE.Mesh(geometry, material);
-      
-      // Set position
-      billboard.position.copy(position);
-      
-      // Apply rotation if specified
-      billboard.rotation.y = rotationY;
-      
-      // Add the billboard to the parent
-      parent.add(billboard);
-      
-      // Add to the global billboards array for dragging
-      billboards.push(billboard);
-      
-      // Create axis handles for dragging
-      createAxisHandles(billboard);
-      
-      console.log(`Billboard created with image: ${imagePath}`);
-    },
-    undefined,
-    function(error) {
-      console.error(`Error loading billboard image ${imagePath}:`, error);
-    }
-  );
 }
 
 // Create axis handles for dragging
