@@ -1120,6 +1120,39 @@ try {
       });
     }
     
+    // Check for portal collisions
+    if (playerAvatar) {
+      // Update the player's bounding box each frame
+      const playerBox = new THREE.Box3().setFromObject(playerAvatar);
+      
+      // Traverse the scene to find portal triggers
+      scene.traverse((object) => {
+        if (object.userData && object.userData.isPortal) {
+          // Get the portal's bounding box
+          const portalBox = new THREE.Box3().setFromObject(object);
+          
+          // Debug: Log bounding box positions
+          console.log('Player Box:', {
+            min: playerBox.min,
+            max: playerBox.max,
+            center: playerBox.getCenter(new THREE.Vector3())
+          });
+          console.log('Portal Box:', {
+            min: portalBox.min,
+            max: portalBox.max,
+            center: portalBox.getCenter(new THREE.Vector3())
+          });
+          
+          // Check if the player's bounding box intersects with the portal's bounding box
+          if (playerBox.intersectsBox(portalBox)) {
+            console.log('Portal collision detected!');
+            // Open the portal URL in a new tab
+            window.open(object.userData.portalURL, '_blank');
+          }
+        }
+      });
+    }
+    
     // Render scene
     renderer.render(scene, camera);
   }
@@ -1444,7 +1477,40 @@ renderer.setAnimationLoop(function() {
       object.lookAt(camera.position);
     }
   });
+
+  // Check for portal collisions
+  if (playerAvatar) {
+    // Update the player's bounding box each frame
+    const playerBox = new THREE.Box3().setFromObject(playerAvatar);
+    
+    // Traverse the scene to find portal triggers
+    scene.traverse((object) => {
+      if (object.userData && object.userData.isPortal) {
+        // Get the portal's bounding box
+        const portalBox = new THREE.Box3().setFromObject(object);
+        
+        // Debug: Log bounding box positions
+        console.log('Player Box:', {
+          min: playerBox.min,
+          max: playerBox.max,
+          center: playerBox.getCenter(new THREE.Vector3())
+        });
+        console.log('Portal Box:', {
+          min: portalBox.min,
+          max: portalBox.max,
+          center: portalBox.getCenter(new THREE.Vector3())
+        });
+        
+        // Check if the player's bounding box intersects with the portal's bounding box
+        if (playerBox.intersectsBox(portalBox)) {
+          console.log('Portal collision detected!');
+          // Open the portal URL in a new tab
+          window.open(object.userData.portalURL, '_blank');
+        }
+      }
+    });
+  }
   
-  // Render scene
+  // Render the scene
   renderer.render(scene, camera);
 });

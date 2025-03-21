@@ -937,6 +937,28 @@ export function createPureAvatar(scene, username, loadingManager = avatarLoading
   // Add username text above avatar
   createUsernameLabel(avatarGroup, username);
   
+  // Add a bounding box for collision detection
+  const boundingBox = new THREE.Box3().setFromObject(avatarGroup);
+  const size = new THREE.Vector3();
+  boundingBox.getSize(size);
+  
+  // Create a visible bounding box for debugging
+  const boxGeometry = new THREE.BoxGeometry(size.x, size.y, size.z);
+  const boxMaterial = new THREE.MeshBasicMaterial({
+    color: 0xff0000,
+    transparent: true,
+    opacity: 0.3,
+    wireframe: true
+  });
+  const boxMesh = new THREE.Mesh(boxGeometry, boxMaterial);
+  boxMesh.visible = false; // Hide by default
+  avatarGroup.add(boxMesh);
+  
+  // Store the bounding box and size in userData
+  avatarGroup.userData.boundingBox = boundingBox;
+  avatarGroup.userData.size = size;
+  avatarGroup.userData.boxMesh = boxMesh;
+  
   // Load the Zuckerberg model EXACTLY like the giant NPCs
   const gltfLoader = new GLTFLoader(loadingManager);
   const modelPath = '/assets/models/zuckerberg.glb';
@@ -965,6 +987,21 @@ export function createPureAvatar(scene, username, loadingManager = avatarLoading
       
       // Add the model to the avatar group
       avatarGroup.add(model);
+      
+      // Update the bounding box after adding the model
+      avatarGroup.userData.boundingBox.setFromObject(avatarGroup);
+      avatarGroup.userData.boundingBox.getSize(avatarGroup.userData.size);
+      
+      // Update the box mesh geometry
+      if (avatarGroup.userData.boxMesh) {
+        avatarGroup.userData.boxMesh.geometry.dispose();
+        avatarGroup.userData.boxMesh.geometry = new THREE.BoxGeometry(
+          avatarGroup.userData.size.x,
+          avatarGroup.userData.size.y,
+          avatarGroup.userData.size.z
+        );
+        avatarGroup.userData.boxMesh.geometry.computeBoundingBox();
+      }
       
       // Setup animations if available
       if (gltf.animations && gltf.animations.length > 0) {

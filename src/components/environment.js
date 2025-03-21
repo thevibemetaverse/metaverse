@@ -235,23 +235,23 @@ function createEiffelTower(environment, loadingManager) {
       placeholder.userData.isObstacle = true;
       
       // Add billboard to the Eiffel Tower
-      createBillboard('/assets/images/Bidtreat.jpg', 15, 10)
+      createBillboard('/assets/images/Bidtreat.jpg', 8, 6)
         .then(billboard => {
           // Position the billboard much closer to the starting position
-          billboard.position.set(0, 20, 4); // Moved much closer to starting position
+          billboard.position.set(0, 20, 8);
           
-          // Make the billboard  face the camera          
+          // Make the billboard face the camera          
           // Add the billboard to the placeholder
           placeholder.add(billboard);
           
           console.log('Bidtreat billboard added to Eiffel Tower');
           
           // Add second billboard for afforihome
-          return createBillboard('/assets/images/afforihome.jpg', 10, 5);
+          return createBillboard('/assets/images/affordihome.jpg', 8, 6);
         })
         .then(billboard => {
           // Position the second billboard directly below the first one
-          billboard.position.set(0, 10, 4); // Positioned 10 units below the first billboard
+          billboard.position.set(0, 15, 8); // Changed z from 4 to 8 to bring it closer
           
           // Add the second billboard to the placeholder
           placeholder.add(billboard);
@@ -523,12 +523,24 @@ function createSagradaFamilia(environment, loadingManager) {
 }
 
 function createPortalFrame(environment, loadingManager) {
-  // Create a placeholder for the portal frame
   const placeholder = new THREE.Group();
-  // Position the portal frame in front of the player spawn
   placeholder.position.set(0, 0, 30);
   environment.add(placeholder);
-  
+
+  // Add portal trigger zone
+  const portalTrigger = new THREE.Mesh(
+    new THREE.BoxGeometry(2, 3, 2),
+    new THREE.MeshBasicMaterial({ 
+      transparent: true, 
+      opacity: 0,
+      visible: false 
+    })
+  );
+  portalTrigger.position.set(0, 1.5, 0);
+  portalTrigger.userData.isPortal = true; // Flag to identify this as portal trigger
+  portalTrigger.userData.portalURL = 'https://fly.pieter.com/'; // Store target URL
+  placeholder.add(portalTrigger);
+
   // Load the GLB model
   const gltfLoader = new GLTFLoader(loadingManager);
   gltfLoader.load(
@@ -665,9 +677,9 @@ function createPortalFrame(environment, loadingManager) {
     console.log('Added fallback red plane to verify positioning');
     
     // Now try to load the image
-    console.log('Attempting to load image from assets/images/kyzo.jpeg');
+    console.log('Attempting to load image from assets/images/level.jpeg');
     textureLoader.load(
-      'assets/images/kyzo.jpeg',
+      'assets/images/level.jpeg',
       function(texture) {
         console.log('Image texture loaded successfully');
         
@@ -814,6 +826,11 @@ function createVerticalImage(environment, loadingManager) {
   // Create a texture loader
   const textureLoader = new THREE.TextureLoader(loadingManager);
   
+  // Create a group to hold both the image and portal trigger
+  const imageGroup = new THREE.Group();
+  imageGroup.position.set(0, 4, 30);
+  environment.add(imageGroup);
+  
   // First, create the fallback red plane immediately
   console.log('Creating fallback red plane...');
   const fallbackGeometry = new THREE.PlaneGeometry(8, 12); // Even larger size
@@ -827,15 +844,14 @@ function createVerticalImage(environment, loadingManager) {
     renderOrder: -1 // Lower render order to ensure it's rendered first (behind)
   });
   const fallbackMesh = new THREE.Mesh(fallbackGeometry, fallbackMaterial);
-  fallbackMesh.position.set(0, 6, 25); // Adjusted height for larger size
   fallbackMesh.renderOrder = -1; // Lower render order
-  environment.add(fallbackMesh);
+  imageGroup.add(fallbackMesh);
   console.log('Added fallback red plane to verify positioning');
   
   // Now try to load the image
   console.log('Attempting to load image from assets/images/kyzo.jpeg');
   textureLoader.load(
-    'assets/images/kyzo.jpeg',
+    'assets/images/levels.jpeg',
     function(texture) {
       console.log('Image texture loaded successfully');
       
@@ -857,14 +873,13 @@ function createVerticalImage(environment, loadingManager) {
       
       // Create the image mesh
       const imageMesh = new THREE.Mesh(imageGeometry, imageMaterial);
-      imageMesh.position.set(0, 4, 30); // Adjusted height for larger size
       imageMesh.renderOrder = -1; // Lower render order
       
       // Remove the fallback plane
-      environment.remove(fallbackMesh);
+      imageGroup.remove(fallbackMesh);
       
-      // Add the image to the environment
-      environment.add(imageMesh);
+      // Add the image to the group
+      imageGroup.add(imageMesh);
       
       // Log the image mesh details
       console.log('Vertical image mesh created:', {

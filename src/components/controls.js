@@ -106,6 +106,9 @@ export function setupControls(camera, player, domElement, gameState, scene) {
   // Set initial camera position - position it for a selfie-style view
   camera.position.set(0, 6, 15); // Initial selfie view
   
+  // Set player's initial position away from portal frame
+  player.position.set(0, 1, -20); // Start 20 units away from portal frame
+  
   // Make sure camera is looking at the player for selfie view
   orbitControls.target.set(0, 2, 0); // Looking at upper body for better framing
   orbitControls.update();
