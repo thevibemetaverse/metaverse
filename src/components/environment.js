@@ -24,6 +24,9 @@ export function createEnvironment(scene, loadingManager = new THREE.LoadingManag
   createEiffelTower(environment, loadingManager);
   createSagradaFamilia(environment, loadingManager);
   
+  // Create portal frame
+  createPortalFrame(environment, loadingManager);
+  
   // Reduce the number of trees to make landmarks more visible
   createTrees(environment, 50); // Reduced number of trees
   
@@ -148,11 +151,58 @@ function createBackgroundHills(environment) {
   }
 }
 
+// Function to create a billboard with an image
+function createBillboard(imageUrl, width = 50, height = 5) {
+  // Create a canvas to draw the image
+  const canvas = document.createElement('canvas');
+  canvas.width = 1000; // High resolution for better quality
+  canvas.height = 1000;
+  const context = canvas.getContext('2d');
+  
+  // Create a new image
+  const img = new Image();
+  img.crossOrigin = 'anonymous'; // Enable CORS
+  
+  // Create a promise to handle image loading
+  return new Promise((resolve, reject) => {
+    img.onload = () => {
+      // Clear canvas
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Draw image centered and scaled
+      const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
+      const x = (canvas.width - img.width * scale) / 2;
+      const y = (canvas.height - img.height * scale) / 2;
+      context.drawImage(img, x, y, img.width * scale, img.height * scale);
+      
+      // Create texture from canvas
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.needsUpdate = true;
+      
+      // Create material
+      const material = new THREE.MeshBasicMaterial({
+        map: texture,
+        transparent: true,
+        side: THREE.DoubleSide
+      });
+      
+      // Create mesh
+      const geometry = new THREE.PlaneGeometry(width, height);
+      const billboard = new THREE.Mesh(geometry, material);
+      
+      resolve(billboard);
+    };
+    
+    img.onerror = reject;
+    img.src = imageUrl;
+  });
+}
+
 function createEiffelTower(environment, loadingManager) {
   // Create a placeholder for the tower while it loads
   const placeholder = new THREE.Group();
-  // Position the Eiffel Tower far in the distance near the Sagrada Familia
-  placeholder.position.set(65, 0, -70); // Moved far in the distance, to the left of Sagrada Familia
+  // Position the Eiffel Tower much closer to the starting position
+  placeholder.position.set(20, 0, -20); // Moved much closer to the starting point
   environment.add(placeholder);
   
   // Try to load the GLB/GLTF model first
@@ -163,8 +213,8 @@ function createEiffelTower(environment, loadingManager) {
       // Model loaded successfully
       const model = gltf.scene;
       
-      // Scale and position the model - make it appropriate for distant viewing
-      model.scale.set(5, 6, 5); // Adjusted scale for distant viewing
+      // Scale and position the model - make it appropriate for closer viewing
+      model.scale.set(3, 4, 3); // Adjusted scale for closer viewing
       model.position.set(0, 0, 0);
       
       // Add shadows
@@ -180,6 +230,22 @@ function createEiffelTower(environment, loadingManager) {
       
       // Add collision detection
       placeholder.userData.isObstacle = true;
+      
+      // Add billboard to the Eiffel Tower
+      createBillboard('/assets/images/Bidtreat.jpg', 15, 10)
+        .then(billboard => {
+          // Position the billboard much closer to the starting position
+          billboard.position.set(0, 20, 4); // Moved much closer to starting position
+          
+          // Make the billboard  face the camera          
+          // Add the billboard to the placeholder
+          placeholder.add(billboard);
+          
+          console.log('Billboard added to Eiffel Tower');
+        })
+        .catch(error => {
+          console.error('Error creating billboard:', error);
+        });
       
       console.log('Eiffel Tower model loaded successfully - positioned in the distance');
     },
@@ -436,6 +502,119 @@ function createSagradaFamilia(environment, loadingManager) {
     
     // Add the basic Sagrada to the placeholder
     placeholder.add(sagradaGroup);
+  }
+  
+  return placeholder;
+}
+
+function createPortalFrame(environment, loadingManager) {
+  // Create a placeholder for the portal frame
+  const placeholder = new THREE.Group();
+  // Position the portal frame in front of the player spawn
+  placeholder.position.set(0, 0, 30);
+  environment.add(placeholder);
+  
+  // Load the GLB model
+  const gltfLoader = new GLTFLoader(loadingManager);
+  gltfLoader.load(
+    '/assets/models/portal_frame.glb',
+    function(gltf) {
+      // Model loaded successfully
+      const model = gltf.scene;
+      
+      // Scale and position the model - make it 100x smaller
+      model.scale.set(0.02, 0.02, 0.02);
+      model.position.set(0, 0, 0);
+      
+      // Add shadows
+      model.traverse(function(node) {
+        if (node.isMesh) {
+          node.castShadow = true;
+          node.receiveShadow = true;
+        }
+      });
+      
+      // Add the model to the placeholder
+      placeholder.add(model);
+      
+      // Add collision detection
+      placeholder.userData.isObstacle = true;
+      
+      console.log('Portal frame model loaded successfully - scaled down to 1/100th of original size');
+    },
+    function(xhr) {
+      // Loading progress
+      console.log('Portal frame: ' + (xhr.loaded / xhr.total * 100) + '% loaded');
+    },
+    function(error) {
+      // Error loading GLTF, fall back to basic geometries
+      console.warn('Error loading portal frame model, falling back to basic geometries:', error);
+      createBasicPortalFrame(placeholder);
+    }
+  );
+  
+  // Function to create a basic portal frame with geometries as fallback
+  function createBasicPortalFrame(placeholder) {
+    console.log('Creating basic portal frame with geometries');
+    
+    // Create a simplified portal frame using basic geometries
+    const portalGroup = new THREE.Group();
+    
+    // Frame material
+    const frameMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0x8B4513,
+      roughness: 0.8,
+      metalness: 0.2
+    });
+    
+    // Main frame structure - scaled down to 1/100th
+    const frame = new THREE.Mesh(
+      new THREE.BoxGeometry(0.1, 0.15, 0.01),
+      frameMaterial
+    );
+    frame.position.y = 0.075;
+    portalGroup.add(frame);
+    
+    // Portal opening - scaled down to 1/100th
+    const portalMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0x000000,
+      transparent: true,
+      opacity: 0.8
+    });
+    const portal = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.08, 0.13),
+      portalMaterial
+    );
+    portal.position.z = 0.001; // Slightly in front of the frame
+    portal.position.y = 0.07;
+    portalGroup.add(portal);
+    
+    // Add some decorative elements
+    const decorationMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0xDAA520,
+      roughness: 0.6,
+      metalness: 0.4
+    });
+    
+    // Add corner decorations - scaled down to 1/100th
+    const cornerPositions = [
+      { x: -0.05, y: 0.15, z: 0 },
+      { x: 0.05, y: 0.15, z: 0 },
+      { x: -0.05, y: 0, z: 0 },
+      { x: 0.05, y: 0, z: 0 }
+    ];
+    
+    cornerPositions.forEach(pos => {
+      const corner = new THREE.Mesh(
+        new THREE.SphereGeometry(0.005, 8, 8),
+        decorationMaterial
+      );
+      corner.position.set(pos.x, pos.y, pos.z);
+      portalGroup.add(corner);
+    });
+    
+    // Add the basic portal frame to the placeholder
+    placeholder.add(portalGroup);
   }
   
   return placeholder;
