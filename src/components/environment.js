@@ -244,10 +244,22 @@ function createEiffelTower(environment, loadingManager) {
           // Add the billboard to the placeholder
           placeholder.add(billboard);
           
-          console.log('Billboard added to Eiffel Tower');
+          console.log('Bidtreat billboard added to Eiffel Tower');
+          
+          // Add second billboard for afforihome
+          return createBillboard('/assets/images/afforihome.jpg', 10, 5);
+        })
+        .then(billboard => {
+          // Position the second billboard directly below the first one
+          billboard.position.set(0, 10, 4); // Positioned 10 units below the first billboard
+          
+          // Add the second billboard to the placeholder
+          placeholder.add(billboard);
+          
+          console.log('Afforihome billboard added to Eiffel Tower');
         })
         .catch(error => {
-          console.error('Error creating billboard:', error);
+          console.error('Error creating billboards:', error);
         });
       
       console.log('Eiffel Tower model loaded successfully - positioned in the distance');
@@ -828,7 +840,7 @@ function createVerticalImage(environment, loadingManager) {
       console.log('Image texture loaded successfully');
       
       // Create a plane for the image
-      const imageGeometry = new THREE.PlaneGeometry(4, 9); // Even larger size
+      const imageGeometry = new THREE.PlaneGeometry(4, 7); // Even larger size
       const imageMaterial = new THREE.MeshBasicMaterial({
         map: texture,
         transparent: true,
