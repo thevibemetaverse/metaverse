@@ -27,6 +27,9 @@ export function createEnvironment(scene, loadingManager = new THREE.LoadingManag
   // Create portal frame
   createPortalFrame(environment, loadingManager);
   
+  // Create vertical image at spawn
+  createVerticalImage(environment, loadingManager);
+  
   // Reduce the number of trees to make landmarks more visible
   createTrees(environment, 50); // Reduced number of trees
   
@@ -540,6 +543,9 @@ function createPortalFrame(environment, loadingManager) {
       // Add collision detection
       placeholder.userData.isObstacle = true;
       
+      // Add the portal image behind the frame
+      createPortalImage(placeholder);
+      
       console.log('Portal frame model loaded successfully - scaled down to 1/100th of original size');
     },
     function(xhr) {
@@ -615,6 +621,84 @@ function createPortalFrame(environment, loadingManager) {
     
     // Add the basic portal frame to the placeholder
     placeholder.add(portalGroup);
+    
+    // Add the portal image behind the frame
+    createPortalImage(placeholder);
+  }
+  
+  // Function to create and add the portal image
+  function createPortalImage(placeholder) {
+    console.log('Starting to create portal image...');
+    
+    // Create a texture loader
+    const textureLoader = new THREE.TextureLoader(loadingManager);
+    
+    // First, create the fallback red plane immediately
+    console.log('Creating fallback red plane...');
+    const fallbackGeometry = new THREE.PlaneGeometry(0.08, 0.13); // Match portal opening size
+    const fallbackMaterial = new THREE.MeshBasicMaterial({
+      color: 0xff0000,
+      transparent: true,
+      opacity: 0.5,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+      depthTest: false, // Ensure it renders on top
+      renderOrder: 1 // Higher render order to ensure it's rendered last
+    });
+    const fallbackMesh = new THREE.Mesh(fallbackGeometry, fallbackMaterial);
+    fallbackMesh.position.z = 0.002; // Move it slightly in front
+    fallbackMesh.position.y = 0.07; // Match portal opening position
+    fallbackMesh.renderOrder = 1; // Higher render order
+    placeholder.add(fallbackMesh);
+    console.log('Added fallback red plane to verify positioning');
+    
+    // Now try to load the image
+    console.log('Attempting to load image from assets/images/kyzo.jpeg');
+    textureLoader.load(
+      'assets/images/kyzo.jpeg',
+      function(texture) {
+        console.log('Image texture loaded successfully');
+        
+        // Create a plane for the image
+        const imageGeometry = new THREE.PlaneGeometry(0.08, 0.13); // Match portal opening size
+        const imageMaterial = new THREE.MeshBasicMaterial({
+          map: texture,
+          transparent: true,
+          opacity: 1.0,
+          side: THREE.DoubleSide,
+          depthWrite: false,
+          depthTest: false, // Ensure it renders on top
+          renderOrder: 1 // Higher render order to ensure it's rendered last
+        });
+        
+        // Create the image mesh
+        const imageMesh = new THREE.Mesh(imageGeometry, imageMaterial);
+        imageMesh.position.z = 0.002; // Move it slightly in front
+        imageMesh.position.y = 0.07; // Match portal opening position
+        imageMesh.renderOrder = 1; // Higher render order
+        
+        // Remove the fallback plane
+        placeholder.remove(fallbackMesh);
+        
+        // Add the image to the placeholder
+        placeholder.add(imageMesh);
+        
+        // Log the image mesh details
+        console.log('Portal image mesh created:', {
+          position: imageMesh.position,
+          scale: imageMesh.scale,
+          geometry: imageGeometry.parameters,
+          material: imageMaterial
+        });
+      },
+      function(xhr) {
+        console.log('Portal image: ' + (xhr.loaded / xhr.total * 100) + '% loaded');
+      },
+      function(error) {
+        console.error('Error loading portal image:', error);
+        console.log('Keeping fallback red plane visible');
+      }
+    );
   }
   
   return placeholder;
@@ -709,4 +793,81 @@ function createTree() {
   treeGroup.userData.isObstacle = true;
   
   return treeGroup;
+}
+
+// Function to create a vertical image at spawn point
+function createVerticalImage(environment, loadingManager) {
+  console.log('Starting to create vertical image...');
+  
+  // Create a texture loader
+  const textureLoader = new THREE.TextureLoader(loadingManager);
+  
+  // First, create the fallback red plane immediately
+  console.log('Creating fallback red plane...');
+  const fallbackGeometry = new THREE.PlaneGeometry(8, 12); // Even larger size
+  const fallbackMaterial = new THREE.MeshBasicMaterial({
+    color: 0xff0000,
+    transparent: true,
+    opacity: 0.5,
+    side: THREE.DoubleSide,
+    depthWrite: true,
+    depthTest: true,
+    renderOrder: -1 // Lower render order to ensure it's rendered first (behind)
+  });
+  const fallbackMesh = new THREE.Mesh(fallbackGeometry, fallbackMaterial);
+  fallbackMesh.position.set(0, 6, 25); // Adjusted height for larger size
+  fallbackMesh.renderOrder = -1; // Lower render order
+  environment.add(fallbackMesh);
+  console.log('Added fallback red plane to verify positioning');
+  
+  // Now try to load the image
+  console.log('Attempting to load image from assets/images/kyzo.jpeg');
+  textureLoader.load(
+    'assets/images/kyzo.jpeg',
+    function(texture) {
+      console.log('Image texture loaded successfully');
+      
+      // Create a plane for the image
+      const imageGeometry = new THREE.PlaneGeometry(4, 9); // Even larger size
+      const imageMaterial = new THREE.MeshBasicMaterial({
+        map: texture,
+        transparent: true,
+        opacity: 1.0,
+        side: THREE.DoubleSide,
+        depthWrite: true,
+        depthTest: true,
+        renderOrder: -1, // Lower render order to ensure it's rendered first (behind)
+        toneMapped: false, // Prevent tone mapping
+        color: 0xffffff, // Ensure full brightness
+        fog: false, // Prevent fog from affecting the image
+        lights: false // Prevent lights from affecting the image
+      });
+      
+      // Create the image mesh
+      const imageMesh = new THREE.Mesh(imageGeometry, imageMaterial);
+      imageMesh.position.set(0, 4, 30); // Adjusted height for larger size
+      imageMesh.renderOrder = -1; // Lower render order
+      
+      // Remove the fallback plane
+      environment.remove(fallbackMesh);
+      
+      // Add the image to the environment
+      environment.add(imageMesh);
+      
+      // Log the image mesh details
+      console.log('Vertical image mesh created:', {
+        position: imageMesh.position,
+        scale: imageMesh.scale,
+        geometry: imageGeometry.parameters,
+        material: imageMaterial
+      });
+    },
+    function(xhr) {
+      console.log('Vertical image: ' + (xhr.loaded / xhr.total * 100) + '% loaded');
+    },
+    function(error) {
+      console.error('Error loading vertical image:', error);
+      console.log('Keeping fallback red plane visible');
+    }
+  );
 } 
