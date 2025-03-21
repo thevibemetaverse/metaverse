@@ -104,11 +104,21 @@ export function setupControls(camera, player, domElement, gameState, scene) {
   controls.orbitControls = orbitControls;
   
   // Set initial camera position - position it for a selfie-style view
-  camera.position.set(0, 1.5, 5); // In front of the player, at face level
+  camera.position.set(0, 6, 15); // Initial selfie view
+  
+  // Set player's initial position away from portal frame
+  player.position.set(0, 1, -20); // Start 20 units away from portal frame
   
   // Make sure camera is looking at the player for selfie view
-  orbitControls.target.set(0, 1.5, 0); // Looking directly at the player
+  orbitControls.target.set(0, 2, 0); // Looking at upper body for better framing
   orbitControls.update();
+  
+  // After a short delay, adjust camera to a higher position for gameplay
+  setTimeout(() => {
+    camera.position.set(0, 10, 20); // Much higher and further back for gameplay
+    orbitControls.target.set(0, 1.5, 0);
+    orbitControls.update();
+  }, 5000); // 5 seconds after start
   
   // Load skateboard model
   if (scene) { // Only load if scene is available

@@ -696,8 +696,14 @@ try {
   }
   
   // Position camera for a selfie-style view - in front of player looking back
-  camera.position.set(0, 1.5, 5); // In front of the player, at face level
-  camera.lookAt(0, 1.5, 0); // Looking directly at the player for selfie view
+  camera.position.set(0, 6, 15); // Initial selfie view
+  camera.lookAt(0, 2, 0); // Looking at upper body for better framing
+  
+  // After a short delay, adjust camera to a higher position for gameplay
+  setTimeout(() => {
+    camera.position.set(0, 10, 20); // Much higher and further back for gameplay
+    camera.lookAt(0, 1.5, 0);
+  }, 5000); // 5 seconds after start
   
   // Make camera available globally for raycasting
   window.camera = camera;
@@ -1301,6 +1307,13 @@ try {
       bbqModel.update();
     }
     
+    // Update billboards to face the camera
+    scene.traverse((object) => {
+      if (object.userData && object.userData.isBillboard) {
+        object.lookAt(camera.position);
+      }
+    });
+    
     // Check if emoji bar exists and create it if not
     if (!document.getElementById('emoji-bar-container')) {
       console.log('Emoji bar not found in animate loop, recreating...');
@@ -1330,6 +1343,39 @@ try {
       scene.traverse((object) => {
         if (object.userData && object.userData.isUsernameLabel && object.updateBillboarding) {
           object.updateBillboarding();
+        }
+      });
+    }
+    
+    // Check for portal collisions
+    if (playerAvatar) {
+      // Update the player's bounding box each frame
+      const playerBox = new THREE.Box3().setFromObject(playerAvatar);
+      
+      // Traverse the scene to find portal triggers
+      scene.traverse((object) => {
+        if (object.userData && object.userData.isPortal) {
+          // Get the portal's bounding box
+          const portalBox = new THREE.Box3().setFromObject(object);
+          
+          // Debug: Log bounding box positions
+          console.log('Player Box:', {
+            min: playerBox.min,
+            max: playerBox.max,
+            center: playerBox.getCenter(new THREE.Vector3())
+          });
+          console.log('Portal Box:', {
+            min: portalBox.min,
+            max: portalBox.max,
+            center: portalBox.getCenter(new THREE.Vector3())
+          });
+          
+          // Check if the player's bounding box intersects with the portal's bounding box
+          if (playerBox.intersectsBox(portalBox)) {
+            console.log('Portal collision detected!');
+            // Open the portal URL in a new tab
+            window.open(object.userData.portalURL, '_blank');
+          }
         }
       });
     }
@@ -1789,6 +1835,46 @@ renderer.setAnimationLoop(function() {
     bbqModel.update();
   }
   
-  // Render scene
+  // Update billboards to face the camera
+  scene.traverse((object) => {
+    if (object.userData && object.userData.isBillboard) {
+      object.lookAt(camera.position);
+    }
+  });
+
+  // Check for portal collisions
+  if (playerAvatar) {
+    // Update the player's bounding box each frame
+    const playerBox = new THREE.Box3().setFromObject(playerAvatar);
+    
+    // Traverse the scene to find portal triggers
+    scene.traverse((object) => {
+      if (object.userData && object.userData.isPortal) {
+        // Get the portal's bounding box
+        const portalBox = new THREE.Box3().setFromObject(object);
+        
+        // Debug: Log bounding box positions
+        console.log('Player Box:', {
+          min: playerBox.min,
+          max: playerBox.max,
+          center: playerBox.getCenter(new THREE.Vector3())
+        });
+        console.log('Portal Box:', {
+          min: portalBox.min,
+          max: portalBox.max,
+          center: portalBox.getCenter(new THREE.Vector3())
+        });
+        
+        // Check if the player's bounding box intersects with the portal's bounding box
+        if (playerBox.intersectsBox(portalBox)) {
+          console.log('Portal collision detected!');
+          // Open the portal URL in a new tab
+          window.open(object.userData.portalURL, '_blank');
+        }
+      }
+    });
+  }
+  
+  // Render the scene
   renderer.render(scene, camera);
 });
