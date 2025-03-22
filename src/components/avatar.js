@@ -985,9 +985,13 @@ export function createPureAvatar(scene, username, loadingManager = avatarLoading
   avatarGroup.userData.size = size;
   avatarGroup.userData.boxMesh = boxMesh;
   
-  // Load the Zuckerberg model EXACTLY like the giant NPCs
+  // Check URL parameters for source=kyzo
+  const urlParams = new URLSearchParams(window.location.search);
+  const isKyzoSource = urlParams.get('source') === 'kyzo';
+  
+  // Load the appropriate model based on URL parameter
   const gltfLoader = new GLTFLoader(loadingManager);
-  const modelPath = '/assets/models/zuckerberg.glb';
+  const modelPath = isKyzoSource ? '/assets/models/lowpoly_goose.glb' : '/assets/models/zuckerberg.glb';
   const jumpModelPath = '/assets/models/mark_zuckerberg_jump.glb';
   
   // Track loading state
