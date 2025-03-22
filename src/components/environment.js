@@ -79,17 +79,17 @@ let billboards = [];
 // Portal configurations
 const portalConfigs = [
   {
-    position: { x: 0, z: 30, y: 0 },
-    rotation: 0,
-    imageUrl: 'assets/images/levels.jpeg',  // First portal with levels.jpeg
-    targetUrl: 'https://fly.pieter.com/',  // Updated URL
+    position: { x: -5, z: 20, y: 0 },  // Moved closer and to the left
+    rotation: 0,  // Both portals now face forward
+    imageUrl: 'assets/images/levels.jpeg',
+    targetUrl: 'https://fly.pieter.com/',
     scale: 1.0
   },
   {
-    position: { x: 10, z: 25, y: 0 },
-    rotation: Math.PI / 4, // 45 degrees
-    imageUrl: 'assets/images/kyzo.jpeg',  // Second portal with kyzo.jpeg
-    targetUrl: 'https://game-one-two.vercel.app',  // Updated URL
+    position: { x: 5, z: 20, y: 0 },  // Moved closer and to the right
+    rotation: 0,  // Both portals now face forward
+    imageUrl: 'assets/images/kyzo.jpeg',
+    targetUrl: 'https://game-one-two.vercel.app',
     scale: 1.0
   }
 ];
@@ -1154,7 +1154,7 @@ function addPortalImage(portalGroup, imageUrl, loadingManager) {
       const isKyzoImage = imageUrl.includes('kyzo.jpeg');
       const imageGeometry = new THREE.PlaneGeometry(
         4, // width stays the same
-        isKyzoImage ? 7 : 7  // increased height for levels from 6 to 8
+        isKyzoImage ? 7 : 6.5  // increased height for levels from 6 to 8
       );
       
       // Create custom shader material with more subtle parameters
