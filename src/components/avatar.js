@@ -1015,8 +1015,12 @@ export function createPureAvatar(scene, username, loadingManager = avatarLoading
       // Get the model
       const model = gltf.scene;
       
-      // Apply normal scale (not giant)
-      model.scale.set(1, 1, 1);
+      // Apply scale based on model type
+      if (isYachtSource) {
+        model.scale.set(0.3, 0.3, 0.3); // Make yacht smaller
+      } else {
+        model.scale.set(1, 1, 1); // Normal scale for other models
+      }
       
       // Position the model
       model.position.y = -0.5;
