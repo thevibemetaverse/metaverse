@@ -985,13 +985,22 @@ export function createPureAvatar(scene, username, loadingManager = avatarLoading
   avatarGroup.userData.size = size;
   avatarGroup.userData.boxMesh = boxMesh;
   
-  // Check URL parameters for source=kyzo
+  // Check URL parameters for source=kyzo or source=yachtvibes
   const urlParams = new URLSearchParams(window.location.search);
-  const isKyzoSource = urlParams.get('source') === 'kyzo';
+  const sourceParam = urlParams.get('source');
+  const isKyzoSource = sourceParam === 'kyzo';
+  const isYachtSource = sourceParam === 'yachtvibes';
   
   // Load the appropriate model based on URL parameter
   const gltfLoader = new GLTFLoader(loadingManager);
-  const modelPath = isKyzoSource ? '/assets/models/goose.glb' : '/assets/models/zuckerberg.glb';
+  let modelPath;
+  if (isKyzoSource) {
+    modelPath = '/assets/models/goose.glb';
+  } else if (isYachtSource) {
+    modelPath = '/assets/models/yacht.glb';
+  } else {
+    modelPath = '/assets/models/zuckerberg.glb';
+  }
   const jumpModelPath = '/assets/models/mark_zuckerberg_jump.glb';
   
   // Track loading state
@@ -1006,8 +1015,12 @@ export function createPureAvatar(scene, username, loadingManager = avatarLoading
       // Get the model
       const model = gltf.scene;
       
-      // Apply normal scale (not giant)
-      model.scale.set(1, 1, 1);
+      // Apply scale based on model type
+      if (isYachtSource) {
+        model.scale.set(0.3, 0.3, 0.3); // Make yacht smaller
+      } else {
+        model.scale.set(1, 1, 1); // Normal scale for other models
+      }
       
       // Position the model
       model.position.y = -0.5;
@@ -1059,9 +1072,9 @@ export function createPureAvatar(scene, username, loadingManager = avatarLoading
         let runAction = null;
         let idleAction = null;
         
-        // For the goose model, specifically look for fancewalk animation
+        // For the goose model, specifically look for fancywalk animation
         if (isKyzoSource) {
-          // Look for fancewalk animation
+          // Look for fancywalk animation
           for (const name in animationActions) {
             if (name.toLowerCase() === 'fancywalk') {
               runAction = animationActions[name];
@@ -1075,6 +1088,26 @@ export function createPureAvatar(scene, username, loadingManager = avatarLoading
             if (name.toLowerCase().includes('idle')) {
               idleAction = animationActions[name];
               console.log('Found idle animation for goose');
+              break;
+            }
+          }
+        } else if (isYachtSource) {
+          // For yacht model, look for sailing/movement animation
+          for (const name in animationActions) {
+            const lowerName = name.toLowerCase();
+            if (lowerName.includes('sail') || lowerName.includes('move')) {
+              runAction = animationActions[name];
+              console.log('Found sailing/movement animation for yacht');
+              break;
+            }
+          }
+          
+          // Look for idle/floating animation
+          for (const name in animationActions) {
+            const lowerName = name.toLowerCase();
+            if (lowerName.includes('idle') || lowerName.includes('float')) {
+              idleAction = animationActions[name];
+              console.log('Found idle/floating animation for yacht');
               break;
             }
           }
