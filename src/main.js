@@ -4,7 +4,7 @@ import { VRButton } from 'three/examples/jsm/webxr/VRButton.js';
 import { XRControllerModelFactory } from 'three/examples/jsm/webxr/XRControllerModelFactory.js';
 import { io } from 'socket.io-client';
 
-import { createEnvironment } from './components/environment.js';
+import { createEnvironment, updatePortalMaterials } from './components/environment.js';
 import { createAvatar, createSimpleAvatar, createDirectAvatar, createCleanAvatar, createPureAvatar, updateAvatarAnimations } from './components/avatar.js';
 import { setupControls } from './components/controls.js';
 import { setupUI, createEmojiBar, showEmojiReaction } from './components/ui.js';
@@ -1161,6 +1161,9 @@ try {
     // Update controls
     controls.update();
     
+    // Update portal materials
+    updatePortalMaterials(deltaTime);
+    
     // Update God Mode camera if enabled
     if (godModeEnabled && godCamera) {
       updateGodModeCamera(deltaTime);
@@ -1314,39 +1317,6 @@ try {
       }
     });
     
-    // Check if emoji bar exists and create it if not
-    if (!document.getElementById('emoji-bar-container')) {
-      console.log('Emoji bar not found in animate loop, recreating...');
-      createEmojiBar();
-    }
-    
-    // Update player position on server
-    if (socket && socket.connected) {
-      socket.emit('player-update', {
-        position: {
-          x: playerAvatar.position.x,
-          y: playerAvatar.position.y,
-          z: playerAvatar.position.z
-        },
-        rotation: playerAvatar.rotation.y,
-        isMoving: isMoving,
-        isJumping: playerAvatar.userData.isJumping || false,
-        isSkateboardMode: controls.isSkateboardMode || false,
-        // Add skateboard-specific data
-        tilt: controls.isSkateboardMode ? playerAvatar.rotation.z : 0,
-        speed: controls.isSkateboardMode ? controls.skateboardSpeed : 0
-      });
-    }
-    
-    // Update username labels billboarding status
-    if (scene) {
-      scene.traverse((object) => {
-        if (object.userData && object.userData.isUsernameLabel && object.updateBillboarding) {
-          object.updateBillboarding();
-        }
-      });
-    }
-    
     // Check for portal collisions
     if (playerAvatar) {
       // Update the player's bounding box each frame
@@ -1355,26 +1325,33 @@ try {
       // Traverse the scene to find portal triggers
       scene.traverse((object) => {
         if (object.userData && object.userData.isPortal) {
-          // Get the portal's bounding box
+          // Get the portal's bounding box and expand it slightly
           const portalBox = new THREE.Box3().setFromObject(object);
-          
-          // Debug: Log bounding box positions
-          console.log('Player Box:', {
-            min: playerBox.min,
-            max: playerBox.max,
-            center: playerBox.getCenter(new THREE.Vector3())
-          });
-          console.log('Portal Box:', {
-            min: portalBox.min,
-            max: portalBox.max,
-            center: portalBox.getCenter(new THREE.Vector3())
-          });
+          portalBox.expandByScalar(1.5); // Expand the box by 50% to trigger earlier
           
           // Check if the player's bounding box intersects with the portal's bounding box
-          if (playerBox.intersectsBox(portalBox)) {
+          if (playerBox.intersectsBox(portalBox) && !playerAvatar.userData.isPortalJumping) {
             console.log('Portal collision detected!');
-            // Open the portal URL in a new tab
-            window.open(object.userData.portalURL, '_blank');
+            
+            // Set flag to prevent multiple triggers
+            playerAvatar.userData.isPortalJumping = true;
+            
+            // Trigger jump animation if available
+            if (playerAvatar.jump && !playerAvatar.userData.isJumping) {
+              playerAvatar.jump();
+              
+              // Wait for the jump animation to complete before opening the URL
+              setTimeout(() => {
+                // Reset the portal jumping flag
+                playerAvatar.userData.isPortalJumping = false;
+                // Open the URL after animation completes
+                window.open(object.userData.portalURL, '_blank');
+              }, 750); // Reduced to 1.5 seconds for a snappier feel
+            } else {
+              // If no jump animation available, open URL immediately
+              playerAvatar.userData.isPortalJumping = false;
+              window.open(object.userData.portalURL, '_blank');
+            }
           }
         }
       });
@@ -1850,26 +1827,26 @@ renderer.setAnimationLoop(function() {
     // Traverse the scene to find portal triggers
     scene.traverse((object) => {
       if (object.userData && object.userData.isPortal) {
-        // Get the portal's bounding box
+        // Get the portal's bounding box and expand it slightly
         const portalBox = new THREE.Box3().setFromObject(object);
-        
-        // Debug: Log bounding box positions
-        console.log('Player Box:', {
-          min: playerBox.min,
-          max: playerBox.max,
-          center: playerBox.getCenter(new THREE.Vector3())
-        });
-        console.log('Portal Box:', {
-          min: portalBox.min,
-          max: portalBox.max,
-          center: portalBox.getCenter(new THREE.Vector3())
-        });
+        portalBox.expandByScalar(1.5); // Expand the box by 50% to trigger earlier
         
         // Check if the player's bounding box intersects with the portal's bounding box
         if (playerBox.intersectsBox(portalBox)) {
           console.log('Portal collision detected!');
-          // Open the portal URL in a new tab
-          window.open(object.userData.portalURL, '_blank');
+          
+          // Trigger jump animation if available
+          if (playerAvatar.jump && !playerAvatar.userData.isJumping) {
+            playerAvatar.jump();
+            
+            // Wait for the jump animation to complete before opening the URL
+            setTimeout(() => {
+              window.open(object.userData.portalURL, '_blank');
+            }, 2000); // Increased to 2 seconds to ensure animation plays
+          } else {
+            // If no jump animation available, open URL immediately
+            window.open(object.userData.portalURL, '_blank');
+          }
         }
       }
     });
