@@ -95,8 +95,8 @@ const portalConfigs = [
   {
     position: { x: 0, z: 25, y: 0 },  // Center portal
     rotation: 0,
-    imageUrl: 'assets/images/darefail.png',  // Added darefail image
-    targetUrl: '#',
+    imageUrl: 'assets/images/darefail.png',
+    targetUrl: 'https://ai.darefail.com/flappy/arms/',  // Updated target URL for Flappy Arms
     scale: 1.0
   },
   {
