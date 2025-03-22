@@ -35,7 +35,7 @@ const portalConfigs = [
     rotation: Math.PI / 4, // 45 degrees
     imageUrl: 'assets/images/kyzo.jpeg',  // Second portal with kyzo.jpeg
     targetUrl: 'https://kyzo.com/',
-    scale: 1.0
+    scale: 1.0  // Increased scale to make the image taller
   }
 ];
 
@@ -1173,8 +1173,13 @@ function addPortalImage(portalGroup, imageUrl, loadingManager) {
     function(texture) {
       console.log('Successfully loaded image:', imageUrl);
       
-      // Make the image plane much larger
-      const imageGeometry = new THREE.PlaneGeometry(4, 6); // Reduced from 6x8 to 4x6
+      // Adjust dimensions based on which image is being loaded
+      const isKyzoImage = imageUrl.includes('kyzo.jpeg');
+      const imageGeometry = new THREE.PlaneGeometry(
+        4, // width stays the same
+        isKyzoImage ? 7 : 6  // height is 7 for Kyzo, 6 for others
+      );
+      
       const imageMaterial = new THREE.MeshBasicMaterial({
         map: texture,
         transparent: true,
@@ -1188,7 +1193,7 @@ function addPortalImage(portalGroup, imageUrl, loadingManager) {
       
       const imageMesh = new THREE.Mesh(imageGeometry, imageMaterial);
       imageMesh.position.z = 0.01;
-      imageMesh.position.y = 3; // Adjusted down to 3 to match smaller height
+      imageMesh.position.y = isKyzoImage ? 3.5 : 3; // Adjust Y position based on height
       imageMesh.renderOrder = 1;
       
       console.log('Created portal image mesh:', {
