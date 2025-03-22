@@ -118,9 +118,6 @@ export function createEnvironment(scene, mainCamera, loadingManager = new THREE.
   // Create portals from configuration
   const portals = generatePortals(environment, portalConfigs, loadingManager);
   
-  // Create vertical image at spawn
-  createVerticalImage(environment, loadingManager);
-  
   // Reduce the number of trees to make landmarks more visible
   createTrees(environment, 50); // Reduced number of trees
   
@@ -743,83 +740,6 @@ function createTree() {
   return treeGroup;
 }
 
-// Function to create a vertical image at spawn point
-function createVerticalImage(environment, loadingManager) {
-  console.log('Starting to create vertical image...');
-  
-  // Create a texture loader
-  const textureLoader = new THREE.TextureLoader(loadingManager);
-  
-  // Create a group to hold both the image and portal trigger
-  const imageGroup = new THREE.Group();
-  imageGroup.position.set(0, 4, 30);
-  environment.add(imageGroup);
-  
-  // First, create the fallback red plane immediately
-  console.log('Creating fallback red plane...');
-  const fallbackGeometry = new THREE.PlaneGeometry(8, 12); // Even larger size
-  const fallbackMaterial = new THREE.MeshBasicMaterial({
-    color: 0xff0000,
-    transparent: true,
-    opacity: 0.5,
-    side: THREE.DoubleSide,
-    depthWrite: true,
-    depthTest: true,
-    renderOrder: -1 // Lower render order to ensure it's rendered first (behind)
-  });
-  const fallbackMesh = new THREE.Mesh(fallbackGeometry, fallbackMaterial);
-  fallbackMesh.renderOrder = -1; // Lower render order
-  imageGroup.add(fallbackMesh);
-  console.log('Added fallback red plane to verify positioning');
-  
-  // Now try to load the image
-  console.log('Attempting to load image from assets/images/kyzo.jpeg');
-  textureLoader.load(
-    'assets/images/levels.jpeg',
-    function(texture) {
-      console.log('Image texture loaded successfully');
-      
-      // Create a plane for the image
-      const imageGeometry = new THREE.PlaneGeometry(4, 6); // Reduced from 6x8 to 4x6
-      const imageMaterial = new THREE.MeshBasicMaterial({
-        map: texture,
-        transparent: true,
-        side: THREE.DoubleSide,
-        depthWrite: true,
-        depthTest: true,
-        renderOrder: 1,
-        toneMapped: false,
-        color: 0xffffff
-      });
-      
-      // Create the image mesh
-      const imageMesh = new THREE.Mesh(imageGeometry, imageMaterial);
-      imageMesh.renderOrder = 1;
-      
-      // Remove the fallback plane
-      imageGroup.remove(fallbackMesh);
-      
-      // Add the image to the group
-      imageGroup.add(imageMesh);
-      
-      // Log the image mesh details
-      console.log('Vertical image mesh created:', {
-        position: imageMesh.position,
-        scale: imageMesh.scale,
-        geometry: imageGeometry.parameters,
-        material: imageMaterial
-      });
-    },
-    function(xhr) {
-      console.log('Vertical image: ' + (xhr.loaded / xhr.total * 100) + '% loaded');
-    },
-    function(error) {
-      console.error('Error loading vertical image:', error);
-      console.log('Keeping fallback red plane visible');
-    }
-  );
-}
-
 // Setup event listeners for dragging billboards
 function setupDragControls() {
   // Add event listeners to the document
@@ -1234,7 +1154,7 @@ function addPortalImage(portalGroup, imageUrl, loadingManager) {
       const isKyzoImage = imageUrl.includes('kyzo.jpeg');
       const imageGeometry = new THREE.PlaneGeometry(
         4, // width stays the same
-        isKyzoImage ? 7 : 6  // height is 7 for Kyzo, 6 for others
+        isKyzoImage ? 7 : 7  // increased height for levels from 6 to 8
       );
       
       // Create custom shader material with more subtle parameters
@@ -1242,9 +1162,9 @@ function addPortalImage(portalGroup, imageUrl, loadingManager) {
         uniforms: {
           map: { value: texture },
           time: { value: 0 },
-          distortionStrength: { value: 0.05 }, // Reduced from 0.1 to 0.05
-          glowColor: { value: new THREE.Color(0xffffff) }, // Changed to white for a more subtle glow
-          glowIntensity: { value: 0.3 } // Reduced from 0.5 to 0.3
+          distortionStrength: { value: 0.05 },
+          glowColor: { value: new THREE.Color(0xffffff) },
+          glowIntensity: { value: 0.3 }
         },
         vertexShader: portalVertexShader,
         fragmentShader: portalFragmentShader,
@@ -1258,18 +1178,28 @@ function addPortalImage(portalGroup, imageUrl, loadingManager) {
       // Add the material to our global array
       portalMaterials.push(imageMaterial);
       
-      const imageMesh = new THREE.Mesh(imageGeometry, imageMaterial);
-      imageMesh.position.z = 0.01;
-      imageMesh.position.y = isKyzoImage ? 3.5 : 3; // Adjust Y position based on height
-      imageMesh.renderOrder = 1;
+      // Create front plane
+      const frontMesh = new THREE.Mesh(imageGeometry, imageMaterial);
+      frontMesh.position.z = 0.01;
+      frontMesh.position.y = isKyzoImage ? 3.5 : 4; // Adjusted Y position for taller levels image
+      frontMesh.renderOrder = 1;
       
-      console.log('Created portal image mesh:', {
+      // Create back plane
+      const backMesh = new THREE.Mesh(imageGeometry, imageMaterial);
+      backMesh.position.z = -0.01;
+      backMesh.position.y = isKyzoImage ? 3.5 : 4; // Adjusted Y position for taller levels image
+      backMesh.rotation.y = Math.PI; // Rotate 180 degrees to face the opposite direction
+      backMesh.renderOrder = 1;
+      
+      console.log('Created portal image meshes:', {
         geometry: imageGeometry.parameters,
-        position: imageMesh.position,
-        scale: imageMesh.scale
+        frontPosition: frontMesh.position,
+        backPosition: backMesh.position,
+        scale: frontMesh.scale
       });
       
-      portalGroup.add(imageMesh);
+      portalGroup.add(frontMesh);
+      portalGroup.add(backMesh);
     },
     function(xhr) {
       console.log(imageUrl + ': ' + (xhr.loaded / xhr.total * 100) + '% loaded');
