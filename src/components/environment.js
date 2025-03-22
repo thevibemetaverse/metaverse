@@ -21,6 +21,24 @@ let mouse = new THREE.Vector2();
 let camera = null;
 let billboards = [];
 
+// Portal configurations
+const portalConfigs = [
+  {
+    position: { x: 0, z: 30, y: 0 },
+    rotation: 0,
+    imageUrl: 'assets/images/levels.jpeg',  // First portal with levels.jpeg
+    targetUrl: 'https://levels.com/',
+    scale: 1.0
+  },
+  {
+    position: { x: 10, z: 25, y: 0 },
+    rotation: Math.PI / 4, // 45 degrees
+    imageUrl: 'assets/images/kyzo.jpeg',  // Second portal with kyzo.jpeg
+    targetUrl: 'https://kyzo.com/',
+    scale: 1.0
+  }
+];
+
 export function createEnvironment(scene, mainCamera, loadingManager = new THREE.LoadingManager()) {
   // Store camera reference for dragging
   camera = mainCamera;
@@ -39,8 +57,8 @@ export function createEnvironment(scene, mainCamera, loadingManager = new THREE.
   createEiffelTower(environment, loadingManager);
   createSagradaFamilia(environment, loadingManager);
   
-  // Create portal frame
-  createPortalFrame(environment, loadingManager);
+  // Create portals from configuration
+  const portals = generatePortals(environment, portalConfigs, loadingManager);
   
   // Create vertical image at spawn
   createVerticalImage(environment, loadingManager);
@@ -576,212 +594,6 @@ function createSagradaFamilia(environment, loadingManager) {
   return placeholder;
 }
 
-function createPortalFrame(environment, loadingManager) {
-  const placeholder = new THREE.Group();
-  placeholder.position.set(0, 0, 30);
-  environment.add(placeholder);
-
-  // Add portal trigger zone
-  const portalTrigger = new THREE.Mesh(
-    new THREE.BoxGeometry(2, 3, 2),
-    new THREE.MeshBasicMaterial({ 
-      transparent: true, 
-      opacity: 0,
-      visible: false 
-    })
-  );
-  portalTrigger.position.set(0, 1.5, 0);
-  portalTrigger.userData.isPortal = true; // Flag to identify this as portal trigger
-  portalTrigger.userData.portalURL = 'https://fly.pieter.com/'; // Store target URL
-  placeholder.add(portalTrigger);
-
-  // Load the GLB model
-  const gltfLoader = new GLTFLoader(loadingManager);
-  gltfLoader.load(
-    '/assets/models/portal_frame.glb',
-    function(gltf) {
-      // Model loaded successfully
-      const model = gltf.scene;
-      
-      // Scale and position the model - make it 100x smaller
-      model.scale.set(0.02, 0.02, 0.02);
-      model.position.set(0, 0, 0);
-      
-      // Add shadows
-      model.traverse(function(node) {
-        if (node.isMesh) {
-          node.castShadow = true;
-          node.receiveShadow = true;
-        }
-      });
-      
-      // Add the model to the placeholder
-      placeholder.add(model);
-      
-      // Add collision detection
-      placeholder.userData.isObstacle = true;
-      
-      // Add the portal image behind the frame
-      createPortalImage(placeholder);
-      
-      console.log('Portal frame model loaded successfully - scaled down to 1/100th of original size');
-    },
-    function(xhr) {
-      // Loading progress
-      console.log('Portal frame: ' + (xhr.loaded / xhr.total * 100) + '% loaded');
-    },
-    function(error) {
-      // Error loading GLTF, fall back to basic geometries
-      console.warn('Error loading portal frame model, falling back to basic geometries:', error);
-      createBasicPortalFrame(placeholder);
-    }
-  );
-  
-  // Function to create a basic portal frame with geometries as fallback
-  function createBasicPortalFrame(placeholder) {
-    console.log('Creating basic portal frame with geometries');
-    
-    // Create a simplified portal frame using basic geometries
-    const portalGroup = new THREE.Group();
-    
-    // Frame material
-    const frameMaterial = new THREE.MeshStandardMaterial({ 
-      color: 0x8B4513,
-      roughness: 0.8,
-      metalness: 0.2
-    });
-    
-    // Main frame structure - scaled down to 1/100th
-    const frame = new THREE.Mesh(
-      new THREE.BoxGeometry(0.1, 0.15, 0.01),
-      frameMaterial
-    );
-    frame.position.y = 0.075;
-    portalGroup.add(frame);
-    
-    // Portal opening - scaled down to 1/100th
-    const portalMaterial = new THREE.MeshStandardMaterial({ 
-      color: 0x000000,
-      transparent: true,
-      opacity: 0.8
-    });
-    const portal = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.08, 0.13),
-      portalMaterial
-    );
-    portal.position.z = 0.001; // Slightly in front of the frame
-    portal.position.y = 0.07;
-    portalGroup.add(portal);
-    
-    // Add some decorative elements
-    const decorationMaterial = new THREE.MeshStandardMaterial({ 
-      color: 0xDAA520,
-      roughness: 0.6,
-      metalness: 0.4
-    });
-    
-    // Add corner decorations - scaled down to 1/100th
-    const cornerPositions = [
-      { x: -0.05, y: 0.15, z: 0 },
-      { x: 0.05, y: 0.15, z: 0 },
-      { x: -0.05, y: 0, z: 0 },
-      { x: 0.05, y: 0, z: 0 }
-    ];
-    
-    cornerPositions.forEach(pos => {
-      const corner = new THREE.Mesh(
-        new THREE.SphereGeometry(0.005, 8, 8),
-        decorationMaterial
-      );
-      corner.position.set(pos.x, pos.y, pos.z);
-      portalGroup.add(corner);
-    });
-    
-    // Add the basic portal frame to the placeholder
-    placeholder.add(portalGroup);
-    
-    // Add the portal image behind the frame
-    createPortalImage(placeholder);
-  }
-  
-  // Function to create and add the portal image
-  function createPortalImage(placeholder) {
-    console.log('Starting to create portal image...');
-    
-    // Create a texture loader
-    const textureLoader = new THREE.TextureLoader(loadingManager);
-    
-    // First, create the fallback red plane immediately
-    console.log('Creating fallback red plane...');
-    const fallbackGeometry = new THREE.PlaneGeometry(0.08, 0.13); // Match portal opening size
-    const fallbackMaterial = new THREE.MeshBasicMaterial({
-      color: 0xff0000,
-      transparent: true,
-      opacity: 0.5,
-      side: THREE.DoubleSide,
-      depthWrite: false,
-      depthTest: false, // Ensure it renders on top
-      renderOrder: 1 // Higher render order to ensure it's rendered last
-    });
-    const fallbackMesh = new THREE.Mesh(fallbackGeometry, fallbackMaterial);
-    fallbackMesh.position.z = 0.002; // Move it slightly in front
-    fallbackMesh.position.y = 0.07; // Match portal opening position
-    fallbackMesh.renderOrder = 1; // Higher render order
-    placeholder.add(fallbackMesh);
-    console.log('Added fallback red plane to verify positioning');
-    
-    // Now try to load the image
-    console.log('Attempting to load image from assets/images/level.jpeg');
-    textureLoader.load(
-      'assets/images/level.jpeg',
-      function(texture) {
-        console.log('Image texture loaded successfully');
-        
-        // Create a plane for the image
-        const imageGeometry = new THREE.PlaneGeometry(0.08, 0.13); // Match portal opening size
-        const imageMaterial = new THREE.MeshBasicMaterial({
-          map: texture,
-          transparent: true,
-          opacity: 1.0,
-          side: THREE.DoubleSide,
-          depthWrite: false,
-          depthTest: false, // Ensure it renders on top
-          renderOrder: 1 // Higher render order to ensure it's rendered last
-        });
-        
-        // Create the image mesh
-        const imageMesh = new THREE.Mesh(imageGeometry, imageMaterial);
-        imageMesh.position.z = 0.002; // Move it slightly in front
-        imageMesh.position.y = 0.07; // Match portal opening position
-        imageMesh.renderOrder = 1; // Higher render order
-        
-        // Remove the fallback plane
-        placeholder.remove(fallbackMesh);
-        
-        // Add the image to the placeholder
-        placeholder.add(imageMesh);
-        
-        // Log the image mesh details
-        console.log('Portal image mesh created:', {
-          position: imageMesh.position,
-          scale: imageMesh.scale,
-          geometry: imageGeometry.parameters,
-          material: imageMaterial
-        });
-      },
-      function(xhr) {
-        console.log('Portal image: ' + (xhr.loaded / xhr.total * 100) + '% loaded');
-      },
-      function(error) {
-        console.error('Error loading portal image:', error);
-        console.log('Keeping fallback red plane visible');
-      }
-    );
-  }
-  
-  return placeholder;
-}
-
 function createTrees(environment, numTrees = 150) {
   // Create a set of simple low-poly trees scattered around
   const treePositions = [];
@@ -910,24 +722,21 @@ function createVerticalImage(environment, loadingManager) {
       console.log('Image texture loaded successfully');
       
       // Create a plane for the image
-      const imageGeometry = new THREE.PlaneGeometry(4, 7); // Even larger size
+      const imageGeometry = new THREE.PlaneGeometry(4, 6); // Reduced from 6x8 to 4x6
       const imageMaterial = new THREE.MeshBasicMaterial({
         map: texture,
         transparent: true,
-        opacity: 1.0,
         side: THREE.DoubleSide,
         depthWrite: true,
         depthTest: true,
-        renderOrder: -1, // Lower render order to ensure it's rendered first (behind)
-        toneMapped: false, // Prevent tone mapping
-        color: 0xffffff, // Ensure full brightness
-        fog: false, // Prevent fog from affecting the image
-        lights: false // Prevent lights from affecting the image
+        renderOrder: 1,
+        toneMapped: false,
+        color: 0xffffff
       });
       
       // Create the image mesh
       const imageMesh = new THREE.Mesh(imageGeometry, imageMaterial);
-      imageMesh.renderOrder = -1; // Lower render order
+      imageMesh.renderOrder = 1;
       
       // Remove the fallback plane
       imageGroup.remove(fallbackMesh);
@@ -1279,4 +1088,152 @@ function createAxisHandles(billboard) {
   axisGroup.visible = false;
   
   return axisGroup;
+}
+
+function generatePortals(environment, configs, loadingManager) {
+  const portals = [];
+  
+  configs.forEach(config => {
+    const portal = createPortalWithConfig(environment, config, loadingManager);
+    portals.push(portal);
+  });
+  
+  return portals;
+}
+
+function createPortalWithConfig(environment, config, loadingManager) {
+  const { position, rotation, imageUrl, targetUrl, scale } = config;
+  
+  // Create portal group
+  const portalGroup = new THREE.Group();
+  portalGroup.position.set(position.x, position.y, position.z);
+  portalGroup.rotation.y = rotation;
+  portalGroup.scale.set(scale, scale, scale);
+  environment.add(portalGroup);
+  
+  // Add collision trigger
+  const trigger = createPortalTrigger(targetUrl);
+  portalGroup.add(trigger);
+  
+  // Load portal frame
+  loadPortalFrame(portalGroup, loadingManager);
+  
+  // Add portal image
+  addPortalImage(portalGroup, imageUrl, loadingManager);
+  
+  return portalGroup;
+}
+
+function createPortalTrigger(targetUrl) {
+  const portalTrigger = new THREE.Mesh(
+    new THREE.BoxGeometry(2, 3, 2),
+    new THREE.MeshBasicMaterial({ 
+      transparent: true, 
+      opacity: 0,
+      visible: false 
+    })
+  );
+  portalTrigger.position.set(0, 1.5, 0);
+  portalTrigger.userData.isPortal = true;
+  portalTrigger.userData.portalURL = targetUrl;
+  
+  return portalTrigger;
+}
+
+function loadPortalFrame(portalGroup, loadingManager) {
+  const gltfLoader = new GLTFLoader(loadingManager);
+  gltfLoader.load(
+    '/assets/models/portal_frame.glb',
+    function(gltf) {
+      const model = gltf.scene;
+      model.scale.set(0.02, 0.02, 0.02);
+      
+      model.traverse(function(node) {
+        if (node.isMesh) {
+          node.castShadow = true;
+          node.receiveShadow = true;
+        }
+      });
+      
+      portalGroup.add(model);
+    },
+    null,
+    function(error) {
+      console.warn('Error loading portal frame model:', error);
+      createBasicPortalFrame(portalGroup);
+    }
+  );
+}
+
+function addPortalImage(portalGroup, imageUrl, loadingManager) {
+  console.log('Attempting to load portal image:', imageUrl);
+  const textureLoader = new THREE.TextureLoader(loadingManager);
+  textureLoader.load(
+    imageUrl,
+    function(texture) {
+      console.log('Successfully loaded image:', imageUrl);
+      
+      // Make the image plane much larger
+      const imageGeometry = new THREE.PlaneGeometry(4, 6); // Reduced from 6x8 to 4x6
+      const imageMaterial = new THREE.MeshBasicMaterial({
+        map: texture,
+        transparent: true,
+        side: THREE.DoubleSide,
+        depthWrite: true,
+        depthTest: true,
+        renderOrder: 1,
+        toneMapped: false,
+        color: 0xffffff
+      });
+      
+      const imageMesh = new THREE.Mesh(imageGeometry, imageMaterial);
+      imageMesh.position.z = 0.01;
+      imageMesh.position.y = 3; // Adjusted down to 3 to match smaller height
+      imageMesh.renderOrder = 1;
+      
+      console.log('Created portal image mesh:', {
+        geometry: imageGeometry.parameters,
+        position: imageMesh.position,
+        scale: imageMesh.scale
+      });
+      
+      portalGroup.add(imageMesh);
+    },
+    function(xhr) {
+      console.log(imageUrl + ': ' + (xhr.loaded / xhr.total * 100) + '% loaded');
+    },
+    function(error) {
+      console.error('Error loading portal image:', imageUrl, error);
+      createFallbackPortalImage(portalGroup);
+    }
+  );
+}
+
+function createFallbackPortalImage(portalGroup) {
+  const geometry = new THREE.PlaneGeometry(0.08, 0.13);
+  const material = new THREE.MeshBasicMaterial({
+    color: 0xff0000,
+    transparent: true,
+    opacity: 0.5,
+    side: THREE.DoubleSide
+  });
+  
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.z = -0.001;
+  mesh.position.y = 0.07;
+  
+  portalGroup.add(mesh);
+}
+
+function createBasicPortalFrame(portalGroup) {
+  const frameGeometry = new THREE.BoxGeometry(0.1, 0.15, 0.01);
+  const frameMaterial = new THREE.MeshStandardMaterial({ 
+    color: 0x8B4513,
+    roughness: 0.8,
+    metalness: 0.2
+  });
+  
+  const frame = new THREE.Mesh(frameGeometry, frameMaterial);
+  frame.position.y = 0.075;
+  portalGroup.add(frame);
 } 
