@@ -27,15 +27,15 @@ const portalConfigs = [
     position: { x: 0, z: 30, y: 0 },
     rotation: 0,
     imageUrl: 'assets/images/levels.jpeg',  // First portal with levels.jpeg
-    targetUrl: 'https://levels.com/',
+    targetUrl: 'https://fly.pieter.com/',  // Updated URL
     scale: 1.0
   },
   {
     position: { x: 10, z: 25, y: 0 },
     rotation: Math.PI / 4, // 45 degrees
     imageUrl: 'assets/images/kyzo.jpeg',  // Second portal with kyzo.jpeg
-    targetUrl: 'https://kyzo.com/',
-    scale: 1.0  // Increased scale to make the image taller
+    targetUrl: 'https://game-one-two.vercel.app',  // Updated URL
+    scale: 1.0
   }
 ];
 
