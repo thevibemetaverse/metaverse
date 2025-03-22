@@ -3,6 +3,61 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader.js';
 
+// Custom portal shader
+const portalVertexShader = `
+  varying vec2 vUv;
+  varying vec3 vPosition;
+  void main() {
+    vUv = uv;
+    vPosition = position;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const portalFragmentShader = `
+  uniform sampler2D map;
+  uniform float time;
+  uniform float distortionStrength;
+  uniform vec3 glowColor;
+  uniform float glowIntensity;
+  
+  varying vec2 vUv;
+  varying vec3 vPosition;
+
+  void main() {
+    // Create a rippling effect
+    float ripple = sin(vUv.x * 10.0 + time) * 0.5 + 0.5;
+    ripple *= sin(vUv.y * 8.0 + time * 0.7) * 0.5 + 0.5;
+    
+    // Create a circular distortion
+    vec2 center = vec2(0.5, 0.5);
+    float dist = length(vUv - center);
+    float circle = smoothstep(0.5, 0.0, dist);
+    
+    // Combine ripple and circle effects
+    float distortion = ripple * circle * distortionStrength;
+    
+    // Apply distortion to UV coordinates
+    vec2 distortedUv = vUv + vec2(distortion, distortion);
+    
+    // Sample the texture with distorted UVs
+    vec4 texColor = texture2D(map, distortedUv);
+    
+    // Add glow effect
+    vec3 glow = glowColor * glowIntensity * circle;
+    
+    // Combine texture and glow
+    vec3 finalColor = texColor.rgb + glow;
+    
+    // Add some color shifting based on position
+    finalColor += vec3(sin(vPosition.x * 0.1 + time) * 0.1,
+                      sin(vPosition.y * 0.1 + time * 0.7) * 0.1,
+                      sin(vPosition.z * 0.1 + time * 1.3) * 0.1);
+    
+    gl_FragColor = vec4(finalColor, texColor.a);
+  }
+`;
+
 // Create a loader manager to track loading progress
 const loadingManager = new THREE.LoadingManager();
 loadingManager.onProgress = function(url, itemsLoaded, itemsTotal) {
@@ -1180,21 +1235,35 @@ function addPortalImage(portalGroup, imageUrl, loadingManager) {
         isKyzoImage ? 7 : 6  // height is 7 for Kyzo, 6 for others
       );
       
-      const imageMaterial = new THREE.MeshBasicMaterial({
-        map: texture,
+      // Create custom shader material
+      const imageMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+          map: { value: texture },
+          time: { value: 0 },
+          distortionStrength: { value: 0.1 },
+          glowColor: { value: new THREE.Color(0x00ffff) },
+          glowIntensity: { value: 0.5 }
+        },
+        vertexShader: portalVertexShader,
+        fragmentShader: portalFragmentShader,
         transparent: true,
         side: THREE.DoubleSide,
         depthWrite: true,
         depthTest: true,
-        renderOrder: 1,
-        toneMapped: false,
-        color: 0xffffff
+        renderOrder: 1
       });
       
       const imageMesh = new THREE.Mesh(imageGeometry, imageMaterial);
       imageMesh.position.z = 0.01;
       imageMesh.position.y = isKyzoImage ? 3.5 : 3; // Adjust Y position based on height
       imageMesh.renderOrder = 1;
+      
+      // Add animation
+      const animate = () => {
+        imageMaterial.uniforms.time.value += 0.016; // Increment time (assuming 60fps)
+        requestAnimationFrame(animate);
+      };
+      animate();
       
       console.log('Created portal image mesh:', {
         geometry: imageGeometry.parameters,
