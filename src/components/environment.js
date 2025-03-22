@@ -102,8 +102,8 @@ const portalConfigs = [
   {
     position: { x: 10, z: 25, y: 0 },  // Second from right
     rotation: 0,
-    imageUrl: null,
-    targetUrl: '#',
+    imageUrl: 'assets/images/yacht.png',
+    targetUrl: 'https://yachtvibes.app/',
     scale: 1.0
   },
   {
