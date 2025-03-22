@@ -985,9 +985,13 @@ export function createPureAvatar(scene, username, loadingManager = avatarLoading
   avatarGroup.userData.size = size;
   avatarGroup.userData.boxMesh = boxMesh;
   
-  // Load the Zuckerberg model EXACTLY like the giant NPCs
+  // Check URL parameters for source=kyzo
+  const urlParams = new URLSearchParams(window.location.search);
+  const isKyzoSource = urlParams.get('source') === 'kyzo';
+  
+  // Load the appropriate model based on URL parameter
   const gltfLoader = new GLTFLoader(loadingManager);
-  const modelPath = '/assets/models/zuckerberg.glb';
+  const modelPath = isKyzoSource ? '/assets/models/goose.glb' : '/assets/models/zuckerberg.glb';
   const jumpModelPath = '/assets/models/mark_zuckerberg_jump.glb';
   
   // Track loading state
@@ -1055,43 +1059,65 @@ export function createPureAvatar(scene, username, loadingManager = avatarLoading
         let runAction = null;
         let idleAction = null;
         
-        // First try to find animations by exact name match
-        for (const name in animationActions) {
-          const lowerName = name.toLowerCase();
-          
-          // Check for running/walking animations
-          if (lowerName === 'run' || lowerName === 'walk' || 
-              lowerName === 'running' || lowerName === 'walking') {
-            runAction = animationActions[name];
-            console.log(`Found exact match for running animation: "${name}"`);
-          } 
-          // Check for idle animations
-          else if (lowerName === 'idle' || lowerName === 'stand' || 
-                   lowerName === 'standing' || lowerName === 'rest') {
-            idleAction = animationActions[name];
-            console.log(`Found exact match for idle animation: "${name}"`);
-          }
-        }
-        
-        // If we didn't find exact matches, try partial matches
-        if (!runAction) {
+        // For the goose model, specifically look for fancewalk animation
+        if (isKyzoSource) {
+          // Look for fancewalk animation
           for (const name in animationActions) {
-            const lowerName = name.toLowerCase();
-            if (lowerName.includes('run') || lowerName.includes('walk')) {
+            if (name.toLowerCase() === 'fancywalk') {
               runAction = animationActions[name];
-              console.log(`Found partial match for running animation: "${name}"`);
+              console.log('Found fancywalk animation for goose');
               break;
             }
           }
-        }
-        
-        if (!idleAction) {
+          
+          // Look for idle animation
+          for (const name in animationActions) {
+            if (name.toLowerCase().includes('idle')) {
+              idleAction = animationActions[name];
+              console.log('Found idle animation for goose');
+              break;
+            }
+          }
+        } else {
+          // Original logic for Zuckerberg model
+          // First try to find animations by exact name match
           for (const name in animationActions) {
             const lowerName = name.toLowerCase();
-            if (lowerName.includes('idle') || lowerName.includes('stand')) {
+            
+            // Check for running/walking animations
+            if (lowerName === 'run' || lowerName === 'walk' || 
+                lowerName === 'running' || lowerName === 'walking') {
+              runAction = animationActions[name];
+              console.log(`Found exact match for running animation: "${name}"`);
+            } 
+            // Check for idle animations
+            else if (lowerName === 'idle' || lowerName === 'stand' || 
+                     lowerName === 'standing' || lowerName === 'rest') {
               idleAction = animationActions[name];
-              console.log(`Found partial match for idle animation: "${name}"`);
-              break;
+              console.log(`Found exact match for idle animation: "${name}"`);
+            }
+          }
+          
+          // If we didn't find exact matches, try partial matches
+          if (!runAction) {
+            for (const name in animationActions) {
+              const lowerName = name.toLowerCase();
+              if (lowerName.includes('run') || lowerName.includes('walk')) {
+                runAction = animationActions[name];
+                console.log(`Found partial match for running animation: "${name}"`);
+                break;
+              }
+            }
+          }
+          
+          if (!idleAction) {
+            for (const name in animationActions) {
+              const lowerName = name.toLowerCase();
+              if (lowerName.includes('idle') || lowerName.includes('stand')) {
+                idleAction = animationActions[name];
+                console.log(`Found partial match for idle animation: "${name}"`);
+                break;
+              }
             }
           }
         }
