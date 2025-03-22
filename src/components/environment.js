@@ -79,17 +79,38 @@ let billboards = [];
 // Portal configurations
 const portalConfigs = [
   {
-    position: { x: -5, z: 20, y: 0 },  // Moved closer and to the left
-    rotation: 0,  // Both portals now face forward
+    position: { x: -20, z: 25, y: 0 },  // Leftmost portal
+    rotation: 0,
     imageUrl: 'assets/images/levels.jpeg',
     targetUrl: 'https://fly.pieter.com/',
     scale: 1.0
   },
   {
-    position: { x: 5, z: 20, y: 0 },  // Moved closer and to the right
-    rotation: 0,  // Both portals now face forward
+    position: { x: -10, z: 25, y: 0 },  // Second from left
+    rotation: 0,
     imageUrl: 'assets/images/kyzo.jpeg',
     targetUrl: 'https://game-one-two.vercel.app',
+    scale: 1.0
+  },
+  {
+    position: { x: 0, z: 25, y: 0 },  // Center portal
+    rotation: 0,
+    imageUrl: 'assets/images/darefail.png',  // Added darefail image
+    targetUrl: '#',
+    scale: 1.0
+  },
+  {
+    position: { x: 10, z: 25, y: 0 },  // Second from right
+    rotation: 0,
+    imageUrl: null,
+    targetUrl: '#',
+    scale: 1.0
+  },
+  {
+    position: { x: 20, z: 25, y: 0 },  // Rightmost portal
+    rotation: 0,
+    imageUrl: null,
+    targetUrl: '#',
     scale: 1.0
   }
 ];
