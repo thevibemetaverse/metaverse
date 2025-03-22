@@ -94,6 +94,9 @@ const portalConfigs = [
   }
 ];
 
+// Add this at the top of the file after the imports
+const portalMaterials = [];
+
 export function createEnvironment(scene, mainCamera, loadingManager = new THREE.LoadingManager()) {
   // Store camera reference for dragging
   camera = mainCamera;
@@ -1228,21 +1231,20 @@ function addPortalImage(portalGroup, imageUrl, loadingManager) {
     function(texture) {
       console.log('Successfully loaded image:', imageUrl);
       
-      // Adjust dimensions based on which image is being loaded
       const isKyzoImage = imageUrl.includes('kyzo.jpeg');
       const imageGeometry = new THREE.PlaneGeometry(
         4, // width stays the same
         isKyzoImage ? 7 : 6  // height is 7 for Kyzo, 6 for others
       );
       
-      // Create custom shader material
+      // Create custom shader material with more subtle parameters
       const imageMaterial = new THREE.ShaderMaterial({
         uniforms: {
           map: { value: texture },
           time: { value: 0 },
-          distortionStrength: { value: 0.1 },
-          glowColor: { value: new THREE.Color(0x00ffff) },
-          glowIntensity: { value: 0.5 }
+          distortionStrength: { value: 0.05 }, // Reduced from 0.1 to 0.05
+          glowColor: { value: new THREE.Color(0xffffff) }, // Changed to white for a more subtle glow
+          glowIntensity: { value: 0.3 } // Reduced from 0.5 to 0.3
         },
         vertexShader: portalVertexShader,
         fragmentShader: portalFragmentShader,
@@ -1253,17 +1255,13 @@ function addPortalImage(portalGroup, imageUrl, loadingManager) {
         renderOrder: 1
       });
       
+      // Add the material to our global array
+      portalMaterials.push(imageMaterial);
+      
       const imageMesh = new THREE.Mesh(imageGeometry, imageMaterial);
       imageMesh.position.z = 0.01;
       imageMesh.position.y = isKyzoImage ? 3.5 : 3; // Adjust Y position based on height
       imageMesh.renderOrder = 1;
-      
-      // Add animation
-      const animate = () => {
-        imageMaterial.uniforms.time.value += 0.016; // Increment time (assuming 60fps)
-        requestAnimationFrame(animate);
-      };
-      animate();
       
       console.log('Created portal image mesh:', {
         geometry: imageGeometry.parameters,
@@ -1310,4 +1308,11 @@ function createBasicPortalFrame(portalGroup) {
   const frame = new THREE.Mesh(frameGeometry, frameMaterial);
   frame.position.y = 0.075;
   portalGroup.add(frame);
+}
+
+// Add this function to update all portal materials
+export function updatePortalMaterials(deltaTime) {
+  portalMaterials.forEach(material => {
+    material.uniforms.time.value += deltaTime * 0.5; // Slower animation speed
+  });
 } 

@@ -4,7 +4,7 @@ import { VRButton } from 'three/examples/jsm/webxr/VRButton.js';
 import { XRControllerModelFactory } from 'three/examples/jsm/webxr/XRControllerModelFactory.js';
 import { io } from 'socket.io-client';
 
-import { createEnvironment } from './components/environment.js';
+import { createEnvironment, updatePortalMaterials } from './components/environment.js';
 import { createAvatar, createSimpleAvatar, createDirectAvatar, createCleanAvatar, createPureAvatar, updateAvatarAnimations } from './components/avatar.js';
 import { setupControls } from './components/controls.js';
 import { setupUI, createEmojiBar, showEmojiReaction } from './components/ui.js';
@@ -1160,6 +1160,9 @@ try {
     
     // Update controls
     controls.update();
+    
+    // Update portal materials
+    updatePortalMaterials(deltaTime);
     
     // Update God Mode camera if enabled
     if (godModeEnabled && godCamera) {
