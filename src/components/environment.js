@@ -243,15 +243,14 @@ const portalConfigs = [
   {
     position: { x: 60, z: 25, y: 0 },  // First blank portal
     rotation: 0,
-    imageUrl: 'assets/images/portal.jpg',
-    targetUrl: '#',
+    imageUrl: 'assets/images/spacerunner.png',
+    targetUrl: 'https://spacerunner01.netlify.app/',
     scale: 1.0,
-    isFormPortal: true  // Already identified as form portal
   },
   {
     position: { x: 70, z: 25, y: 0 },  // Second blank portal
     rotation: 0,
-    imageUrl: 'assets/images/portal.jpg',
+    imageUrl: '',
     targetUrl: '#',
     scale: 1.0,
     isFormPortal: true  // Added form portal flag
@@ -259,7 +258,7 @@ const portalConfigs = [
   {
     position: { x: 80, z: 25, y: 0 },  // Third blank portal
     rotation: 0,
-    imageUrl: 'assets/images/portal.jpg',
+    imageUrl: '',
     targetUrl: '#',
     scale: 1.0,
     isFormPortal: true  // Added form portal flag
@@ -267,7 +266,7 @@ const portalConfigs = [
   {
     position: { x: 90, z: 25, y: 0 },  // Fourth blank portal
     rotation: 0,
-    imageUrl: 'assets/images/portal.jpg',
+    imageUrl: '',
     targetUrl: '#',
     scale: 1.0,
     isFormPortal: true  // Added form portal flag
@@ -275,7 +274,7 @@ const portalConfigs = [
   {
     position: { x: 100, z: 25, y: 0 },  // Fifth blank portal
     rotation: 0,
-    imageUrl: 'assets/images/portal.jpg',
+    imageUrl: '',
     targetUrl: '#',
     scale: 1.0,
     isFormPortal: true  // Added form portal flag
