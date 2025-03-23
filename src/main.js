@@ -1376,12 +1376,16 @@ try {
                 // Reset the portal jumping flag
                 playerAvatar.userData.isPortalJumping = false;
                 // Open the URL after animation completes
-                window.open(object.userData.portalURL, '_blank');
+                if (object.userData.portalURL) {
+                  window.open(object.userData.portalURL(), '_blank');
+                }
               }, 750); // Reduced to 1.5 seconds for a snappier feel
             } else {
               // If no jump animation available, open URL immediately
               playerAvatar.userData.isPortalJumping = false;
-              window.open(object.userData.portalURL, '_blank');
+              if (object.userData.portalURL) {
+                window.open(object.userData.portalURL(), '_blank');
+              }
             }
           }
         }
@@ -1894,11 +1898,19 @@ renderer.setAnimationLoop(function() {
             
             // Wait for the jump animation to complete before opening the URL
             setTimeout(() => {
-              window.open(object.userData.portalURL, '_blank');
-            }, 2000); // Increased to 2 seconds to ensure animation plays
+              // Reset the portal jumping flag
+              playerAvatar.userData.isPortalJumping = false;
+              // Open the URL after animation completes
+              if (object.userData.portalURL) {
+                window.open(object.userData.portalURL(), '_blank');
+              }
+            }, 750); // Reduced to 1.5 seconds for a snappier feel
           } else {
             // If no jump animation available, open URL immediately
-            window.open(object.userData.portalURL, '_blank');
+            playerAvatar.userData.isPortalJumping = false;
+            if (object.userData.portalURL) {
+              window.open(object.userData.portalURL(), '_blank');
+            }
           }
         }
       }

@@ -1150,7 +1150,7 @@ function createPortalTrigger(targetUrl) {
   );
   portalTrigger.position.set(0, 1.5, 0);
   portalTrigger.userData.isPortal = true;
-  portalTrigger.userData.getPortalURL = targetUrl; // Store the function instead of the URL
+  portalTrigger.userData.portalURL = targetUrl; // Store the function directly
   
   return portalTrigger;
 }
