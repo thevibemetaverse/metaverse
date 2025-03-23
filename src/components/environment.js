@@ -115,15 +115,15 @@ const portalConfigs = [
   {
     position: { x: 20, z: 25, y: 0 },  // Rightmost portal
     rotation: 0,
-    imageUrl: null,
-    targetUrl: '#',
+    imageUrl: 'assets/images/panda.png',  // Using panda image for Red Panda Vibes
+    targetUrl: 'https://collidingscopes.github.io/red-panda-vibes/',
     scale: 1.0
   },
   {
     position: { x: 0, z: -25, y: 0 },  // Portal behind the user
     rotation: Math.PI,  // Rotate 180 degrees to face the user
     imageUrl: 'assets/images/portal.jpg',  // Using levels image as placeholder
-    targetUrl: `https://portal.pieter.com?portal=true&avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&target=_blank`,
+    targetUrl: `https://portal.pieter.com?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&target=_blank`,
     scale: 1.0
   }
 ];
