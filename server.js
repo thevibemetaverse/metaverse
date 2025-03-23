@@ -40,6 +40,9 @@ app.get('/', (req, res) => {
 // Store connected players
 const players = {};
 
+// Store portal counters
+const portalCounters = {};
+
 // Game state
 const gameState = {
   players,
@@ -56,6 +59,25 @@ const gameState = {
 // Socket.io connection handling
 io.on('connection', (socket) => {
   console.log(`Player connected: ${socket.id}`);
+  
+  // Send current portal counters to new player
+  socket.emit('portal-counters-update', portalCounters);
+  
+  // Handle portal counter increment
+  socket.on('portal-counter-increment', (data) => {
+    const { portalId } = data;
+    
+    // Initialize counter if it doesn't exist
+    if (!portalCounters[portalId]) {
+      portalCounters[portalId] = 0;
+    }
+    
+    // Increment counter
+    portalCounters[portalId]++;
+    
+    // Broadcast updated counters to all clients
+    io.emit('portal-counters-update', portalCounters);
+  });
   
   // Handle player joining
   socket.on('player-join', (data) => {

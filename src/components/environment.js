@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader.js';
-import { trackEvent } from '../utils/posthog.js';
 
 // Custom portal shader
 const portalVertexShader = `
@@ -1132,7 +1131,8 @@ function createPortalWithConfig(environment, config, loadingManager) {
   portalTrigger.position.set(0, 1.5, 0);
   portalTrigger.userData.isPortal = true;
   portalTrigger.userData.portalURL = targetUrl;
-  portalGroup.add(portalTrigger);
+  portalTrigger.userData.portalId = targetUrl; // Use URL as unique ID
+  portalTrigger.userData.visitorCount = 0; // Initialize counter
   
   // Load portal frame
   loadPortalFrame(portalGroup, loadingManager);
@@ -1155,14 +1155,50 @@ function createPortalTrigger(targetUrl) {
   portalTrigger.position.set(0, 1.5, 0);
   portalTrigger.userData.isPortal = true;
   portalTrigger.userData.portalURL = targetUrl;
+  portalTrigger.userData.portalId = targetUrl; // Use URL as unique ID
+  portalTrigger.userData.visitorCount = 0; // Initialize counter
   
-  // Add click handler for tracking
-  portalTrigger.addEventListener('click', () => {
-    trackEvent('portal_clicked', {
-      portal_url: targetUrl,
-      portal_name: targetUrl.split('/')[2] // Extract domain name
-    });
+  // Create counter display
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  canvas.width = 256;
+  canvas.height = 64;
+  
+  // Create texture from canvas
+  const counterTexture = new THREE.CanvasTexture(canvas);
+  const counterMaterial = new THREE.MeshBasicMaterial({
+    map: counterTexture,
+    transparent: true,
+    side: THREE.DoubleSide
   });
+  
+  // Create counter display mesh
+  const counterGeometry = new THREE.PlaneGeometry(2, 0.5);
+  const counterMesh = new THREE.Mesh(counterGeometry, counterMaterial);
+  counterMesh.position.set(0, 2.5, 0); // Position above the portal
+  counterMesh.rotation.y = Math.PI; // Face the player
+  
+  // Function to update counter display
+  function updateCounterDisplay() {
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.font = 'bold 32px Arial';
+    context.fillStyle = 'white';
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillText(`Visitors: ${portalTrigger.userData.visitorCount}`, canvas.width/2, canvas.height/2);
+    counterTexture.needsUpdate = true;
+  }
+  
+  // Initial display update
+  updateCounterDisplay();
+  
+  // Store the update function
+  portalTrigger.userData.updateCounterDisplay = updateCounterDisplay;
+  
+  // Add counter mesh to portal trigger
+  portalTrigger.add(counterMesh);
   
   return portalTrigger;
 }
@@ -1330,4 +1366,25 @@ function createOfficeComputer(environment, loadingManager) {
       console.error('Error loading office computer model:', error);
     }
   );
+}
+
+// Add this function to handle portal counter updates from server
+export function setupPortalCounterSync(socket) {
+  if (!socket) return;
+  
+  // Listen for portal counter updates from server
+  socket.on('portal-counters-update', (counters) => {
+    // Update all portal counters in the scene
+    scene.traverse((object) => {
+      if (object.userData && object.userData.isPortal && object.userData.portalId) {
+        const portalId = object.userData.portalId;
+        if (counters[portalId] !== undefined) {
+          object.userData.visitorCount = counters[portalId];
+          if (object.userData.updateCounterDisplay) {
+            object.userData.updateCounterDisplay();
+          }
+        }
+      }
+    });
+  });
 } 

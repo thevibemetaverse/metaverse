@@ -924,6 +924,9 @@ try {
       // Initialize NPCs for multiplayer (this will only create NPCs if this client is the host)
       npcManager.initializeForMultiplayer();
       
+      // Set up portal counter synchronization
+      setupPortalCounterSync(socket);
+      
       // Send player info to server
       socket.emit('player-join', {
         id: socket.id,
@@ -1373,6 +1376,14 @@ try {
             
             // Set flag to prevent multiple triggers
             playerAvatar.userData.isPortalJumping = true;
+            
+            // Increment portal counter and sync with server
+            if (object.userData.portalId && window.socket) {
+              // Emit counter increment to server
+              window.socket.emit('portal-counter-increment', {
+                portalId: object.userData.portalId
+              });
+            }
             
             // Trigger jump animation if available
             if (playerAvatar.jump && !playerAvatar.userData.isJumping) {
