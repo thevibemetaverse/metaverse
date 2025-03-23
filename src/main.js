@@ -5,7 +5,7 @@ import { XRControllerModelFactory } from 'three/examples/jsm/webxr/XRControllerM
 import { io } from 'socket.io-client';
 import { initPostHog, trackPageView } from './utils/posthog.js';
 
-import { createEnvironment, updatePortalMaterials } from './components/environment.js';
+import { createEnvironment, updatePortalMaterials, addGlobalPortalClickHandler, updatePortalClickOverlays, showPortalForm } from './components/environment.js';
 import { createAvatar, createSimpleAvatar, createDirectAvatar, createCleanAvatar, createPureAvatar, updateAvatarAnimations } from './components/avatar.js';
 import { setupControls } from './components/controls.js';
 import { setupUI, createEmojiBar, showEmojiReaction } from './components/ui.js';
@@ -75,6 +75,9 @@ loadingManager.onProgress = function(url, itemsLoaded, itemsTotal) {
 };
 
 loadingManager.onLoad = function() {
+  // Initialize the portal click handler when everything is loaded
+  addGlobalPortalClickHandler();
+  
   // Hide loading screen when everything is loaded
   setTimeout(() => {
     loadingScreen.style.opacity = '0';
@@ -692,9 +695,9 @@ try {
         } else if (intersect.object.userData.isPortal) {
           console.log('Portal clicked!', intersect.object.userData);
           if (intersect.object.userData.isFormPortal) {
-            // Trigger the portal form
-            const event = new Event('click');
-            intersect.object.dispatchEvent(event);
+            // Trigger the portal form using CustomEvent to pass the target
+            const event = new CustomEvent('portalclick', { detail: { targetObject: intersect.object } });
+            document.dispatchEvent(event);
           } else if (intersect.object.userData.portalURL) {
             window.open(intersect.object.userData.portalURL, '_blank');
           }
@@ -703,6 +706,41 @@ try {
       }
     }
   }, false);
+  
+  // Add event listener for the portalclick event
+  document.addEventListener('portalclick', function(event) {
+    const portalObject = event.detail.targetObject;
+    console.log('Portal click event received for:', portalObject);
+    
+    if (portalObject && portalObject.userData && portalObject.userData.isFormPortal) {
+      // Find the portal index to handle it properly
+      let portalIndex = -1;
+      if (window.portalButtons) {
+        for (let i = 0; i < window.portalButtons.length; i++) {
+          // Compare position to find the right portal
+          const buttonConfig = window.portalButtons[i].config;
+          const portalPosition = portalObject.parent ? portalObject.parent.position : null;
+          
+          if (portalPosition && 
+              Math.abs(buttonConfig.position.x - portalPosition.x) < 0.1 &&
+              Math.abs(buttonConfig.position.z - portalPosition.z) < 0.1) {
+            portalIndex = window.portalButtons[i].portalIndex;
+            break;
+          }
+        }
+      }
+      
+      if (portalIndex >= 0) {
+        window.handleManualPortalClick(portalIndex);
+      } else {
+        console.error('Could not find portal index for clicked portal');
+        // Fallback to show the form anyway
+        showPortalForm((formData) => {
+          console.log('Form submitted:', formData);
+        });
+      }
+    }
+  });
   
   // Setup mobile controls if on a mobile device
   let mobileControls = null;
@@ -1207,6 +1245,11 @@ try {
     const currentTime = performance.now();
     const deltaTime = (currentTime - lastTime) / 1000; // Convert to seconds
     lastTime = currentTime;
+    
+    // Update portal button positions if they exist
+    if (camera && typeof updatePortalClickOverlays === 'function') {
+      updatePortalClickOverlays(camera);
+    }
     
     // Update controls
     controls.update();

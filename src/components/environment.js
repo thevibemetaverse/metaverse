@@ -3,9 +3,83 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader.js';
 import { trackEvent } from '../utils/posthog.js';
-import PortalForm from './PortalForm';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+
+// Define the PortalForm component directly in this file
+const PortalForm = ({ onSubmit, onCancel }) => {
+  return React.createElement('div', { 
+    className: 'portal-form-container',
+    style: {
+      animation: 'portal-form-appear 0.5s ease-out forwards'
+    }
+  },
+    React.createElement('h2', {
+      style: {
+        textShadow: '0 0 10px #4a90e2, 0 0 20px #4a90e2',
+        animation: 'portal-glow 2s infinite alternate'
+      }
+    }, 'Create New Portal'),
+    React.createElement('form', { 
+      id: 'portal-form',
+      onSubmit: (e) => {
+        e.preventDefault();
+        const form = e.target;
+        const formData = {
+          url: form.url.value,
+          image: form.image.value,
+          avatar_url: form.avatar_url.value
+        };
+        onSubmit(formData);
+      }
+    },
+      React.createElement('div', { className: 'form-group' },
+        React.createElement('label', { htmlFor: 'url' }, 'Portal URL:'),
+        React.createElement('input', { 
+          type: 'url', 
+          id: 'url', 
+          name: 'url', 
+          required: true,
+          placeholder: 'https://example.com',
+          className: 'portal-3d-input'
+        })
+      ),
+      React.createElement('div', { className: 'form-group' },
+        React.createElement('label', { htmlFor: 'image' }, 'Portal Image URL:'),
+        React.createElement('input', { 
+          type: 'url', 
+          id: 'image', 
+          name: 'image', 
+          required: true,
+          placeholder: 'https://example.com/image.jpg',
+          className: 'portal-3d-input'
+        })
+      ),
+      React.createElement('div', { className: 'form-group' },
+        React.createElement('label', { htmlFor: 'avatar_url' }, 'Avatar URL:'),
+        React.createElement('input', { 
+          type: 'url', 
+          id: 'avatar_url', 
+          name: 'avatar_url', 
+          required: true,
+          placeholder: 'https://example.com/avatar.glb',
+          className: 'portal-3d-input'
+        })
+      ),
+      React.createElement('div', { className: 'form-buttons' },
+        React.createElement('button', { 
+          type: 'submit', 
+          className: 'submit-button'
+        }, 'Create Portal'),
+        React.createElement('button', { 
+          type: 'button', 
+          className: 'cancel-button',
+          onClick: onCancel
+        }, 'Cancel')
+      )
+    )
+  );
+};
 
 // Custom portal shader
 const portalVertexShader = `
@@ -143,35 +217,39 @@ const portalConfigs = [
     imageUrl: 'assets/images/portal.jpg',
     targetUrl: '#',
     scale: 1.0,
-    isFormPortal: true  // Add this flag to identify form portals
+    isFormPortal: true  // Already identified as form portal
   },
   {
     position: { x: 50, z: 25, y: 0 },  // Second blank portal
     rotation: 0,
     imageUrl: 'assets/images/portal.jpg',
     targetUrl: '#',
-    scale: 1.0
+    scale: 1.0,
+    isFormPortal: true  // Added form portal flag
   },
   {
     position: { x: 60, z: 25, y: 0 },  // Third blank portal
     rotation: 0,
     imageUrl: 'assets/images/portal.jpg',
     targetUrl: '#',
-    scale: 1.0
+    scale: 1.0,
+    isFormPortal: true  // Added form portal flag
   },
   {
     position: { x: 70, z: 25, y: 0 },  // Fourth blank portal
     rotation: 0,
     imageUrl: 'assets/images/portal.jpg',
     targetUrl: '#',
-    scale: 1.0
+    scale: 1.0,
+    isFormPortal: true  // Added form portal flag
   },
   {
     position: { x: 80, z: 25, y: 0 },  // Fifth blank portal
     rotation: 0,
     imageUrl: 'assets/images/portal.jpg',
     targetUrl: '#',
-    scale: 1.0
+    scale: 1.0,
+    isFormPortal: true  // Added form portal flag
   },
   {
     position: { x: 0, z: -25, y: 0 },  // Portal behind the user
@@ -1277,21 +1355,108 @@ function createPortalTrigger(targetUrl, isFormPortal = false) {
   portalTrigger.userData.portalURL = targetUrl;
   portalTrigger.userData.isFormPortal = isFormPortal;
   
+  // Log portal trigger creation for debugging
+  console.log(`Created portal trigger: ${targetUrl}, isFormPortal: ${isFormPortal}`);
+  
   // Add click handler for tracking and form display
-  portalTrigger.addEventListener('click', () => {
-    if (isFormPortal) {
-      showPortalForm((formData) => {
-        // Handle form submission
-        console.log('Form submitted:', formData);
-        // Here you would typically update the portal with the new data
-        // or send it to your backend
-        trackEvent('portal_form_submitted', formData);
+  portalTrigger.addEventListener('click', (event) => {
+    console.log('Portal clicked!', portalTrigger.userData);
+    
+    // Check if this is a form portal or has '#' URL
+    if (portalTrigger.userData.isFormPortal === true || portalTrigger.userData.portalURL === '#') {
+      console.log('Opening portal form...');
+      
+      // Prevent event propagation
+      event.stopPropagation();
+      
+      // Highlight the portal when clicked
+      const portalGroup = portalTrigger.parent;
+      
+      // Find the portal image mesh(es)
+      const portalMeshes = [];
+      portalGroup.traverse(child => {
+        if (child.isMesh && child !== portalTrigger) {
+          portalMeshes.push(child);
+        }
       });
+      
+      // Animate glow effect
+      portalMeshes.forEach(mesh => {
+        if (mesh.material && mesh.material.uniforms) {
+          // Store the original intensity
+          const originalIntensity = mesh.material.uniforms.glowIntensity.value;
+          
+          // Increase the glow
+          mesh.material.uniforms.glowIntensity.value = 1.0;
+          mesh.material.uniforms.glowColor.value = new THREE.Color(0x00ffff);
+          
+          // Animate back to normal
+          setTimeout(() => {
+            mesh.material.uniforms.glowIntensity.value = originalIntensity;
+            mesh.material.uniforms.glowColor.value = new THREE.Color(0xffffff);
+          }, 1000);
+        }
+      });
+      
+      // Show the form after a short delay to allow the glow effect to be seen
+      setTimeout(() => {
+        showPortalForm((formData) => {
+          // Handle form submission
+          console.log('Form submitted:', formData);
+          
+          // Show success animation
+          const successAnimation = document.createElement('div');
+          successAnimation.className = 'portal-success-animation';
+          successAnimation.innerHTML = `
+            <div class="success-icon">✓</div>
+            <div class="success-message">Portal Created!</div>
+          `;
+          document.body.appendChild(successAnimation);
+          
+          // Remove the animation after it completes
+          setTimeout(() => {
+            successAnimation.remove();
+          }, 2000);
+          
+          // Update the portal with new data
+          if (formData.url && formData.url !== '') {
+            portalTrigger.userData.portalURL = formData.url;
+          }
+          
+          // Update the portal image if provided
+          if (formData.image && formData.image !== '') {
+            // Find the portal image mesh
+            portalMeshes.forEach(mesh => {
+              if (mesh.material && mesh.material.uniforms && mesh.material.uniforms.map) {
+                // Load new texture
+                const textureLoader = new THREE.TextureLoader();
+                textureLoader.load(formData.image, (texture) => {
+                  mesh.material.uniforms.map.value = texture;
+                  
+                  // Animate portal update effect
+                  animatePortalUpdate(mesh);
+                });
+              }
+            });
+          } else {
+            // Still animate even if no new image
+            portalMeshes.forEach(mesh => {
+              animatePortalUpdate(mesh);
+            });
+          }
+          
+          trackEvent('portal_form_submitted', formData);
+        });
+      }, 100);
     } else {
-      // Regular portal click behavior
+      // Regular portal click behavior - open the URL
+      console.log('Opening regular portal:', targetUrl);
+      window.open(targetUrl, '_blank');
+      
+      // Track the click event
       trackEvent('portal_clicked', {
         portal_url: targetUrl,
-        portal_name: targetUrl.split('/')[2]
+        portal_name: targetUrl.split('/')[2] || 'unknown'
       });
     }
   });
@@ -1299,55 +1464,342 @@ function createPortalTrigger(targetUrl, isFormPortal = false) {
   return portalTrigger;
 }
 
-function showPortalForm(onSubmit) {
+// Helper function to animate portal update
+function animatePortalUpdate(mesh) {
+  if (!mesh.material || !mesh.material.uniforms) return;
+  
+  // Save original values
+  const originalDistortion = mesh.material.uniforms.distortionStrength.value;
+  const originalGlowIntensity = mesh.material.uniforms.glowIntensity.value;
+  const originalColor = mesh.material.uniforms.glowColor.value.clone();
+  
+  // Create animation timeline
+  const startTime = Date.now();
+  const duration = 2000; // 2 seconds
+  
+  // Animation function
+  function animate() {
+    const elapsed = Date.now() - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    
+    // Increase distortion and glow at the start, then fade back
+    const phase = progress < 0.5 ? progress * 2 : (1 - progress) * 2;
+    
+    mesh.material.uniforms.distortionStrength.value = originalDistortion + phase * 0.3;
+    mesh.material.uniforms.glowIntensity.value = originalGlowIntensity + phase * 1.5;
+    
+    // Change color to cyan during animation
+    const color = new THREE.Color();
+    color.r = originalColor.r * (1 - phase) + 0 * phase;
+    color.g = originalColor.g * (1 - phase) + 1 * phase;
+    color.b = originalColor.b * (1 - phase) + 1 * phase;
+    mesh.material.uniforms.glowColor.value = color;
+    
+    // Continue animation if not complete
+    if (progress < 1) {
+      requestAnimationFrame(animate);
+    } else {
+      // Reset to original values
+      mesh.material.uniforms.distortionStrength.value = originalDistortion;
+      mesh.material.uniforms.glowIntensity.value = originalGlowIntensity;
+      mesh.material.uniforms.glowColor.value = originalColor;
+    }
+  }
+  
+  // Start animation
+  animate();
+}
+
+export function showPortalForm(onSubmit) {
+  console.log('Showing portal form...');
+  
   // Create form container
   const formContainer = document.createElement('div');
   formContainer.className = 'portal-form-overlay';
-  formContainer.innerHTML = `
-    <div class="portal-form-container">
-      <h2>Create New Portal</h2>
-      <form id="portal-form">
-        <div class="form-group">
-          <label for="url">Portal URL:</label>
-          <input type="url" id="url" name="url" required placeholder="https://example.com">
-        </div>
-        <div class="form-group">
-          <label for="image">Portal Image URL:</label>
-          <input type="url" id="image" name="image" required placeholder="https://example.com/image.jpg">
-        </div>
-        <div class="form-group">
-          <label for="avatar_url">Avatar URL:</label>
-          <input type="url" id="avatar_url" name="avatar_url" required placeholder="https://example.com/avatar.glb">
-        </div>
-        <div class="form-buttons">
-          <button type="submit" class="submit-button">Create Portal</button>
-          <button type="button" class="cancel-button">Cancel</button>
-        </div>
-      </form>
-    </div>
-  `;
-  
-  // Add form to document
   document.body.appendChild(formContainer);
   
-  // Add event listeners
-  const form = formContainer.querySelector('#portal-form');
-  const cancelButton = formContainer.querySelector('.cancel-button');
+  // Ensure the form is visible with important styles
+  formContainer.style.cssText = `
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    background: rgba(0, 0, 0, 0.8) !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    z-index: 1000 !important;
+    perspective: 1000px !important;
+  `;
   
-  form.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const formData = {
-      url: form.url.value,
-      image: form.image.value,
-      avatar_url: form.avatar_url.value
-    };
-    onSubmit(formData);
-    formContainer.remove();
-  });
+  // Create React root and render the form
+  const root = ReactDOM.createRoot(formContainer);
   
-  cancelButton.addEventListener('click', () => {
-    formContainer.remove();
-  });
+  try {
+    root.render(
+      React.createElement(PortalForm, {
+        onSubmit: (formData) => {
+          onSubmit(formData);
+          formContainer.remove();
+          root.unmount();
+        },
+        onCancel: () => {
+          formContainer.remove();
+          root.unmount();
+        }
+      })
+    );
+    console.log('Portal form rendered successfully');
+  } catch (error) {
+    console.error('Error rendering portal form:', error);
+    
+    // Fallback to regular HTML form if React rendering fails
+    formContainer.innerHTML = `
+      <div class="portal-form-container" style="background: #1a1a2e; border: 2px solid #4a90e2; padding: 24px; width: 400px; color: white; border-radius: 8px;">
+        <h2 style="color: #4a90e2; text-align: center; font-size: 28px;">Create New Portal</h2>
+        <form id="fallback-portal-form">
+          <div style="margin-bottom: 16px;">
+            <label style="display: block; margin-bottom: 6px; color: #4a90e2;">Portal URL:</label>
+            <input type="url" name="url" required placeholder="https://example.com" style="width: 100%; padding: 12px; background: rgba(0, 0, 0, 0.2); border: 1px solid #4a90e2; color: white; border-radius: 4px;">
+          </div>
+          <div style="margin-bottom: 16px;">
+            <label style="display: block; margin-bottom: 6px; color: #4a90e2;">Portal Image URL:</label>
+            <input type="url" name="image" required placeholder="https://example.com/image.jpg" style="width: 100%; padding: 12px; background: rgba(0, 0, 0, 0.2); border: 1px solid #4a90e2; color: white; border-radius: 4px;">
+          </div>
+          <div style="margin-bottom: 16px;">
+            <label style="display: block; margin-bottom: 6px; color: #4a90e2;">Avatar URL:</label>
+            <input type="url" name="avatar_url" required placeholder="https://example.com/avatar.glb" style="width: 100%; padding: 12px; background: rgba(0, 0, 0, 0.2); border: 1px solid #4a90e2; color: white; border-radius: 4px;">
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-top: 24px;">
+            <button type="submit" style="padding: 10px 20px; background: linear-gradient(135deg, #4a90e2, #00ffff); color: white; border: none; border-radius: 4px; cursor: pointer;">Create Portal</button>
+            <button type="button" class="cancel-button" style="padding: 10px 20px; background: #444; color: white; border: none; border-radius: 4px; cursor: pointer;">Cancel</button>
+          </div>
+        </form>
+      </div>
+    `;
+    
+    // Add event listeners to fallback form
+    const fallbackForm = document.getElementById('fallback-portal-form');
+    const cancelButton = formContainer.querySelector('.cancel-button');
+    
+    fallbackForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const formData = {
+        url: fallbackForm.url.value,
+        image: fallbackForm.image.value,
+        avatar_url: fallbackForm.avatar_url.value
+      };
+      onSubmit(formData);
+      formContainer.remove();
+    });
+    
+    cancelButton.addEventListener('click', () => {
+      formContainer.remove();
+    });
+  }
+  
+  // Add CSS for the form if it doesn't exist
+  if (!document.getElementById('portal-form-styles')) {
+    const style = document.createElement('style');
+    style.id = 'portal-form-styles';
+    style.textContent = `
+      @keyframes portal-form-appear {
+        0% { 
+          transform: scale(0.5) rotateY(90deg); 
+          opacity: 0;
+        }
+        100% { 
+          transform: scale(1) rotateY(0deg); 
+          opacity: 1;
+        }
+      }
+      
+      @keyframes portal-glow {
+        0% { text-shadow: 0 0 10px #4a90e2, 0 0 20px #4a90e2; }
+        100% { text-shadow: 0 0 15px #00ffff, 0 0 30px #00ffff; }
+      }
+      
+      @keyframes input-focus {
+        0% { box-shadow: 0 0 0px #4a90e2; }
+        50% { box-shadow: 0 0 20px #00ffff; }
+        100% { box-shadow: 0 0 0px #4a90e2; }
+      }
+      
+      @keyframes success-appear {
+        0% { 
+          transform: translate(-50%, -50%) scale(0.5);
+          opacity: 0;
+        }
+        20% { 
+          transform: translate(-50%, -50%) scale(1.2);
+          opacity: 1;
+        }
+        40% { 
+          transform: translate(-50%, -50%) scale(0.9);
+          opacity: 1;
+        }
+        60% { 
+          transform: translate(-50%, -50%) scale(1.05);
+          opacity: 1;
+        }
+        80% { 
+          transform: translate(-50%, -50%) scale(1);
+          opacity: 1;
+        }
+        90% { 
+          transform: translate(-50%, -50%) scale(1);
+          opacity: 1;
+        }
+        100% { 
+          transform: translate(-50%, -50%) scale(1.1);
+          opacity: 0;
+        }
+      }
+      
+      .portal-success-animation {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.8);
+        border-radius: 50%;
+        width: 200px;
+        height: 200px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        color: white;
+        z-index: 2000;
+        box-shadow: 0 0 50px #00ffff;
+        animation: success-appear 2s forwards;
+      }
+      
+      .success-icon {
+        font-size: 70px;
+        color: #00ffff;
+        text-shadow: 0 0 20px #00ffff;
+        margin-bottom: 10px;
+      }
+      
+      .success-message {
+        font-size: 24px;
+        font-weight: bold;
+        color: white;
+        text-shadow: 0 0 10px #00ffff;
+      }
+      
+      .portal-form-overlay {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        background: rgba(0, 0, 0, 0.8) !important;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        z-index: 1000 !important;
+        perspective: 1000px !important;
+      }
+      
+      .portal-form-container {
+        background: linear-gradient(135deg, #1a1a2e, #16213e);
+        border: 2px solid #4a90e2;
+        box-shadow: 0 0 30px rgba(74, 144, 226, 0.6);
+        border-radius: 8px;
+        padding: 24px;
+        width: 400px;
+        color: white;
+        transform-style: preserve-3d;
+        animation: portal-form-appear 0.5s ease-out forwards !important;
+      }
+      
+      .portal-form-container h2 {
+        margin-top: 0;
+        color: #4a90e2;
+        text-align: center;
+        font-size: 28px;
+        letter-spacing: 1px;
+        animation: portal-glow 2s infinite alternate;
+      }
+      
+      .form-group {
+        margin-bottom: 16px;
+        transform-style: preserve-3d;
+      }
+      
+      .form-group label {
+        display: block;
+        margin-bottom: 6px;
+        color: #4a90e2;
+        font-weight: bold;
+      }
+      
+      .form-group input {
+        width: 100% !important;
+        padding: 12px !important;
+        background: rgba(0, 0, 0, 0.2) !important;
+        border: 1px solid #4a90e2 !important;
+        color: white !important;
+        border-radius: 4px !important;
+        transition: all 0.3s ease !important;
+      }
+      
+      .portal-3d-input {
+        position: relative;
+        transform: translateZ(10px);
+      }
+      
+      .form-group input:focus {
+        outline: none !important;
+        border-color: #00ffff !important;
+        box-shadow: 0 0 10px rgba(0, 255, 255, 0.5) !important;
+        animation: input-focus 2s infinite !important;
+        background: rgba(0, 0, 0, 0.4) !important;
+      }
+      
+      .form-buttons {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 24px;
+      }
+      
+      .form-buttons button {
+        padding: 10px 20px !important;
+        border-radius: 4px !important;
+        border: none !important;
+        cursor: pointer !important;
+        font-weight: bold !important;
+        transition: all 0.3s ease !important;
+        transform: translateZ(15px) !important;
+      }
+      
+      .submit-button {
+        background: linear-gradient(135deg, #4a90e2, #00ffff) !important;
+        color: white !important;
+        box-shadow: 0 5px 15px rgba(0, 255, 255, 0.3) !important;
+      }
+      
+      .submit-button:hover {
+        background: linear-gradient(135deg, #00ffff, #4a90e2) !important;
+        transform: translateZ(15px) translateY(-2px) !important;
+        box-shadow: 0 7px 20px rgba(0, 255, 255, 0.5) !important;
+      }
+      
+      .cancel-button {
+        background: #444 !important;
+        color: white !important;
+      }
+      
+      .cancel-button:hover {
+        background: #666 !important;
+        transform: translateZ(15px) translateY(-2px) !important;
+      }
+    `;
+    document.head.appendChild(style);
+  }
 }
 
 function loadPortalFrame(portalGroup, loadingManager) {
@@ -1479,11 +1931,14 @@ function addPortalImage(portalGroup, imageUrl, loadingManager) {
       portalGroup.add(backMesh);
 
       // If this is a form portal, create a form texture
+      // Check if portalGroup has a portalTrigger with isFormPortal flag
+      const isFormPortal = portalGroup.children.length > 0 && 
+                          portalGroup.children[0].userData && 
+                          portalGroup.children[0].userData.isFormPortal;
+                          
       if (isFormPortal) {
         // Create the input elements
         const formInputs = createPortalFormInputs(portalGroup);
-
-        // ... rest of the existing form portal code ...
 
         // Add a function to update input positions
         portalGroup.userData.updateFormInputs = function() {
@@ -1610,4 +2065,169 @@ if (window.formPortals) {
       portal.userData.updateFormInputs();
     }
   });
+}
+
+// Add global portal click handler function
+export function addGlobalPortalClickHandler() {
+  console.log('Adding global portal click handler');
+  
+  // Function to handle manual portal clicks
+  window.handleManualPortalClick = function(index) {
+    console.log(`Manual portal click for index ${index}`);
+    
+    // Find the correct portal config
+    if (index >= 0 && index < portalConfigs.length) {
+      const config = portalConfigs[index];
+      
+      // Show form for blank or form portals
+      if (config.isFormPortal || config.targetUrl === '#') {
+        console.log('Opening form for blank portal');
+        
+        // Show form with a slight delay to allow any animations
+        setTimeout(() => {
+          showPortalForm((formData) => {
+            console.log('Form submitted:', formData);
+            
+            // Show success animation
+            const successAnimation = document.createElement('div');
+            successAnimation.className = 'portal-success-animation';
+            successAnimation.innerHTML = `
+              <div class="success-icon">✓</div>
+              <div class="success-message">Portal Created!</div>
+            `;
+            document.body.appendChild(successAnimation);
+            
+            // Remove the animation after it completes
+            setTimeout(() => {
+              successAnimation.remove();
+            }, 2000);
+            
+            // Update the portal config
+            if (formData.url) {
+              portalConfigs[index].targetUrl = formData.url;
+            }
+            
+            trackEvent('portal_form_submitted', formData);
+          });
+        }, 100);
+      } else {
+        // Regular portal - open URL
+        window.open(config.targetUrl, '_blank');
+        
+        trackEvent('portal_clicked', {
+          portal_url: config.targetUrl,
+          portal_name: config.targetUrl.split('/')[2] || 'unknown'
+        });
+      }
+    }
+  };
+  
+  // Add button overlay to the page for all blank portals
+  portalConfigs.forEach((config, index) => {
+    if (config.isFormPortal || config.targetUrl === '#') {
+      const portalButton = document.createElement('button');
+      portalButton.className = 'portal-click-overlay';
+      portalButton.setAttribute('data-portal-index', index);
+      portalButton.style.cssText = `
+        position: fixed;
+        background: transparent;
+        border: none;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        cursor: pointer;
+        z-index: 100;
+        opacity: 0.1;
+        pointer-events: auto;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+      `;
+      
+      // Position will be updated in animation loop
+      document.body.appendChild(portalButton);
+      
+      // Add click handler
+      portalButton.addEventListener('click', () => {
+        window.handleManualPortalClick(index);
+      });
+      
+      // Store reference to update position
+      if (!window.portalButtons) window.portalButtons = [];
+      window.portalButtons.push({
+        button: portalButton,
+        portalIndex: index,
+        config: config
+      });
+    }
+  });
+  
+  // Add this to document for debugging
+  const debugButton = document.createElement('button');
+  debugButton.textContent = 'Open Blank Portal Form';
+  debugButton.style.cssText = `
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    z-index: 1000;
+    padding: 10px;
+    background: #4a90e2;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  `;
+  
+  debugButton.addEventListener('click', () => {
+    // Find first blank portal
+    for (let i = 0; i < portalConfigs.length; i++) {
+      if (portalConfigs[i].isFormPortal || portalConfigs[i].targetUrl === '#') {
+        window.handleManualPortalClick(i);
+        break;
+      }
+    }
+  });
+  
+  document.body.appendChild(debugButton);
+  
+  // Add CSS for portal overlays
+  const overlayStyles = document.createElement('style');
+  overlayStyles.textContent = `
+    .portal-click-overlay:hover {
+      opacity: 0.5 !important;
+      box-shadow: 0 0 20px #00ffff !important;
+    }
+  `;
+  document.head.appendChild(overlayStyles);
+}
+
+// Function to update portal button positions
+export function updatePortalClickOverlays(camera) {
+  if (window.portalButtons && window.portalButtons.length > 0) {
+    window.portalButtons.forEach(item => {
+      const { button, config } = item;
+      
+      // Create a temporary vector to hold portal position
+      const tempVector = new THREE.Vector3(
+        config.position.x,
+        config.position.y + 4, // Add height offset to target middle of portal
+        config.position.z
+      );
+      
+      // Project position to screen space
+      tempVector.project(camera);
+      
+      // Convert to screen coordinates
+      const x = (tempVector.x + 1) * window.innerWidth / 2;
+      const y = (-tempVector.y + 1) * window.innerHeight / 2;
+      
+      // Position the button
+      button.style.left = `${x}px`;
+      button.style.top = `${y}px`;
+      
+      // Show only if in front of camera
+      const isFrontFacing = tempVector.z < 1;
+      button.style.display = isFrontFacing ? 'block' : 'none';
+    });
+  }
 } 
