@@ -14,6 +14,7 @@ import { PokeMechanic } from './components/pokeMechanic.js';
 import { EmojiEffects } from './components/emojiEffects.js';
 import { setupMobileControls, isMobileDevice, optimizeForMobile, setupDeviceOrientation, createMobileUI } from './components/mobileControls.js';
 import { BBQModel } from './components/bbqModel.js';
+import './styles/PortalForm.css';
 
 // Initialize PostHog
 initPostHog();
@@ -681,12 +682,24 @@ try {
     // Find intersected objects
     const intersects = raycaster.intersectObjects(scene.children, true);
     
-    // Check for clickable objects
+    // Check for clickable objects and portals
     for (const intersect of intersects) {
-      if (intersect.object.userData && intersect.object.userData.isClickable) {
-        console.log('Computer clicked!');
-        window.open(intersect.object.userData.targetUrl, '_blank');
-        break;
+      if (intersect.object.userData) {
+        if (intersect.object.userData.isClickable) {
+          console.log('Computer clicked!');
+          window.open(intersect.object.userData.targetUrl, '_blank');
+          break;
+        } else if (intersect.object.userData.isPortal) {
+          console.log('Portal clicked!', intersect.object.userData);
+          if (intersect.object.userData.isFormPortal) {
+            // Trigger the portal form
+            const event = new Event('click');
+            intersect.object.dispatchEvent(event);
+          } else if (intersect.object.userData.portalURL) {
+            window.open(intersect.object.userData.portalURL, '_blank');
+          }
+          break;
+        }
       }
     }
   }, false);
@@ -1416,6 +1429,15 @@ try {
               playerAvatar.userData.isComputerClicking = false;
             }, 1000);
           }
+        }
+      });
+    }
+    
+    // Update form input positions for portal forms
+    if (window.formPortals) {
+      window.formPortals.forEach(portal => {
+        if (portal.userData.updateFormInputs) {
+          portal.userData.updateFormInputs();
         }
       });
     }

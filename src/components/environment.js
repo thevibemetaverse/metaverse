@@ -3,6 +3,9 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader.js';
 import { trackEvent } from '../utils/posthog.js';
+import PortalForm from './PortalForm';
+import React from 'react';
+import ReactDOM from 'react-dom/client';
 
 // Custom portal shader
 const portalVertexShader = `
@@ -139,7 +142,8 @@ const portalConfigs = [
     rotation: 0,
     imageUrl: 'assets/images/portal.jpg',
     targetUrl: '#',
-    scale: 1.0
+    scale: 1.0,
+    isFormPortal: true  // Add this flag to identify form portals
   },
   {
     position: { x: 50, z: 25, y: 0 },  // Second blank portal
@@ -180,6 +184,72 @@ const portalConfigs = [
 
 // Add this at the top of the file after the imports
 const portalMaterials = [];
+
+// Add this function near the top of the file, after the imports
+function createPortalFormInputs(portalGroup) {
+  // Create a container for the inputs that will be positioned over the portal
+  const inputContainer = document.createElement('div');
+  inputContainer.className = 'portal-form-inputs';
+  inputContainer.style.cssText = `
+    position: fixed;
+    pointer-events: none;
+    display: none;
+  `;
+
+  // Create input fields
+  const urlInput = document.createElement('input');
+  urlInput.type = 'url';
+  urlInput.placeholder = 'Enter Portal URL';
+  urlInput.className = 'portal-input';
+
+  const imageInput = document.createElement('input');
+  imageInput.type = 'url';
+  imageInput.placeholder = 'Enter Image URL';
+  imageInput.className = 'portal-input';
+
+  const avatarInput = document.createElement('input');
+  avatarInput.type = 'url';
+  avatarInput.placeholder = 'Enter Avatar URL';
+  avatarInput.className = 'portal-input';
+
+  // Add inputs to container
+  inputContainer.appendChild(urlInput);
+  inputContainer.appendChild(imageInput);
+  inputContainer.appendChild(avatarInput);
+
+  // Add container to document
+  document.body.appendChild(inputContainer);
+
+  // Store the input container reference in the portal group
+  portalGroup.userData.formInputs = inputContainer;
+
+  // Add CSS for the inputs
+  const style = document.createElement('style');
+  style.textContent = `
+    .portal-form-inputs {
+      z-index: 1000;
+    }
+    .portal-input {
+      position: absolute;
+      width: 392px;
+      height: 40px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid #4a90e2;
+      color: white;
+      padding: 8px;
+      font-size: 16px;
+      pointer-events: auto;
+    }
+    .portal-input:focus {
+      outline: none;
+      border-color: #66a0e2;
+      background: rgba(255, 255, 255, 0.2);
+    }
+  `;
+  document.head.appendChild(style);
+
+  return inputContainer;
+}
 
 export function createEnvironment(scene, mainCamera, loadingManager = new THREE.LoadingManager()) {
   // Store camera reference for dragging
@@ -1167,7 +1237,7 @@ function generatePortals(environment, configs, loadingManager) {
 }
 
 function createPortalWithConfig(environment, config, loadingManager) {
-  const { position, rotation, imageUrl, targetUrl, scale } = config;
+  const { position, rotation, imageUrl, targetUrl, scale, isFormPortal } = config;
   
   // Create portal group
   const portalGroup = new THREE.Group();
@@ -1177,10 +1247,11 @@ function createPortalWithConfig(environment, config, loadingManager) {
   environment.add(portalGroup);
   
   // Create portal trigger
-  const portalTrigger = createPortalTrigger(targetUrl);
+  const portalTrigger = createPortalTrigger(targetUrl, isFormPortal);
   portalTrigger.position.set(0, 1.5, 0);
   portalTrigger.userData.isPortal = true;
   portalTrigger.userData.portalURL = targetUrl;
+  portalTrigger.userData.isFormPortal = isFormPortal;
   portalGroup.add(portalTrigger);
   
   // Load portal frame
@@ -1192,7 +1263,7 @@ function createPortalWithConfig(environment, config, loadingManager) {
   return portalGroup;
 }
 
-function createPortalTrigger(targetUrl) {
+function createPortalTrigger(targetUrl, isFormPortal = false) {
   const portalTrigger = new THREE.Mesh(
     new THREE.BoxGeometry(2, 3, 2),
     new THREE.MeshBasicMaterial({ 
@@ -1201,19 +1272,82 @@ function createPortalTrigger(targetUrl) {
       visible: false 
     })
   );
-  portalTrigger.position.set(0, 1.5, 0);
+  
   portalTrigger.userData.isPortal = true;
   portalTrigger.userData.portalURL = targetUrl;
+  portalTrigger.userData.isFormPortal = isFormPortal;
   
-  // Add click handler for tracking
+  // Add click handler for tracking and form display
   portalTrigger.addEventListener('click', () => {
-    trackEvent('portal_clicked', {
-      portal_url: targetUrl,
-      portal_name: targetUrl.split('/')[2] // Extract domain name
-    });
+    if (isFormPortal) {
+      showPortalForm((formData) => {
+        // Handle form submission
+        console.log('Form submitted:', formData);
+        // Here you would typically update the portal with the new data
+        // or send it to your backend
+        trackEvent('portal_form_submitted', formData);
+      });
+    } else {
+      // Regular portal click behavior
+      trackEvent('portal_clicked', {
+        portal_url: targetUrl,
+        portal_name: targetUrl.split('/')[2]
+      });
+    }
   });
   
   return portalTrigger;
+}
+
+function showPortalForm(onSubmit) {
+  // Create form container
+  const formContainer = document.createElement('div');
+  formContainer.className = 'portal-form-overlay';
+  formContainer.innerHTML = `
+    <div class="portal-form-container">
+      <h2>Create New Portal</h2>
+      <form id="portal-form">
+        <div class="form-group">
+          <label for="url">Portal URL:</label>
+          <input type="url" id="url" name="url" required placeholder="https://example.com">
+        </div>
+        <div class="form-group">
+          <label for="image">Portal Image URL:</label>
+          <input type="url" id="image" name="image" required placeholder="https://example.com/image.jpg">
+        </div>
+        <div class="form-group">
+          <label for="avatar_url">Avatar URL:</label>
+          <input type="url" id="avatar_url" name="avatar_url" required placeholder="https://example.com/avatar.glb">
+        </div>
+        <div class="form-buttons">
+          <button type="submit" class="submit-button">Create Portal</button>
+          <button type="button" class="cancel-button">Cancel</button>
+        </div>
+      </form>
+    </div>
+  `;
+  
+  // Add form to document
+  document.body.appendChild(formContainer);
+  
+  // Add event listeners
+  const form = formContainer.querySelector('#portal-form');
+  const cancelButton = formContainer.querySelector('.cancel-button');
+  
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const formData = {
+      url: form.url.value,
+      image: form.image.value,
+      avatar_url: form.avatar_url.value
+    };
+    onSubmit(formData);
+    formContainer.remove();
+  });
+  
+  cancelButton.addEventListener('click', () => {
+    formContainer.remove();
+  });
 }
 
 function loadPortalFrame(portalGroup, loadingManager) {
@@ -1343,6 +1477,48 @@ function addPortalImage(portalGroup, imageUrl, loadingManager) {
       
       portalGroup.add(frontMesh);
       portalGroup.add(backMesh);
+
+      // If this is a form portal, create a form texture
+      if (isFormPortal) {
+        // Create the input elements
+        const formInputs = createPortalFormInputs(portalGroup);
+
+        // ... rest of the existing form portal code ...
+
+        // Add a function to update input positions
+        portalGroup.userData.updateFormInputs = function() {
+          if (!formInputs) return;
+
+          // Get the portal's position in screen space
+          const tempV = new THREE.Vector3();
+          frontMesh.getWorldPosition(tempV);
+          tempV.project(window.camera);
+
+          // Convert to screen coordinates
+          const x = (tempV.x + 1) * window.innerWidth / 2;
+          const y = (-tempV.y + 1) * window.innerHeight / 2;
+
+          // Only show inputs if portal is facing camera
+          const facing = frontMesh.quaternion.dot(window.camera.quaternion) > 0;
+          formInputs.style.display = facing ? 'block' : 'none';
+
+          // Position inputs
+          if (facing) {
+            const inputs = formInputs.getElementsByClassName('portal-input');
+            const inputPositions = [140, 240, 340]; // Y positions from the canvas
+            Array.from(inputs).forEach((input, i) => {
+              input.style.left = `${x - 196}px`; // Half of input width
+              input.style.top = `${y + inputPositions[i] - 250}px`; // Adjusted for portal height
+            });
+          }
+        };
+
+        // Add to animation loop
+        if (typeof window !== 'undefined') {
+          if (!window.formPortals) window.formPortals = [];
+          window.formPortals.push(portalGroup);
+        }
+      }
     },
     function(xhr) {
       console.log(imageUrl + ': ' + (xhr.loaded / xhr.total * 100) + '% loaded');
@@ -1424,4 +1600,14 @@ function createOfficeComputer(environment, loadingManager) {
       console.error('Error loading office computer model:', error);
     }
   );
+}
+
+// Add this to your animation loop (in main.js)
+// Update form input positions
+if (window.formPortals) {
+  window.formPortals.forEach(portal => {
+    if (portal.userData.updateFormInputs) {
+      portal.userData.updateFormInputs();
+    }
+  });
 } 
