@@ -1,3 +1,5 @@
+import { trackEvent } from '../utils/posthog.js';
+
 export function setupUI(gameState) {
   // Get UI elements
   const vrButton = document.getElementById('vr-button');
@@ -180,53 +182,28 @@ export function createEmojiBar() {
   
   // Create emoji buttons
   const emojis = ['👋', '👍', '❤️', '😂', '🎉'];
+  
   emojis.forEach(emoji => {
     const button = document.createElement('button');
     button.textContent = emoji;
-    button.style.fontSize = '28px';
-    button.style.backgroundColor = 'transparent';
+    button.style.background = 'none';
     button.style.border = 'none';
-    button.style.outline = 'none';
+    button.style.fontSize = '24px';
     button.style.cursor = 'pointer';
-    button.style.color = 'white';
     button.style.padding = '5px';
-    button.style.width = '40px';
-    button.style.height = '40px';
-    button.style.display = 'flex';
-    button.style.alignItems = 'center';
-    button.style.justifyContent = 'center';
+    button.style.transition = 'transform 0.2s ease';
     
-    // Add click handler
     button.addEventListener('click', () => {
-      console.log('Emoji clicked:', emoji);
+      // Track emoji reaction
+      trackEvent('emoji_reaction', {
+        emoji: emoji
+      });
       
-      if (window.showEmojiReaction) {
-        window.showEmojiReaction(emoji);
-      } else {
-        // Create floating emoji element
-        const element = document.createElement('div');
-        element.textContent = emoji;
-        element.style.position = 'fixed';
-        element.style.fontSize = '60px';
-        element.style.left = '50%';
-        element.style.bottom = '40%';
-        element.style.transform = 'translateX(-50%)';
-        element.style.zIndex = '10000';
-        element.style.pointerEvents = 'none';
-        
-        // Add animation
-        element.style.animation = 'float-up 2s ease-out forwards';
-        
-        // Add to document
-        document.body.appendChild(element);
-        
-        // Remove after animation completes
-        setTimeout(() => {
-          if (document.body.contains(element)) {
-            document.body.removeChild(element);
-          }
-        }, 2000);
-      }
+      // Trigger emoji reaction
+      const event = new CustomEvent('emoji-reaction', {
+        detail: { emoji }
+      });
+      document.dispatchEvent(event);
     });
     
     emojiContainer.appendChild(button);

@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { VRButton } from 'three/examples/jsm/webxr/VRButton.js';
 import { XRControllerModelFactory } from 'three/examples/jsm/webxr/XRControllerModelFactory.js';
 import { io } from 'socket.io-client';
+import { initPostHog, trackPageView } from './utils/posthog.js';
 
 import { createEnvironment, updatePortalMaterials } from './components/environment.js';
 import { createAvatar, createSimpleAvatar, createDirectAvatar, createCleanAvatar, createPureAvatar, updateAvatarAnimations } from './components/avatar.js';
@@ -13,6 +14,12 @@ import { PokeMechanic } from './components/pokeMechanic.js';
 import { EmojiEffects } from './components/emojiEffects.js';
 import { setupMobileControls, isMobileDevice, optimizeForMobile, setupDeviceOrientation, createMobileUI } from './components/mobileControls.js';
 import { BBQModel } from './components/bbqModel.js';
+
+// Initialize PostHog
+initPostHog();
+
+// Track initial page view
+trackPageView();
 
 // Detect if we're on a mobile device
 const isMobile = isMobileDevice();
