@@ -77,6 +77,20 @@ let mouse = new THREE.Vector2();
 let camera = null;
 let billboards = [];
 
+// Add this function after the imports
+function createBlankTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 512;
+  const context = canvas.getContext('2d');
+  
+  // Fill with transparent black
+  context.fillStyle = 'rgba(0, 0, 0, 0)';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  
+  return new THREE.CanvasTexture(canvas);
+}
+
 // Function to get username from URL parameters
 function getUsernameFromUrl() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -86,44 +100,79 @@ function getUsernameFromUrl() {
 // Portal configurations
 const portalConfigs = [
   {
-    position: { x: -20, z: 25, y: 0 },  // Leftmost portal
+    position: { x: -10, z: 25, y: 0 },  // Leftmost portal (levels)
     rotation: 0,
     imageUrl: 'assets/images/levels.jpeg',
     targetUrl: `https://fly.pieter.com/?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app`,
     scale: 1.0
   },
   {
-    position: { x: -10, z: 25, y: 0 },  // Second from left
+    position: { x: 0, z: 25, y: 0 },  // Second from left (kyzo)
     rotation: 0,
     imageUrl: 'assets/images/kyzo.jpeg',
     targetUrl: `https://game-one-two.vercel.app/?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app`,
     scale: 1.0
   },
   {
-    position: { x: 0, z: 25, y: 0 },  // Center portal
+    position: { x: 10, z: 25, y: 0 },  // Center portal (darefail)
     rotation: 0,
     imageUrl: 'assets/images/darefail.png',
     targetUrl: `https://ai.darefail.com/flappy/arms/?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app`,
     scale: 1.0
   },
   {
-    position: { x: 10, z: 25, y: 0 },  // Second from right
+    position: { x: 20, z: 25, y: 0 },  // Second from right (yacht)
     rotation: 0,
     imageUrl: 'assets/images/yacht.png',
     targetUrl: `https://yachtvibes.app/?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app`,
     scale: 1.0
   },
   {
-    position: { x: 20, z: 25, y: 0 },  // Rightmost portal
+    position: { x: 30, z: 25, y: 0 },  // Rightmost portal (panda)
     rotation: 0,
-    imageUrl: 'assets/images/panda.png',  // Using panda image for Red Panda Vibes
+    imageUrl: 'assets/images/panda.png',
     targetUrl: 'https://collidingscopes.github.io/red-panda-vibes/?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app',
+    scale: 1.0
+  },
+  {
+    position: { x: 40, z: 25, y: 0 },  // First blank portal
+    rotation: 0,
+    imageUrl: 'assets/images/portal.jpg',
+    targetUrl: '#',
+    scale: 1.0
+  },
+  {
+    position: { x: 50, z: 25, y: 0 },  // Second blank portal
+    rotation: 0,
+    imageUrl: 'assets/images/portal.jpg',
+    targetUrl: '#',
+    scale: 1.0
+  },
+  {
+    position: { x: 60, z: 25, y: 0 },  // Third blank portal
+    rotation: 0,
+    imageUrl: 'assets/images/portal.jpg',
+    targetUrl: '#',
+    scale: 1.0
+  },
+  {
+    position: { x: 70, z: 25, y: 0 },  // Fourth blank portal
+    rotation: 0,
+    imageUrl: 'assets/images/portal.jpg',
+    targetUrl: '#',
+    scale: 1.0
+  },
+  {
+    position: { x: 80, z: 25, y: 0 },  // Fifth blank portal
+    rotation: 0,
+    imageUrl: 'assets/images/portal.jpg',
+    targetUrl: '#',
     scale: 1.0
   },
   {
     position: { x: 0, z: -25, y: 0 },  // Portal behind the user
     rotation: Math.PI,  // Rotate 180 degrees to face the user
-    imageUrl: 'assets/images/portal.jpg',  // Using levels image as placeholder
+    imageUrl: 'assets/images/portal.jpg',
     targetUrl: `https://portal.pieter.com?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app`,
     scale: 1.0
   }
@@ -1194,6 +1243,51 @@ function loadPortalFrame(portalGroup, loadingManager) {
 
 function addPortalImage(portalGroup, imageUrl, loadingManager) {
   console.log('Attempting to load portal image:', imageUrl);
+  
+  // If this is a blank portal (targetUrl is '#'), use blank texture
+  if (imageUrl === 'assets/images/portal.jpg' && portalGroup.children[0].userData.portalURL === '#') {
+    const blankTexture = createBlankTexture();
+    const imageGeometry = new THREE.PlaneGeometry(4, 6.5);
+    
+    // Create custom shader material with more subtle parameters
+    const imageMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        map: { value: blankTexture },
+        time: { value: 0 },
+        distortionStrength: { value: 0.05 },
+        glowColor: { value: new THREE.Color(0xffffff) },
+        glowIntensity: { value: 0.3 }
+      },
+      vertexShader: portalVertexShader,
+      fragmentShader: portalFragmentShader,
+      transparent: true,
+      side: THREE.DoubleSide,
+      depthWrite: true,
+      depthTest: true,
+      renderOrder: 1
+    });
+    
+    // Add the material to our global array
+    portalMaterials.push(imageMaterial);
+    
+    // Create front plane
+    const frontMesh = new THREE.Mesh(imageGeometry, imageMaterial);
+    frontMesh.position.z = 0.01;
+    frontMesh.position.y = 4;
+    frontMesh.renderOrder = 1;
+    
+    // Create back plane
+    const backMesh = new THREE.Mesh(imageGeometry, imageMaterial);
+    backMesh.position.z = -0.01;
+    backMesh.position.y = 4;
+    backMesh.rotation.y = Math.PI;
+    backMesh.renderOrder = 1;
+    
+    portalGroup.add(frontMesh);
+    portalGroup.add(backMesh);
+    return;
+  }
+  
   const textureLoader = new THREE.TextureLoader(loadingManager);
   textureLoader.load(
     imageUrl,
