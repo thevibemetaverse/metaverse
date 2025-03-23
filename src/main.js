@@ -92,10 +92,16 @@ loadingManager.onError = function(url) {
   }, 2000);
 };
 
+// Function to get username from URL parameters
+function getUsernameFromUrl() {
+  const urlParams = new URLSearchParams(window.location.search);
+  return urlParams.get('username') || 'metaverse-explorer';
+}
+
 // Game state
 const gameState = {
   players: {},
-  username: 'Metaverse Explorer',
+  username: getUsernameFromUrl(),
   settings: {
     volume: 50,
     graphics: isMobile ? 'low' : 'medium',

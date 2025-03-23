@@ -988,13 +988,16 @@ export function createPureAvatar(scene, username, loadingManager = avatarLoading
   // Check URL parameters for source=kyzo or source=yachtvibes
   const urlParams = new URLSearchParams(window.location.search);
   const sourceParam = urlParams.get('source');
+  const avatarUrlParam = urlParams.get('avatar_url');
   const isKyzoSource = sourceParam === 'kyzo';
   const isYachtSource = sourceParam === 'yachtvibes';
   
   // Load the appropriate model based on URL parameter
   const gltfLoader = new GLTFLoader(loadingManager);
   let modelPath;
-  if (isKyzoSource) {
+  if (avatarUrlParam) {
+    modelPath = avatarUrlParam;
+  } else if (isKyzoSource) {
     modelPath = '/assets/models/goose.glb';
   } else if (isYachtSource) {
     modelPath = '/assets/models/yacht.glb';
