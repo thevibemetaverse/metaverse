@@ -470,11 +470,11 @@ export class NPCManager {
     // Create a giant Zuckerberg NPC with a more interesting name
     const npcName = `Colossal Entity`;
     
-    // Load the Metaverse Explorer model
+    // Load the statue model
     const gltfLoader = new GLTFLoader(this.loadingManager);
     
     gltfLoader.load(
-      '/assets/models/metaverse-explorer.glb', // Use same model for consistency
+      '/assets/models/statue.glb', // Use statue model instead of metaverse-explorer
       (gltf) => {
         const model = gltf.scene;
         const animations = gltf.animations;
@@ -559,7 +559,7 @@ export class NPCManager {
       },
       undefined,
       (error) => {
-        console.error('Error loading giant Metaverse Explorer model:', error);
+        console.error('Error loading giant statue model:', error);
         // Try alternative model or create a basic avatar
         this.tryAlternativeZuckerberg(x, z, true);
       }
@@ -568,11 +568,11 @@ export class NPCManager {
 
   // Try to load an alternative Metaverse Explorer model
   tryAlternativeZuckerberg(x, z, isGiant = false) {
-    // For giant NPCs, try metaverse-explorer.glb first before falling back to createAvatar
+    // For giant NPCs, try statue.glb first before falling back to createAvatar
     if (isGiant) {
       const gltfLoader = new GLTFLoader(this.loadingManager);
       gltfLoader.load(
-        '/assets/models/metaverse-explorer.glb', // Use metaverse-explorer.glb for giant NPCs
+        '/assets/models/statue.glb', // Use statue.glb for giant NPCs
         (gltf) => {
           const model = gltf.scene;
           const animations = gltf.animations;
@@ -644,7 +644,7 @@ export class NPCManager {
         },
         undefined,
         (error) => {
-          console.error('Error loading alternative giant Metaverse Explorer model:', error);
+          console.error('Error loading alternative giant statue model:', error);
           // Fall back to createAvatar
           this.createFallbackGiant(x, z);
         }
