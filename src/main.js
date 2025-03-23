@@ -1358,33 +1358,53 @@ try {
         if (object.userData && object.userData.isPortal) {
           // Get the portal's bounding box and expand it slightly
           const portalBox = new THREE.Box3().setFromObject(object);
-          portalBox.expandByScalar(1.5); // Expand the box by 50% to trigger earlier
+          portalBox.expandByScalar(1.2); // Reduced from 1.5 to 1.2 for less sensitivity
           
           // Check if the player's bounding box intersects with the portal's bounding box
           if (playerBox.intersectsBox(portalBox) && !playerAvatar.userData.isPortalJumping) {
-            console.log('Portal collision detected!');
+            // Only trigger if the player is actually moving towards the portal
+            const playerVelocity = new THREE.Vector3();
+            if (controls) {
+              playerVelocity.set(
+                controls.moveForward || controls.moveBackward ? (controls.moveForward ? 1 : -1) : 0,
+                0,
+                controls.moveLeft || controls.moveRight ? (controls.moveLeft ? 1 : -1) : 0
+              );
+            }
             
-            // Set flag to prevent multiple triggers
-            playerAvatar.userData.isPortalJumping = true;
+            // Calculate direction to portal
+            const portalPosition = new THREE.Vector3();
+            object.getWorldPosition(portalPosition);
+            const directionToPortal = portalPosition.sub(playerAvatar.position).normalize();
             
-            // Trigger jump animation if available
-            if (playerAvatar.jump && !playerAvatar.userData.isJumping) {
-              playerAvatar.jump();
+            // Only trigger if moving towards the portal
+            if (playerVelocity.dot(directionToPortal) > 0.5) {
+              console.log('Portal collision detected with intentional movement!');
               
-              // Wait for the jump animation to complete before opening the URL
+              // Set flag to prevent multiple triggers
+              playerAvatar.userData.isPortalJumping = true;
+              
+              // Add a cooldown period before allowing another portal trigger
               setTimeout(() => {
-                // Reset the portal jumping flag
                 playerAvatar.userData.isPortalJumping = false;
-                // Open the URL after animation completes
+              }, 2000); // 2 second cooldown
+              
+              // Trigger jump animation if available
+              if (playerAvatar.jump && !playerAvatar.userData.isJumping) {
+                playerAvatar.jump();
+                
+                // Wait for the jump animation to complete before opening the URL
+                setTimeout(() => {
+                  // Open the URL after animation completes
+                  if (object.userData.portalURL) {
+                    window.open(object.userData.portalURL(), '_blank');
+                  }
+                }, 750); // Reduced to 750ms for a snappier feel
+              } else {
+                // If no jump animation available, open URL immediately
                 if (object.userData.portalURL) {
                   window.open(object.userData.portalURL(), '_blank');
                 }
-              }, 750); // Reduced to 1.5 seconds for a snappier feel
-            } else {
-              // If no jump animation available, open URL immediately
-              playerAvatar.userData.isPortalJumping = false;
-              if (object.userData.portalURL) {
-                window.open(object.userData.portalURL(), '_blank');
               }
             }
           }
@@ -1874,48 +1894,6 @@ renderer.setAnimationLoop(function() {
       object.lookAt(camera.position);
     }
   });
-
-  // Check for portal collisions
-  if (playerAvatar) {
-    // Update the player's bounding box each frame
-    const playerBox = new THREE.Box3().setFromObject(playerAvatar);
-    
-    // Traverse the scene to find portal triggers and clickable objects
-    scene.traverse((object) => {
-      // Check for portal collisions
-      if (object.userData && object.userData.isPortal) {
-        // Get the portal's bounding box and expand it slightly
-        const portalBox = new THREE.Box3().setFromObject(object);
-        portalBox.expandByScalar(1.5); // Expand the box by 50% to trigger earlier
-        
-        // Check if the player's bounding box intersects with the portal's bounding box
-        if (playerBox.intersectsBox(portalBox)) {
-          console.log('Portal collision detected!');
-          
-          // Trigger jump animation if available
-          if (playerAvatar.jump && !playerAvatar.userData.isJumping) {
-            playerAvatar.jump();
-            
-            // Wait for the jump animation to complete before opening the URL
-            setTimeout(() => {
-              // Reset the portal jumping flag
-              playerAvatar.userData.isPortalJumping = false;
-              // Open the URL after animation completes
-              if (object.userData.portalURL) {
-                window.open(object.userData.portalURL(), '_blank');
-              }
-            }, 750); // Reduced to 1.5 seconds for a snappier feel
-          } else {
-            // If no jump animation available, open URL immediately
-            playerAvatar.userData.isPortalJumping = false;
-            if (object.userData.portalURL) {
-              window.open(object.userData.portalURL(), '_blank');
-            }
-          }
-        }
-      }
-    });
-  }
   
   // Render the scene
   renderer.render(scene, camera);
