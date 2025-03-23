@@ -250,8 +250,8 @@ const portalConfigs = [
   {
     position: { x: 70, z: 25, y: 0 },  // Second blank portal
     rotation: 0,
-    imageUrl: '',
-    targetUrl: '#',
+    imageUrl: 'assets/images/snowbrawl-world.jpeg',
+    targetUrl: 'https://snowbrawl.world/',
     scale: 1.0,
     isFormPortal: true  // Added form portal flag
   },
