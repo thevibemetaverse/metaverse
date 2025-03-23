@@ -5,7 +5,7 @@ import { XRControllerModelFactory } from 'three/examples/jsm/webxr/XRControllerM
 import { io } from 'socket.io-client';
 import { initPostHog, trackPageView } from './utils/posthog.js';
 
-import { createEnvironment, updatePortalMaterials, addGlobalPortalClickHandler, updatePortalClickOverlays, showPortalForm } from './components/environment.js';
+import { createEnvironment, updatePortalMaterials, addGlobalPortalClickHandler, updatePortalClickOverlays, showPortalForm, checkPortalEntry } from './components/environment.js';
 import { createAvatar, createSimpleAvatar, createDirectAvatar, createCleanAvatar, createPureAvatar, updateAvatarAnimations } from './components/avatar.js';
 import { setupControls } from './components/controls.js';
 import { setupUI, createEmojiBar, showEmojiReaction } from './components/ui.js';
@@ -1256,6 +1256,11 @@ try {
     
     // Update portal materials
     updatePortalMaterials(deltaTime);
+    
+    // Check if player entered any portals
+    if (playerAvatar) {
+      checkPortalEntry(playerAvatar);
+    }
     
     // Update God Mode camera if enabled
     if (godModeEnabled && godCamera) {

@@ -206,42 +206,42 @@ function getUsernameFromUrl() {
 // Portal configurations
 const portalConfigs = [
   {
-    position: { x: -10, z: 25, y: 0 },  // Leftmost portal (levels)
+    position: { x: 10, z: 25, y: 0 },  // Leftmost portal (levels)
     rotation: 0,
     imageUrl: 'assets/images/levels.jpeg',
     targetUrl: `https://fly.pieter.com/?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app`,
     scale: 1.0
   },
   {
-    position: { x: 0, z: 25, y: 0 },  // Second from left (kyzo)
+    position: { x: 20, z: 25, y: 0 },  // Second from left (kyzo)
     rotation: 0,
     imageUrl: 'assets/images/kyzo.jpeg',
     targetUrl: `https://game-one-two.vercel.app/?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app`,
     scale: 1.0
   },
   {
-    position: { x: 10, z: 25, y: 0 },  // Center portal (darefail)
+    position: { x: 30, z: 25, y: 0 },  // Center portal (darefail)
     rotation: 0,
     imageUrl: 'assets/images/darefail.png',
     targetUrl: `https://ai.darefail.com/flappy/arms/?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app`,
     scale: 1.0
   },
   {
-    position: { x: 20, z: 25, y: 0 },  // Second from right (yacht)
+    position: { x: 40, z: 25, y: 0 },  // Second from right (yacht)
     rotation: 0,
     imageUrl: 'assets/images/yacht.png',
     targetUrl: `https://yachtvibes.app/?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app`,
     scale: 1.0
   },
   {
-    position: { x: 30, z: 25, y: 0 },  // Rightmost portal (panda)
+    position: { x: 50, z: 25, y: 0 },  // Rightmost portal (panda)
     rotation: 0,
     imageUrl: 'assets/images/panda.png',
     targetUrl: 'https://collidingscopes.github.io/red-panda-vibes/?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app',
     scale: 1.0
   },
   {
-    position: { x: 40, z: 25, y: 0 },  // First blank portal
+    position: { x: 60, z: 25, y: 0 },  // First blank portal
     rotation: 0,
     imageUrl: 'assets/images/portal.jpg',
     targetUrl: '#',
@@ -249,7 +249,7 @@ const portalConfigs = [
     isFormPortal: true  // Already identified as form portal
   },
   {
-    position: { x: 50, z: 25, y: 0 },  // Second blank portal
+    position: { x: 70, z: 25, y: 0 },  // Second blank portal
     rotation: 0,
     imageUrl: 'assets/images/portal.jpg',
     targetUrl: '#',
@@ -257,7 +257,7 @@ const portalConfigs = [
     isFormPortal: true  // Added form portal flag
   },
   {
-    position: { x: 60, z: 25, y: 0 },  // Third blank portal
+    position: { x: 80, z: 25, y: 0 },  // Third blank portal
     rotation: 0,
     imageUrl: 'assets/images/portal.jpg',
     targetUrl: '#',
@@ -265,7 +265,7 @@ const portalConfigs = [
     isFormPortal: true  // Added form portal flag
   },
   {
-    position: { x: 70, z: 25, y: 0 },  // Fourth blank portal
+    position: { x: 90, z: 25, y: 0 },  // Fourth blank portal
     rotation: 0,
     imageUrl: 'assets/images/portal.jpg',
     targetUrl: '#',
@@ -273,7 +273,7 @@ const portalConfigs = [
     isFormPortal: true  // Added form portal flag
   },
   {
-    position: { x: 80, z: 25, y: 0 },  // Fifth blank portal
+    position: { x: 100, z: 25, y: 0 },  // Fifth blank portal
     rotation: 0,
     imageUrl: 'assets/images/portal.jpg',
     targetUrl: '#',
@@ -358,6 +358,288 @@ function createPortalFormInputs(portalGroup) {
   return inputContainer;
 }
 
+// Add this function to create the start portal
+function createStartPortal(scene) {
+  // Create portal group to contain all portal elements
+  const startPortalGroup = new THREE.Group();
+  startPortalGroup.position.set(0, 15, 10);
+  startPortalGroup.rotation.x = 0.35;
+  startPortalGroup.rotation.y = 0;
+  startPortalGroup.scale.set(0.2, 0.2, 0.2);
+
+  // Create portal effect
+  const startPortalGeometry = new THREE.TorusGeometry(15, 2, 16, 100);
+  const startPortalMaterial = new THREE.MeshPhongMaterial({
+    color: 0xff0000,
+    emissive: 0xff0000,
+    transparent: true,
+    opacity: 0.8
+  });
+  const startPortal = new THREE.Mesh(startPortalGeometry, startPortalMaterial);
+  startPortalGroup.add(startPortal);
+              
+  // Create portal inner surface
+  const startPortalInnerGeometry = new THREE.CircleGeometry(13, 32);
+  const startPortalInnerMaterial = new THREE.MeshBasicMaterial({
+    color: 0xff0000,
+    transparent: true,
+    opacity: 0.5,
+    side: THREE.DoubleSide
+  });
+  const startPortalInner = new THREE.Mesh(startPortalInnerGeometry, startPortalInnerMaterial);
+  startPortalGroup.add(startPortalInner);
+
+  // Create particle system for portal effect
+  const startPortalParticleCount = 1000;
+  const startPortalParticles = new THREE.BufferGeometry();
+  const startPortalPositions = new Float32Array(startPortalParticleCount * 3);
+  const startPortalColors = new Float32Array(startPortalParticleCount * 3);
+
+  for (let i = 0; i < startPortalParticleCount * 3; i += 3) {
+    // Create particles in a ring around the portal
+    const angle = Math.random() * Math.PI * 2;
+    const radius = 15 + (Math.random() - 0.5) * 4;
+    startPortalPositions[i] = Math.cos(angle) * radius;
+    startPortalPositions[i + 1] = Math.sin(angle) * radius;
+    startPortalPositions[i + 2] = (Math.random() - 0.5) * 4;
+
+    // Red color with slight variation
+    startPortalColors[i] = 0.8 + Math.random() * 0.2;
+    startPortalColors[i + 1] = 0;
+    startPortalColors[i + 2] = 0;
+  }
+
+  startPortalParticles.setAttribute('position', new THREE.BufferAttribute(startPortalPositions, 3));
+  startPortalParticles.setAttribute('color', new THREE.BufferAttribute(startPortalColors, 3));
+
+  const startPortalParticleMaterial = new THREE.PointsMaterial({
+    size: 0.2,
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.6
+  });
+
+  const startPortalParticleSystem = new THREE.Points(startPortalParticles, startPortalParticleMaterial);
+  startPortalGroup.add(startPortalParticleSystem);
+
+  // Add portal group to scene
+  scene.add(startPortalGroup);
+
+  // Animate particles and portal
+  function animateStartPortal() {
+    const positions = startPortalParticles.attributes.position.array;
+    for (let i = 0; i < positions.length; i += 3) {
+      positions[i + 1] += 0.05 * Math.sin(Date.now() * 0.001 + i);
+    }
+    startPortalParticles.attributes.position.needsUpdate = true;
+    // Update portal shader time
+    if (startPortalInnerMaterial.uniforms && startPortalInnerMaterial.uniforms.time) {
+      startPortalInnerMaterial.uniforms.time.value = Date.now() * 0.001;
+    }
+
+    requestAnimationFrame(animateStartPortal);
+  }
+  animateStartPortal();
+  
+  return startPortalGroup;
+}
+
+// Add function to create exit portal
+function createExitPortal(scene) {
+  // Create portal group to contain all portal elements
+  const exitPortalGroup = new THREE.Group();
+  exitPortalGroup.position.set(0, 5, 25);
+  exitPortalGroup.rotation.x = 0.35;
+  exitPortalGroup.rotation.y = Math.PI;
+  exitPortalGroup.scale.set(0.3, 0.3, 0.3);
+
+  // Create portal effect
+  const exitPortalGeometry = new THREE.TorusGeometry(15, 2, 16, 100);
+  const exitPortalMaterial = new THREE.MeshPhongMaterial({
+      color: 0x00ff00,
+      emissive: 0x00ff00,
+      transparent: true,
+      opacity: 0.8
+  });
+  const exitPortal = new THREE.Mesh(exitPortalGeometry, exitPortalMaterial);
+  exitPortalGroup.add(exitPortal);
+
+  // Create portal inner surface
+  const exitPortalInnerGeometry = new THREE.CircleGeometry(13, 32);
+  const exitPortalInnerMaterial = new THREE.MeshBasicMaterial({
+      color: 0x00ff00,
+      transparent: true,
+      opacity: 0.5,
+      side: THREE.DoubleSide
+  });
+  const exitPortalInner = new THREE.Mesh(exitPortalInnerGeometry, exitPortalInnerMaterial);
+  exitPortalGroup.add(exitPortalInner);
+  
+  // Add portal label
+  const loader = new THREE.TextureLoader();
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  canvas.width = 512; // Increased width
+  canvas.height = 64;
+  context.fillStyle = '#00ff00';
+  context.font = 'bold 32px Arial';
+  context.textAlign = 'center';
+  context.fillText('VIBEVERSE PORTAL', canvas.width/2, canvas.height/2);
+  const texture = new THREE.CanvasTexture(canvas);
+  const labelGeometry = new THREE.PlaneGeometry(30, 5); // Increased width
+  const labelMaterial = new THREE.MeshBasicMaterial({
+      map: texture,
+      transparent: true,
+      side: THREE.DoubleSide
+  });
+  const label = new THREE.Mesh(labelGeometry, labelMaterial);
+  label.position.y = 20;
+  exitPortalGroup.add(label);
+
+  // Create particle system for portal effect
+  const exitPortalParticleCount = 1000;
+  const exitPortalParticles = new THREE.BufferGeometry();
+  const exitPortalPositions = new Float32Array(exitPortalParticleCount * 3);
+  const exitPortalColors = new Float32Array(exitPortalParticleCount * 3);
+
+  for (let i = 0; i < exitPortalParticleCount * 3; i += 3) {
+      // Create particles in a ring around the portal
+      const angle = Math.random() * Math.PI * 2;
+      const radius = 15 + (Math.random() - 0.5) * 4;
+      exitPortalPositions[i] = Math.cos(angle) * radius;
+      exitPortalPositions[i + 1] = Math.sin(angle) * radius;
+      exitPortalPositions[i + 2] = (Math.random() - 0.5) * 4;
+
+      // Green color with slight variation
+      exitPortalColors[i] = 0;
+      exitPortalColors[i + 1] = 0.8 + Math.random() * 0.2;
+      exitPortalColors[i + 2] = 0;
+  }
+
+  exitPortalParticles.setAttribute('position', new THREE.BufferAttribute(exitPortalPositions, 3));
+  exitPortalParticles.setAttribute('color', new THREE.BufferAttribute(exitPortalColors, 3));
+
+  const exitPortalParticleMaterial = new THREE.PointsMaterial({
+      size: 0.2,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.6
+  });
+
+  const exitPortalParticleSystem = new THREE.Points(exitPortalParticles, exitPortalParticleMaterial);
+  exitPortalGroup.add(exitPortalParticleSystem);
+
+  // Create collision detection trigger
+  const portalTriggerGeometry = new THREE.BoxGeometry(10, 10, 10);
+  const portalTriggerMaterial = new THREE.MeshBasicMaterial({
+    transparent: true,
+    opacity: 0,
+    visible: false
+  });
+  const portalTrigger = new THREE.Mesh(portalTriggerGeometry, portalTriggerMaterial);
+  portalTrigger.userData.isPortalTrigger = true;
+  portalTrigger.userData.portalURL = 'https://portal.pieter.com';
+  portalTrigger.position.z = -5; // Position trigger in front of portal
+  exitPortalGroup.add(portalTrigger);
+
+  // Add portal group to scene
+  scene.add(exitPortalGroup);
+
+  // Store the collision box in the group's userData
+  const exitPortalBox = new THREE.Box3().setFromObject(exitPortalGroup);
+  exitPortalGroup.userData.portalBox = exitPortalBox;
+  window.exitPortalGroup = exitPortalGroup; // Store for collision detection
+
+  // Animate particles and portal
+  function animateExitPortal() {
+      const positions = exitPortalParticles.attributes.position.array;
+      for (let i = 0; i < positions.length; i += 3) {
+          positions[i + 1] += 0.05 * Math.sin(Date.now() * 0.001 + i);
+      }
+      exitPortalParticles.attributes.position.needsUpdate = true;
+      // Update portal shader time
+      if (exitPortalInnerMaterial.uniforms && exitPortalInnerMaterial.uniforms.time) {
+          exitPortalInnerMaterial.uniforms.time.value = Date.now() * 0.001;
+      }
+
+      requestAnimationFrame(animateExitPortal);
+  }
+  animateExitPortal();
+  
+  return exitPortalGroup;
+}
+
+// Add a function to check if player is entering the portal
+export function checkPortalEntry(player) {
+  if (!player || !window.exitPortalGroup) return false;
+  
+  // Create a bounding box for the player
+  const playerBox = new THREE.Box3().setFromObject(player);
+  
+  // Get the portal trigger
+  const portalTrigger = window.exitPortalGroup.children.find(child => 
+    child.userData && child.userData.isPortalTrigger
+  );
+  
+  if (!portalTrigger) return false;
+  
+  // Create a bounding box for the portal trigger
+  const portalBox = new THREE.Box3().setFromObject(portalTrigger);
+  
+  // Check for collision
+  if (playerBox.intersectsBox(portalBox)) {
+    console.log('Player entered the portal!');
+    
+    // Add query parameters to maintain state
+    const urlParams = new URLSearchParams(window.location.search);
+    const username = urlParams.get('username') || 'metaverse-explorer';
+    
+    // Construct URL with query parameters
+    let portalUrl = portalTrigger.userData.portalURL;
+    portalUrl += `?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${username}&ref=https://metaverse-delta.vercel.app`;
+    
+    // Create loading overlay
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 255, 0, 0.2);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      transition: opacity 1s;
+    `;
+    
+    const message = document.createElement('div');
+    message.innerHTML = 'Entering Portal...';
+    message.style.cssText = `
+      color: #00ff00;
+      font-size: 32px;
+      font-weight: bold;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 20px 40px;
+      border-radius: 10px;
+      text-shadow: 0 0 10px #00ff00;
+    `;
+    
+    overlay.appendChild(message);
+    document.body.appendChild(overlay);
+    
+    // Redirect after a short delay to show transition
+    setTimeout(() => {
+      window.location.href = portalUrl;
+    }, 1000);
+    
+    return true;
+  }
+  
+  return false;
+}
+
 export function createEnvironment(scene, mainCamera, loadingManager = new THREE.LoadingManager()) {
   // Store camera reference for dragging
   camera = mainCamera;
@@ -384,6 +666,9 @@ export function createEnvironment(scene, mainCamera, loadingManager = new THREE.
   
   // Reduce the number of trees to make landmarks more visible
   createTrees(environment, 50); // Reduced number of trees
+  
+  // Create exit portal (replaces start portal)
+  createExitPortal(scene);
   
   // Setup event listeners for dragging
   setupDragControls();
