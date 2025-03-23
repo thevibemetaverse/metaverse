@@ -25,12 +25,37 @@ const PortalForm = ({ onSubmit, onCancel }) => {
       onSubmit: (e) => {
         e.preventDefault();
         const form = e.target;
+        
+        // Check if the agreement checkbox is checked
+        if (!form.agreement.checked) {
+          alert('You must agree to add a portal to continue.');
+          return;
+        }
+        
         const formData = {
           url: form.url.value,
           image: form.image.value,
-          avatar_url: form.avatar_url.value
+          agreement: form.agreement.checked
         };
-        onSubmit(formData);
+
+        // Submit to FormSpark
+        fetch(form.action, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify(formData)
+        })
+        .then(response => {
+          console.log('FormSpark submission successful:', response);
+          onSubmit(formData);
+        })
+        .catch(error => {
+          console.error('FormSpark submission error:', error);
+          // Still proceed with portal creation even if FormSpark submission fails
+          onSubmit(formData);
+        });
       }
     },
       React.createElement('div', { className: 'form-group' },
@@ -55,16 +80,20 @@ const PortalForm = ({ onSubmit, onCancel }) => {
           className: 'portal-3d-input'
         })
       ),
-      React.createElement('div', { className: 'form-group' },
-        React.createElement('label', { htmlFor: 'avatar_url' }, 'Avatar URL:'),
-        React.createElement('input', { 
-          type: 'url', 
-          id: 'avatar_url', 
-          name: 'avatar_url', 
-          required: true,
-          placeholder: 'https://example.com/avatar.glb',
-          className: 'portal-3d-input'
-        })
+      React.createElement('div', { className: 'form-group checkbox-group' },
+        React.createElement('label', { 
+          htmlFor: 'agreement',
+          className: 'checkbox-label'
+        },
+          React.createElement('input', { 
+            type: 'checkbox', 
+            id: 'agreement', 
+            name: 'agreement', 
+            required: true,
+            className: 'portal-checkbox'
+          }),
+          " I agree to add this portal to the metaverse"
+        )
       ),
       React.createElement('div', { className: 'form-buttons' },
         React.createElement('button', { 
@@ -1409,7 +1438,7 @@ function createPortalTrigger(targetUrl, isFormPortal = false) {
           successAnimation.className = 'portal-success-animation';
           successAnimation.innerHTML = `
             <div class="success-icon">✓</div>
-            <div class="success-message">Portal Created!</div>
+            <div class="success-message">Portal request was submitted</div>
           `;
           document.body.appendChild(successAnimation);
           
@@ -1459,7 +1488,7 @@ function createPortalTrigger(targetUrl, isFormPortal = false) {
         portal_name: targetUrl.split('/')[2] || 'unknown'
       });
     }
-  });
+  }); // End of click event listener
   
   return portalTrigger;
 }
@@ -1533,12 +1562,118 @@ export function showPortalForm(onSubmit) {
     perspective: 1000px !important;
   `;
   
+  // Create React form with FormSpark integration
+  const PortalFormWithFormSpark = ({ onSubmit, onCancel }) => {
+    return React.createElement('div', { 
+      className: 'portal-form-container',
+      style: {
+        animation: 'portal-form-appear 0.5s ease-out forwards'
+      }
+    },
+      React.createElement('h2', {
+        style: {
+          textShadow: '0 0 10px #4a90e2, 0 0 20px #4a90e2',
+          animation: 'portal-glow 2s infinite alternate'
+        }
+      }, 'Create New Portal'),
+      React.createElement('form', { 
+        id: 'portal-form',
+        action: 'https://submit-form.com/OOKKM5IU8',
+        method: 'POST',
+        onSubmit: (e) => {
+          e.preventDefault();
+          const form = e.target;
+          
+          // Check if the agreement checkbox is checked
+          if (!form.agreement.checked) {
+            alert('You must agree to add a portal to continue.');
+            return;
+          }
+          
+          const formData = {
+            url: form.url.value,
+            image: form.image.value,
+            agreement: form.agreement.checked
+          };
+
+          // Submit to FormSpark
+          fetch(form.action, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify(formData)
+          })
+          .then(response => {
+            console.log('FormSpark submission successful:', response);
+            onSubmit(formData);
+          })
+          .catch(error => {
+            console.error('FormSpark submission error:', error);
+            // Still proceed with portal creation even if FormSpark submission fails
+            onSubmit(formData);
+          });
+        }
+      },
+        React.createElement('div', { className: 'form-group' },
+          React.createElement('label', { htmlFor: 'url' }, 'Portal URL:'),
+          React.createElement('input', { 
+            type: 'url', 
+            id: 'url', 
+            name: 'url', 
+            required: true,
+            placeholder: 'https://example.com',
+            className: 'portal-3d-input'
+          })
+        ),
+        React.createElement('div', { className: 'form-group' },
+          React.createElement('label', { htmlFor: 'image' }, 'Portal Image URL:'),
+          React.createElement('input', { 
+            type: 'url', 
+            id: 'image', 
+            name: 'image', 
+            required: true,
+            placeholder: 'https://example.com/image.jpg',
+            className: 'portal-3d-input'
+          })
+        ),
+        React.createElement('div', { className: 'form-group checkbox-group' },
+          React.createElement('label', { 
+            htmlFor: 'agreement',
+            className: 'checkbox-label'
+          },
+            React.createElement('input', { 
+              type: 'checkbox', 
+              id: 'agreement', 
+              name: 'agreement', 
+              required: true,
+              className: 'portal-checkbox'
+            }),
+            " I agree to add this portal to the metaverse"
+          )
+        ),
+        React.createElement('div', { className: 'form-buttons' },
+          React.createElement('button', { 
+            type: 'submit', 
+            className: 'submit-button'
+          }, 'Create Portal'),
+          React.createElement('button', { 
+            type: 'button', 
+            className: 'cancel-button',
+            onClick: onCancel
+          }, 'Cancel')
+        )
+      )
+    );
+  };
+  
   // Create React root and render the form
   const root = ReactDOM.createRoot(formContainer);
   
   try {
     root.render(
-      React.createElement(PortalForm, {
+      React.createElement(PortalFormWithFormSpark, {
         onSubmit: (formData) => {
           onSubmit(formData);
           formContainer.remove();
@@ -1550,7 +1685,7 @@ export function showPortalForm(onSubmit) {
         }
       })
     );
-    console.log('Portal form rendered successfully');
+    console.log('Portal form with FormSpark rendered successfully');
   } catch (error) {
     console.error('Error rendering portal form:', error);
     
@@ -1558,7 +1693,7 @@ export function showPortalForm(onSubmit) {
     formContainer.innerHTML = `
       <div class="portal-form-container" style="background: #1a1a2e; border: 2px solid #4a90e2; padding: 24px; width: 400px; color: white; border-radius: 8px;">
         <h2 style="color: #4a90e2; text-align: center; font-size: 28px;">Create New Portal</h2>
-        <form id="fallback-portal-form">
+        <form id="fallback-portal-form" action="https://submit-form.com/OOKKM5IU8" method="POST">
           <div style="margin-bottom: 16px;">
             <label style="display: block; margin-bottom: 6px; color: #4a90e2;">Portal URL:</label>
             <input type="url" name="url" required placeholder="https://example.com" style="width: 100%; padding: 12px; background: rgba(0, 0, 0, 0.2); border: 1px solid #4a90e2; color: white; border-radius: 4px;">
@@ -1568,8 +1703,10 @@ export function showPortalForm(onSubmit) {
             <input type="url" name="image" required placeholder="https://example.com/image.jpg" style="width: 100%; padding: 12px; background: rgba(0, 0, 0, 0.2); border: 1px solid #4a90e2; color: white; border-radius: 4px;">
           </div>
           <div style="margin-bottom: 16px;">
-            <label style="display: block; margin-bottom: 6px; color: #4a90e2;">Avatar URL:</label>
-            <input type="url" name="avatar_url" required placeholder="https://example.com/avatar.glb" style="width: 100%; padding: 12px; background: rgba(0, 0, 0, 0.2); border: 1px solid #4a90e2; color: white; border-radius: 4px;">
+            <label style="display: flex; align-items: center; color: #4a90e2; cursor: pointer;">
+              <input type="checkbox" name="agreement" required style="margin-right: 8px;">
+              I agree to add this portal to the metaverse
+            </label>
           </div>
           <div style="display: flex; justify-content: space-between; margin-top: 24px;">
             <button type="submit" style="padding: 10px 20px; background: linear-gradient(135deg, #4a90e2, #00ffff); color: white; border: none; border-radius: 4px; cursor: pointer;">Create Portal</button>
@@ -1585,13 +1722,39 @@ export function showPortalForm(onSubmit) {
     
     fallbackForm.addEventListener('submit', (e) => {
       e.preventDefault();
+      
+      // Check if the agreement checkbox is checked
+      if (!fallbackForm.agreement.checked) {
+        alert('You must agree to add a portal to continue.');
+        return;
+      }
+      
       const formData = {
         url: fallbackForm.url.value,
         image: fallbackForm.image.value,
-        avatar_url: fallbackForm.avatar_url.value
+        agreement: fallbackForm.agreement.checked
       };
-      onSubmit(formData);
-      formContainer.remove();
+      
+      // Submit to FormSpark
+      fetch(fallbackForm.action, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(formData)
+      })
+      .then(response => {
+        console.log('FormSpark submission successful:', response);
+        onSubmit(formData);
+        formContainer.remove();
+      })
+      .catch(error => {
+        console.error('FormSpark submission error:', error);
+        // Still proceed with portal creation even if FormSpark submission fails
+        onSubmit(formData);
+        formContainer.remove();
+      });
     });
     
     cancelButton.addEventListener('click', () => {
@@ -1655,6 +1818,27 @@ export function showPortalForm(onSubmit) {
           transform: translate(-50%, -50%) scale(1.1);
           opacity: 0;
         }
+      }
+      
+      .checkbox-group {
+        margin: 16px 0;
+      }
+      
+      .checkbox-label {
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+      }
+      
+      .portal-checkbox {
+        margin-right: 10px;
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+      }
+      
+      .portal-checkbox:checked {
+        accent-color: #00ffff;
       }
       
       .portal-success-animation {
@@ -2093,7 +2277,7 @@ export function addGlobalPortalClickHandler() {
             successAnimation.className = 'portal-success-animation';
             successAnimation.innerHTML = `
               <div class="success-icon">✓</div>
-              <div class="success-message">Portal Created!</div>
+              <div class="success-message">Portal request was submitted</div>
             `;
             document.body.appendChild(successAnimation);
             
@@ -2120,7 +2304,7 @@ export function addGlobalPortalClickHandler() {
         });
       }
     }
-  };
+  }; // End of handleManualPortalClick function
   
   // Add button overlay to the page for all blank portals
   portalConfigs.forEach((config, index) => {
@@ -2161,34 +2345,6 @@ export function addGlobalPortalClickHandler() {
       });
     }
   });
-  
-  // Add this to document for debugging
-  const debugButton = document.createElement('button');
-  debugButton.textContent = 'Open Blank Portal Form';
-  debugButton.style.cssText = `
-    position: fixed;
-    top: 10px;
-    right: 10px;
-    z-index: 1000;
-    padding: 10px;
-    background: #4a90e2;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-  `;
-  
-  debugButton.addEventListener('click', () => {
-    // Find first blank portal
-    for (let i = 0; i < portalConfigs.length; i++) {
-      if (portalConfigs[i].isFormPortal || portalConfigs[i].targetUrl === '#') {
-        window.handleManualPortalClick(i);
-        break;
-      }
-    }
-  });
-  
-  document.body.appendChild(debugButton);
   
   // Add CSS for portal overlays
   const overlayStyles = document.createElement('style');
