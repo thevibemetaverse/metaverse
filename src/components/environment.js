@@ -88,28 +88,28 @@ const portalConfigs = [
     position: { x: -20, z: 25, y: 0 },  // Leftmost portal
     rotation: 0,
     imageUrl: 'assets/images/levels.jpeg',
-    targetUrl: () => `https://fly.pieter.com/?username=${getUsernameFromUrl()}`,
+    targetUrl: `https://fly.pieter.com/?username=${getUsernameFromUrl()}`,
     scale: 1.0
   },
   {
     position: { x: -10, z: 25, y: 0 },  // Second from left
     rotation: 0,
     imageUrl: 'assets/images/kyzo.jpeg',
-    targetUrl: () => `https://game-one-two.vercel.app/?username=${getUsernameFromUrl()}`,
+    targetUrl: `https://game-one-two.vercel.app/?username=${getUsernameFromUrl()}`,
     scale: 1.0
   },
   {
     position: { x: 0, z: 25, y: 0 },  // Center portal
     rotation: 0,
     imageUrl: 'assets/images/darefail.png',
-    targetUrl: () => `https://ai.darefail.com/flappy/arms/?username=${getUsernameFromUrl()}`,
+    targetUrl: `https://ai.darefail.com/flappy/arms/?username=${getUsernameFromUrl()}`,
     scale: 1.0
   },
   {
     position: { x: 10, z: 25, y: 0 },  // Second from right
     rotation: 0,
     imageUrl: 'assets/images/yacht.png',
-    targetUrl: () => `https://yachtvibes.app/?username=${getUsernameFromUrl()}`,
+    targetUrl: `https://yachtvibes.app/?username=${getUsernameFromUrl()}`,
     scale: 1.0
   },
   {
@@ -123,7 +123,7 @@ const portalConfigs = [
     position: { x: 0, z: -25, y: 0 },  // Portal behind the user
     rotation: Math.PI,  // Rotate 180 degrees to face the user
     imageUrl: 'assets/images/portal.jpg',  // Using levels image as placeholder
-    targetUrl: () => `https://portal.pieter.com?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}`,
+    targetUrl: `https://portal.pieter.com?portal=true&avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&target=_blank`,
     scale: 1.0
   }
 ];
@@ -1126,9 +1126,12 @@ function createPortalWithConfig(environment, config, loadingManager) {
   portalGroup.scale.set(scale, scale, scale);
   environment.add(portalGroup);
   
-  // Add collision trigger
-  const trigger = createPortalTrigger(targetUrl);
-  portalGroup.add(trigger);
+  // Create portal trigger
+  const portalTrigger = createPortalTrigger(targetUrl);
+  portalTrigger.position.set(0, 1.5, 0);
+  portalTrigger.userData.isPortal = true;
+  portalTrigger.userData.portalURL = targetUrl;
+  portalGroup.add(portalTrigger);
   
   // Load portal frame
   loadPortalFrame(portalGroup, loadingManager);
@@ -1150,7 +1153,7 @@ function createPortalTrigger(targetUrl) {
   );
   portalTrigger.position.set(0, 1.5, 0);
   portalTrigger.userData.isPortal = true;
-  portalTrigger.userData.getPortalURL = targetUrl; // Store the function instead of the URL
+  portalTrigger.userData.portalURL = targetUrl;
   
   return portalTrigger;
 }
