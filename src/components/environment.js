@@ -76,34 +76,40 @@ let mouse = new THREE.Vector2();
 let camera = null;
 let billboards = [];
 
+// Function to get username from URL parameters
+function getUsernameFromUrl() {
+  const urlParams = new URLSearchParams(window.location.search);
+  return urlParams.get('username') || 'metaverse-explorer';
+}
+
 // Portal configurations
 const portalConfigs = [
   {
     position: { x: -20, z: 25, y: 0 },  // Leftmost portal
     rotation: 0,
     imageUrl: 'assets/images/levels.jpeg',
-    targetUrl: 'https://fly.pieter.com/',
+    targetUrl: () => `https://fly.pieter.com/?username=${getUsernameFromUrl()}`,
     scale: 1.0
   },
   {
     position: { x: -10, z: 25, y: 0 },  // Second from left
     rotation: 0,
     imageUrl: 'assets/images/kyzo.jpeg',
-    targetUrl: 'https://game-one-two.vercel.app',
+    targetUrl: () => `https://game-one-two.vercel.app/?username=${getUsernameFromUrl()}`,
     scale: 1.0
   },
   {
     position: { x: 0, z: 25, y: 0 },  // Center portal
     rotation: 0,
     imageUrl: 'assets/images/darefail.png',
-    targetUrl: 'https://ai.darefail.com/flappy/arms/',  // Updated target URL for Flappy Arms
+    targetUrl: () => `https://ai.darefail.com/flappy/arms/?username=${getUsernameFromUrl()}`,
     scale: 1.0
   },
   {
     position: { x: 10, z: 25, y: 0 },  // Second from right
     rotation: 0,
     imageUrl: 'assets/images/yacht.png',
-    targetUrl: 'https://yachtvibes.app/',
+    targetUrl: () => `https://yachtvibes.app/?username=${getUsernameFromUrl()}`,
     scale: 1.0
   },
   {
@@ -117,7 +123,7 @@ const portalConfigs = [
     position: { x: 0, z: -25, y: 0 },  // Portal behind the user
     rotation: Math.PI,  // Rotate 180 degrees to face the user
     imageUrl: 'assets/images/portal.jpg',  // Using levels image as placeholder
-    targetUrl: 'portal.pieter.com?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=metaverse-explorer',
+    targetUrl: () => `portal.pieter.com?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}`,
     scale: 1.0
   }
 ];
@@ -1144,7 +1150,7 @@ function createPortalTrigger(targetUrl) {
   );
   portalTrigger.position.set(0, 1.5, 0);
   portalTrigger.userData.isPortal = true;
-  portalTrigger.userData.portalURL = targetUrl;
+  portalTrigger.userData.getPortalURL = targetUrl; // Store the function instead of the URL
   
   return portalTrigger;
 }
