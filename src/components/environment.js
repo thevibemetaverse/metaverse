@@ -115,8 +115,8 @@ const portalConfigs = [
   {
     position: { x: 20, z: 25, y: 0 },  // Rightmost portal
     rotation: 0,
-    imageUrl: null,
-    targetUrl: '#',
+    imageUrl: 'assets/images/panda.png',  // Using panda image for Red Panda Vibes
+    targetUrl: 'https://collidingscopes.github.io/red-panda-vibes/',
     scale: 1.0
   },
   {
