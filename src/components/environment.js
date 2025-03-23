@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader.js';
+import { trackEvent } from '../utils/posthog.js';
 
 // Custom portal shader
 const portalVertexShader = `
@@ -1154,6 +1155,14 @@ function createPortalTrigger(targetUrl) {
   portalTrigger.position.set(0, 1.5, 0);
   portalTrigger.userData.isPortal = true;
   portalTrigger.userData.portalURL = targetUrl;
+  
+  // Add click handler for tracking
+  portalTrigger.addEventListener('click', () => {
+    trackEvent('portal_clicked', {
+      portal_url: targetUrl,
+      portal_name: targetUrl.split('/')[2] // Extract domain name
+    });
+  });
   
   return portalTrigger;
 }
