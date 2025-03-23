@@ -1291,8 +1291,12 @@ function createOfficeComputer(environment, loadingManager) {
         }
       });
       
+      // Make the entire model clickable
+      model.userData.isClickable = true;
+      model.userData.targetUrl = 'https://docs.google.com/forms/d/1vEfJJ7eGr-aFvnzMfoNVGWMHGvqZTRtLRE87Vt79Paw/edit';
+      
       environment.add(model);
-      console.log('Office computer model loaded successfully');
+      console.log('Office computer model loaded successfully with clickable trigger');
     },
     function(xhr) {
       console.log('Office computer: ' + (xhr.loaded / xhr.total * 100) + '% loaded');
