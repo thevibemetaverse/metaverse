@@ -112,6 +112,13 @@ const portalConfigs = [
     imageUrl: null,
     targetUrl: '#',
     scale: 1.0
+  },
+  {
+    position: { x: 0, z: -25, y: 0 },  // Portal behind the user
+    rotation: Math.PI,  // Rotate 180 degrees to face the user
+    imageUrl: 'assets/images/portal.jpg',  // Using levels image as placeholder
+    targetUrl: 'https://portal.pieter.com/',
+    scale: 1.0
   }
 ];
 
