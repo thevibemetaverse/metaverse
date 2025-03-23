@@ -587,6 +587,10 @@ export function checkPortalEntry(player) {
   
   // Check for collision
   if (playerBox.intersectsBox(portalBox)) {
+    // Check if we're already in the process of entering a portal to prevent multiple triggers
+    if (window.isEnteringPortal) return false;
+    window.isEnteringPortal = true;
+    
     console.log('Player entered the portal!');
     
     // Add query parameters to maintain state
@@ -599,6 +603,7 @@ export function checkPortalEntry(player) {
     
     // Create loading overlay
     const overlay = document.createElement('div');
+    overlay.id = 'portal-entry-overlay';
     overlay.style.cssText = `
       position: fixed;
       top: 0;
@@ -610,7 +615,7 @@ export function checkPortalEntry(player) {
       justify-content: center;
       align-items: center;
       z-index: 9999;
-      transition: opacity 1s;
+      transition: opacity 0.5s;
     `;
     
     const message = document.createElement('div');
@@ -628,9 +633,41 @@ export function checkPortalEntry(player) {
     overlay.appendChild(message);
     document.body.appendChild(overlay);
     
+    // Function to clean up the overlay if it gets stuck
+    const cleanupOverlay = () => {
+      const existingOverlay = document.getElementById('portal-entry-overlay');
+      if (existingOverlay) {
+        existingOverlay.style.opacity = '0';
+        setTimeout(() => {
+          if (existingOverlay.parentNode) {
+            existingOverlay.parentNode.removeChild(existingOverlay);
+          }
+          window.isEnteringPortal = false;
+        }, 500);
+      }
+    };
+    
+    // Add event listener for page unload to clean up the overlay
+    window.addEventListener('beforeunload', cleanupOverlay);
+    
+    // Safety timeout - if redirect doesn't happen, remove the overlay after 5 seconds
+    const safetyTimeout = setTimeout(() => {
+      console.log('Portal entry safety timeout triggered');
+      cleanupOverlay();
+    }, 5000);
+    
     // Redirect after a short delay to show transition
     setTimeout(() => {
-      window.location.href = portalUrl;
+      try {
+        window.location.href = portalUrl;
+        
+        // Add another safety timeout after redirect attempt
+        setTimeout(cleanupOverlay, 1000);
+      } catch (error) {
+        console.error('Error during portal redirect:', error);
+        cleanupOverlay();
+        clearTimeout(safetyTimeout);
+      }
     }, 1000);
     
     return true;
