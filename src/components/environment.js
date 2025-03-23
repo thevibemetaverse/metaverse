@@ -88,42 +88,42 @@ const portalConfigs = [
     position: { x: -20, z: 25, y: 0 },  // Leftmost portal
     rotation: 0,
     imageUrl: 'assets/images/levels.jpeg',
-    targetUrl: `https://fly.pieter.com/?username=${getUsernameFromUrl()}`,
+    targetUrl: `https://fly.pieter.com/?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app`,
     scale: 1.0
   },
   {
     position: { x: -10, z: 25, y: 0 },  // Second from left
     rotation: 0,
     imageUrl: 'assets/images/kyzo.jpeg',
-    targetUrl: `https://game-one-two.vercel.app/?username=${getUsernameFromUrl()}`,
+    targetUrl: `https://game-one-two.vercel.app/?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app`,
     scale: 1.0
   },
   {
     position: { x: 0, z: 25, y: 0 },  // Center portal
     rotation: 0,
     imageUrl: 'assets/images/darefail.png',
-    targetUrl: `https://ai.darefail.com/flappy/arms/?username=${getUsernameFromUrl()}`,
+    targetUrl: `https://ai.darefail.com/flappy/arms/?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app`,
     scale: 1.0
   },
   {
     position: { x: 10, z: 25, y: 0 },  // Second from right
     rotation: 0,
     imageUrl: 'assets/images/yacht.png',
-    targetUrl: `https://yachtvibes.app/?username=${getUsernameFromUrl()}`,
+    targetUrl: `https://yachtvibes.app/?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app`,
     scale: 1.0
   },
   {
     position: { x: 20, z: 25, y: 0 },  // Rightmost portal
     rotation: 0,
     imageUrl: 'assets/images/panda.png',  // Using panda image for Red Panda Vibes
-    targetUrl: 'https://collidingscopes.github.io/red-panda-vibes/',
+    targetUrl: 'https://collidingscopes.github.io/red-panda-vibes/?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app',
     scale: 1.0
   },
   {
     position: { x: 0, z: -25, y: 0 },  // Portal behind the user
     rotation: Math.PI,  // Rotate 180 degrees to face the user
     imageUrl: 'assets/images/portal.jpg',  // Using levels image as placeholder
-    targetUrl: `https://portal.pieter.com?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&target=_blank`,
+    targetUrl: `https://portal.pieter.com?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app`,
     scale: 1.0
   }
 ];
