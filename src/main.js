@@ -1376,12 +1376,16 @@ try {
                 // Reset the portal jumping flag
                 playerAvatar.userData.isPortalJumping = false;
                 // Open the URL after animation completes
-                window.open(object.userData.portalURL, '_blank');
-              }, 750); // Reduced to 1.5 seconds for a snappier feel
+                if (object.userData.portalURL) {
+                  window.open(object.userData.portalURL, '_blank', 'noopener,noreferrer');
+                }
+              }, 750); // Reduced to 750ms for a snappier feel
             } else {
               // If no jump animation available, open URL immediately
               playerAvatar.userData.isPortalJumping = false;
-              window.open(object.userData.portalURL, '_blank');
+              if (object.userData.portalURL) {
+                window.open(object.userData.portalURL, '_blank', 'noopener,noreferrer');
+              }
             }
           }
         }
@@ -1830,81 +1834,31 @@ try {
   document.body.appendChild(errorDiv);
 }
 
-// Use the WebXR animation loop instead of requestAnimationFrame
-renderer.setAnimationLoop(function() {
-  // Update controls
-  if (controls) {
-    controls.update();
-  }
-  
-  // Update avatar animations
-  if (playerAvatar && playerAvatar.updateAnimations) {
-    updateAvatarAnimations(playerAvatar, controls ? controls.moveState : null);
-  }
-  
-  // Update NPCs
-  if (npcManager) {
-    npcManager.update();
-  }
-  
-  // Update poke mechanic
-  if (pokeMechanic) {
-    pokeMechanic.update();
-  }
-  
-  // Update emoji effects
-  if (emojiEffects) {
-    emojiEffects.update();
-  } else {
-    console.warn('EmojiEffects not available in animation loop');
-  }
-  
-  // Update BBQ model
-  if (bbqModel) {
-    bbqModel.update();
-  }
-  
-  // Update billboards to face the camera
-  scene.traverse((object) => {
-    if (object.userData && object.userData.isBillboard) {
-      object.lookAt(camera.position);
-    }
-  });
-
-  // Check for portal collisions
-  if (playerAvatar) {
-    // Update the player's bounding box each frame
-    const playerBox = new THREE.Box3().setFromObject(playerAvatar);
+// WebXR animation loop
+function animateXR() {
+  if (session) {
+    requestAnimationFrame(animateXR);
     
-    // Traverse the scene to find portal triggers and clickable objects
-    scene.traverse((object) => {
-      // Check for portal collisions
-      if (object.userData && object.userData.isPortal) {
-        // Get the portal's bounding box and expand it slightly
-        const portalBox = new THREE.Box3().setFromObject(object);
-        portalBox.expandByScalar(1.5); // Expand the box by 50% to trigger earlier
-        
-        // Check if the player's bounding box intersects with the portal's bounding box
-        if (playerBox.intersectsBox(portalBox)) {
-          console.log('Portal collision detected!');
-          
-          // Trigger jump animation if available
-          if (playerAvatar.jump && !playerAvatar.userData.isJumping) {
-            playerAvatar.jump();
-            
-            // Wait for the jump animation to complete before opening the URL
-            setTimeout(() => {
-              window.open(object.userData.portalURL, '_blank');
-            }, 2000); // Increased to 2 seconds to ensure animation plays
-          } else {
-            // If no jump animation available, open URL immediately
-            window.open(object.userData.portalURL, '_blank');
-          }
+    // Update controller positions
+    if (controllers) {
+      controllers.forEach((controller, index) => {
+        if (controller) {
+          controller.update();
         }
+      });
+    }
+    
+    // Update avatar animations
+    updateAvatarAnimations();
+    
+    // Update billboards to face camera
+    scene.traverse((object) => {
+      if (object.userData && object.userData.isBillboard) {
+        object.lookAt(camera.position);
       }
     });
+    
+    // Render scene
+    renderer.render(scene, camera);
   }
-  
-  // Render the scene
-  renderer.render(scene, camera);
-});
+}
