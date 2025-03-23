@@ -83,9 +83,9 @@ The project uses 3D models for landmarks and avatars in the metaverse.
 
 ### Avatar Model
 
-All players appear as identical Mark Zuckerberg avatars for satirical effect:
+All players appear as identical Metaverse Explorer avatars for satirical effect:
 
-1. Place your Zuckerberg model in `public/assets/models/zuckerberg.gltf` or `zuckerberg.glb`
+1. Place your Metaverse Explorer model in `public/assets/models/metaverse-explorer.gltf` or `metaverse-explorer.glb`
 2. The model should be low-poly and in a T-pose for best results
 3. See `public/assets/models/README-zuckerberg.md` for detailed specifications
 

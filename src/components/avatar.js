@@ -75,8 +75,8 @@ export function createAvatar(scene, username, loadingManager = avatarLoadingMana
   // Load the Zuckerberg GLTF model
   const gltfLoader = new GLTFLoader(loadingManager);
   // In Vite, assets in the public folder are served at the root path
-  const modelPath = '/assets/models/zuckerberg.glb';
-  console.log('Attempting to load Zuckerberg model from:', modelPath);
+  const modelPath = '/assets/models/metaverse-explorer.glb';
+  console.log('Attempting to load Metaverse Explorer model from:', modelPath);
   
   gltfLoader.load(
     modelPath,
@@ -514,7 +514,7 @@ export function createSimpleAvatar(scene, username, loadingManager = avatarLoadi
   
   // Load the original Zuckerberg GLTF model directly
   const gltfLoader = new GLTFLoader(loadingManager);
-  const modelPath = '/assets/models/zuckerberg.glb';
+  const modelPath = '/assets/models/metaverse-explorer.glb';
   console.log('Attempting to load player avatar model from:', modelPath);
   
   try {
@@ -694,7 +694,7 @@ export function createDirectAvatar(scene, username, loadingManager = avatarLoadi
   
   // Load the Zuckerberg model directly - using the exact same approach as giant NPCs
   const gltfLoader = new GLTFLoader(loadingManager);
-  const modelPath = '/assets/models/zuckerberg.glb';
+  const modelPath = '/assets/models/metaverse-explorer.glb';
   
   gltfLoader.load(
     modelPath,
@@ -843,7 +843,7 @@ export function createCleanAvatar(scene, username, loadingManager = avatarLoadin
   
   // Load the Zuckerberg model directly - EXACTLY like the giant NPCs but with normal scale
   const gltfLoader = new GLTFLoader(loadingManager);
-  const modelPath = '/assets/models/zuckerberg.glb';
+  const modelPath = '/assets/models/metaverse-explorer.glb';
   
   // Create a basic avatar immediately as a placeholder
   createBasicAvatar(avatarGroup);
@@ -999,7 +999,7 @@ export function createPureAvatar(scene, username, loadingManager = avatarLoading
   } else if (isYachtSource) {
     modelPath = '/assets/models/yacht.glb';
   } else {
-    modelPath = '/assets/models/zuckerberg.glb';
+    modelPath = '/assets/models/metaverse-explorer.glb';
   }
   const jumpModelPath = '/assets/models/mark_zuckerberg_jump.glb';
   
