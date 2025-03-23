@@ -139,6 +139,9 @@ export function createEnvironment(scene, mainCamera, loadingManager = new THREE.
   // Create portals from configuration
   const portals = generatePortals(environment, portalConfigs, loadingManager);
   
+  // Add office computer
+  createOfficeComputer(environment, loadingManager);
+  
   // Reduce the number of trees to make landmarks more visible
   createTrees(environment, 50); // Reduced number of trees
   
@@ -1266,4 +1269,40 @@ export function updatePortalMaterials(deltaTime) {
   portalMaterials.forEach(material => {
     material.uniforms.time.value += deltaTime * 0.5; // Slower animation speed
   });
+}
+
+function createOfficeComputer(environment, loadingManager) {
+  const gltfLoader = new GLTFLoader(loadingManager);
+  gltfLoader.load(
+    '/assets/models/office_computer.glb',
+    function(gltf) {
+      const model = gltf.scene;
+      
+      // Scale and position the model - make it 100x smaller
+      model.scale.set(0.04, 0.04, 0.04); // Reduced from 0.5 to 0.005
+      model.position.set(-25, 0, 15); // Position it near the portals
+      model.rotation.y = Math.PI + Math.PI / 7; // Face towards the player and rotate 30 degrees counterclockwise
+      
+      // Add shadows
+      model.traverse(function(node) {
+        if (node.isMesh) {
+          node.castShadow = true;
+          node.receiveShadow = true;
+        }
+      });
+      
+      // Make the entire model clickable
+      model.userData.isClickable = true;
+      model.userData.targetUrl = 'https://docs.google.com/forms/d/1vEfJJ7eGr-aFvnzMfoNVGWMHGvqZTRtLRE87Vt79Paw/edit';
+      
+      environment.add(model);
+      console.log('Office computer model loaded successfully with clickable trigger');
+    },
+    function(xhr) {
+      console.log('Office computer: ' + (xhr.loaded / xhr.total * 100) + '% loaded');
+    },
+    function(error) {
+      console.error('Error loading office computer model:', error);
+    }
+  );
 } 

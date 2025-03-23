@@ -654,6 +654,30 @@ try {
   // Setup controls
   const controls = setupControls(camera, playerAvatar, renderer.domElement, gameState, scene);
   
+  // Add click event listener for the computer
+  document.addEventListener('click', function(event) {
+    // Calculate mouse position in normalized device coordinates (-1 to +1)
+    const mouse = new THREE.Vector2();
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    
+    // Create a raycaster
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouse, camera);
+    
+    // Find intersected objects
+    const intersects = raycaster.intersectObjects(scene.children, true);
+    
+    // Check for clickable objects
+    for (const intersect of intersects) {
+      if (intersect.object.userData && intersect.object.userData.isClickable) {
+        console.log('Computer clicked!');
+        window.open(intersect.object.userData.targetUrl, '_blank');
+        break;
+      }
+    }
+  }, false);
+  
   // Setup mobile controls if on a mobile device
   let mobileControls = null;
   if (isMobile) {
@@ -1322,8 +1346,9 @@ try {
       // Update the player's bounding box each frame
       const playerBox = new THREE.Box3().setFromObject(playerAvatar);
       
-      // Traverse the scene to find portal triggers
+      // Traverse the scene to find portal triggers and clickable objects
       scene.traverse((object) => {
+        // Check for portal collisions
         if (object.userData && object.userData.isPortal) {
           // Get the portal's bounding box and expand it slightly
           const portalBox = new THREE.Box3().setFromObject(object);
@@ -1352,6 +1377,27 @@ try {
               playerAvatar.userData.isPortalJumping = false;
               window.open(object.userData.portalURL, '_blank');
             }
+          }
+        }
+        
+        // Check for clickable computer
+        if (object.userData && object.userData.isClickable) {
+          const clickableBox = new THREE.Box3().setFromObject(object);
+          clickableBox.expandByScalar(1.5); // Expand the box by 50% to trigger earlier
+          
+          if (playerBox.intersectsBox(clickableBox) && !playerAvatar.userData.isComputerClicking) {
+            console.log('Computer click detected!');
+            
+            // Set flag to prevent multiple triggers
+            playerAvatar.userData.isComputerClicking = true;
+            
+            // Open the URL immediately
+            window.open(object.userData.targetUrl, '_blank');
+            
+            // Reset the flag after a short delay
+            setTimeout(() => {
+              playerAvatar.userData.isComputerClicking = false;
+            }, 1000);
           }
         }
       });
@@ -1824,8 +1870,9 @@ renderer.setAnimationLoop(function() {
     // Update the player's bounding box each frame
     const playerBox = new THREE.Box3().setFromObject(playerAvatar);
     
-    // Traverse the scene to find portal triggers
+    // Traverse the scene to find portal triggers and clickable objects
     scene.traverse((object) => {
+      // Check for portal collisions
       if (object.userData && object.userData.isPortal) {
         // Get the portal's bounding box and expand it slightly
         const portalBox = new THREE.Box3().setFromObject(object);
