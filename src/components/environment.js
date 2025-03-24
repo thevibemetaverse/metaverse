@@ -337,7 +337,7 @@ const portalConfigs = [
   {
     position: { x: -25, z: -22, y: 0 },  // Third desk portal (left side)
     rotation: Math.PI / 2,  // Face towards the desk
-    imageUrl: 'https://play.roostervibes.farm/assets/images/portal.jpg',
+    imageUrl: 'assets/images/rooster.jpg',
     targetUrl: addAvatarToPortalUrl(`https://play.roostervibes.farm/?username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app&portal=true`),
 
     scale: 1.0,
