@@ -253,12 +253,11 @@ const portalConfigs = [
     imageUrl: 'assets/images/snowbrawl-world.jpeg',
     targetUrl: 'https://snowbrawl.world/',
     scale: 1.0,
-    isFormPortal: true  // Added form portal flag
   },
   {
     position: { x: 80, z: 25, y: 0 },  // Third blank portal
     rotation: 0,
-    imageUrl: 'https://viberates.io/images/preview.png',
+    imageUrl: 'assets/images/viberates.png',
     targetUrl: 'https://viberates.io/',
     scale: 1.0,
   },
