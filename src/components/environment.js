@@ -206,80 +206,146 @@ function getUsernameFromUrl() {
   return urlParams.get('username') || 'metaverse-explorer';
 }
 
+// Function to get avatar URL from current URL parameters
+function getAvatarUrlFromParams() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const avatarUrl = urlParams.get('avatar_url');
+  return avatarUrl ? decodeURIComponent(avatarUrl) : 'https://metaverse-delta.vercel.app';
+}
+
+// Function to add avatar URL to portal URL
+function addAvatarToPortalUrl(portalUrl) {
+  try {
+    const url = new URL(portalUrl);
+    const params = new URLSearchParams(url.search);
+    
+    // Only add avatar_url if it's not already present
+    if (!params.has('avatar_url')) {
+      params.set('avatar_url', getAvatarUrlFromParams());
+    }
+    
+    url.search = params.toString();
+    return url.toString();
+  } catch (e) {
+    console.error('Invalid portal URL:', portalUrl);
+    return portalUrl;
+  }
+}
+
 // Portal configurations
 const portalConfigs = [
   {
     position: { x: -5, z: 15, y: 0 },  // Leftmost portal (levels)
     rotation: 0,
     imageUrl: 'assets/images/levels.jpeg',
-    targetUrl: `https://fly.pieter.com/?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app&portal=true`,
+    targetUrl: addAvatarToPortalUrl(`https://fly.pieter.com/?username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app&portal=true`),
     scale: 1.0
   },
   {
     position: { x: 5, z: 15, y: 0 },  // Second from left (kyzo)
     rotation: 0,
     imageUrl: 'assets/images/kyzo.jpeg',
-    targetUrl: `https://game-one-two.vercel.app/?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app&portal=true`,
+    targetUrl: addAvatarToPortalUrl(`https://game-one-two.vercel.app/?username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app&portal=true`),
     scale: 1.0
   },
   {
     position: { x: 15, z: 15, y: 0 },  // Center portal (darefail)
     rotation: 0,
     imageUrl: 'assets/images/darefail.png',
-    targetUrl: `https://ai.darefail.com/flappy/arms/?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app&portal=true`,
+    targetUrl: addAvatarToPortalUrl(`https://ai.darefail.com/flappy/arms/?username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app&portal=true`),
     scale: 1.0
   },
   {
     position: { x: 25, z: 15, y: 0 },  // Second from right (yacht)
     rotation: 0,
     imageUrl: 'assets/images/yacht.png',
-    targetUrl: `https://yachtvibes.app/?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app&portal=true`,
+    targetUrl: addAvatarToPortalUrl(`https://yachtvibes.app/?username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app&portal=true`),
     scale: 1.0
   },
   {
     position: { x: 35, z: 15, y: 0 },  // Rightmost portal (panda)
     rotation: 0,
     imageUrl: 'assets/images/panda.png',
-    targetUrl: 'https://collidingscopes.github.io/red-panda-vibes/?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app&portal=true',
+    targetUrl: addAvatarToPortalUrl(`https://collidingscopes.github.io/red-panda-vibes/?username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app&portal=true`),
     scale: 1.0
   },
   {
     position: { x: 45, z: 15, y: 0 },  // First blank portal
     rotation: 0,
     imageUrl: 'assets/images/spacerunner.png',
-    targetUrl: 'https://spacerunner01.netlify.app/?portal=true',
+    targetUrl: addAvatarToPortalUrl('https://spacerunner01.netlify.app/?portal=true'),
     scale: 1.0,
   },
   {
     position: { x: 55, z: 15, y: 0 },  // Second blank portal
     rotation: 0,
     imageUrl: 'assets/images/snowbrawl-world.jpeg',
-    targetUrl: 'https://snowbrawl.world/?portal=true',
+    targetUrl: addAvatarToPortalUrl('https://snowbrawl.world/?portal=true'),
     scale: 1.0,
   },
   {
     position: { x: 65, z: 15, y: 0 },  // Third blank portal
     rotation: 0,
     imageUrl: 'assets/images/viberates.png',
-    targetUrl: 'https://viberates.io/?portal=true',
+    targetUrl: addAvatarToPortalUrl('https://viberates.io/?portal=true'),
     scale: 1.0,
   },
   {
     position: { x: 75, z: 15, y: 0 },  // Fourth blank portal
     rotation: 0,
     imageUrl: 'assets/images/ronansruns.png',
-    targetUrl: 'https://marcusedvalson.github.io/ronansrun.github.io/?portal=true',
+    targetUrl: addAvatarToPortalUrl('https://marcusedvalson.github.io/ronansrun.github.io/?portal=true'),
     scale: 1.0,
   },
   {
     position: { x: 85, z: 15, y: 0 },  // Fifth blank portal
     rotation: 0,
     imageUrl: 'assets/images/foodrunner.png',
-    targetUrl: 'https://foodvibers.netlify.app/?portal=true',
+    targetUrl: addAvatarToPortalUrl('https://foodvibers.netlify.app/?portal=true'),
     scale: 1.0,
   },
   {
-    position: { x: -15, z: -25, y: 0 },  // Portal behind the user
+    position: { x: -25, z: -2, y: 0 },  // First desk portal (left side)
+    rotation: Math.PI / 2,  // Face towards the desk
+    imageUrl: 'assets/images/portal.jpg',
+    targetUrl: '#',
+    scale: 1.0,
+    isFormPortal: true
+  },
+  {
+    position: { x: -25, z: -12, y: 0 },  // Second desk portal (left side)
+    rotation: Math.PI / 2,  // Face towards the desk
+    imageUrl: 'assets/images/portal.jpg',
+    targetUrl: '#',
+    scale: 1.0,
+    isFormPortal: true
+  },
+  {
+    position: { x: -25, z: -22, y: 0 },  // Third desk portal (left side)
+    rotation: Math.PI / 2,  // Face towards the desk
+    imageUrl: 'assets/images/portal.jpg',
+    targetUrl: '#',
+    scale: 1.0,
+    isFormPortal: true
+  },
+  {
+    position: { x: -25, z: -32, y: 0 },  // Fourth desk portal (left side)
+    rotation: Math.PI / 2,  // Face towards the desk
+    imageUrl: 'assets/images/portal.jpg',
+    targetUrl: '#',
+    scale: 1.0,
+    isFormPortal: true
+  },
+  {
+    position: { x: -25, z: -42, y: 0 },  // Fifth desk portal (left side)
+    rotation: Math.PI / 2,  // Face towards the desk
+    imageUrl: 'assets/images/portal.jpg',
+    targetUrl: '#',
+    scale: 1.0,
+    isFormPortal: true
+  },
+  {
+    position: { x: 0, z: -25, y: 0 },  // Portal behind the user
     rotation: Math.PI,  // Rotate 180 degrees to face the user
     imageUrl: 'assets/images/portal.jpg',
     targetUrl: `https://portal.pieter.com?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app`,
@@ -1778,7 +1844,7 @@ function createPortalTrigger(targetUrl, isFormPortal = false) {
   );
   
   portalTrigger.userData.isPortal = true;
-  portalTrigger.userData.portalURL = targetUrl;
+  portalTrigger.userData.portalURL = addAvatarToPortalUrl(targetUrl);
   portalTrigger.userData.isFormPortal = isFormPortal;
   
   // Log portal trigger creation for debugging
