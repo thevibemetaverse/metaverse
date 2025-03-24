@@ -345,18 +345,23 @@ const portalConfigs = [
   {
     position: { x: -25, z: -32, y: 0 },  // Fourth desk portal (left side)
     rotation: Math.PI / 2,  // Face towards the desk
-    imageUrl: 'assets/images/portal.jpg',
-    targetUrl: '#',
+    imageUrl: 'assets/images/jet-ski.jpg',
+    targetUrl: 'https://jetski.cemilsevim.com',
     scale: 1.0,
-    isFormPortal: true
   },
   {
     position: { x: -25, z: -42, y: 0 },  // Fifth desk portal (left side)
     rotation: Math.PI / 2,  // Face towards the desk
-    imageUrl: 'assets/images/portal.jpg',
-    targetUrl: '#',
+    imageUrl: 'assets/images/tidefall.jpeg',
+    targetUrl: 'https://tidefall.io',
     scale: 1.0,
-    isFormPortal: true
+  },
+  {
+    position: { x: -25, z: -52, y: 0 },  // Fifth desk portal (left side)
+    rotation: Math.PI / 2,  // Face towards the desk
+    imageUrl: 'assets/images/auto-boss.jpeg',
+    targetUrl: 'https://auto-boss.vercel.app/',
+    scale: 1.0,
   },
   {
     position: { x: 0, z: -25, y: 0 },  // Portal behind the user
