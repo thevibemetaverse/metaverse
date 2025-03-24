@@ -46,6 +46,64 @@ const loadingText = document.createElement('h2');
 loadingText.textContent = 'Loading Metaverse...';
 loadingScreen.appendChild(loadingText);
 
+// Create username input container
+const usernameContainer = document.createElement('div');
+usernameContainer.style.marginTop = '20px';
+usernameContainer.style.marginBottom = '20px';
+usernameContainer.style.width = '80%';
+usernameContainer.style.maxWidth = '400px';
+usernameContainer.style.textAlign = 'center';
+
+// Create label for username input
+const usernameLabel = document.createElement('label');
+usernameLabel.textContent = 'Enter your name:';
+usernameLabel.style.display = 'block';
+usernameLabel.style.marginBottom = '10px';
+usernameContainer.appendChild(usernameLabel);
+
+// Create input field for username
+const usernameInput = document.createElement('input');
+usernameInput.type = 'text';
+usernameInput.placeholder = 'metaverse-explorer';
+usernameInput.style.width = '100%';
+usernameInput.style.padding = '10px';
+usernameInput.style.borderRadius = '5px';
+usernameInput.style.border = 'none';
+usernameInput.style.marginBottom = '10px';
+usernameInput.style.fontSize = '16px';
+usernameInput.addEventListener('keypress', function(event) {
+  if (event.key === 'Enter') {
+    // Update the username immediately
+    if (usernameInput.value.trim()) {
+      gameState.username = usernameInput.value.trim();
+      console.log('Username set to:', gameState.username);
+    }
+  }
+});
+usernameContainer.appendChild(usernameInput);
+
+// Create a continue button
+const continueButton = document.createElement('button');
+continueButton.textContent = 'Continue';
+continueButton.style.padding = '10px 20px';
+continueButton.style.backgroundColor = '#4CAF50';
+continueButton.style.color = 'white';
+continueButton.style.border = 'none';
+continueButton.style.borderRadius = '5px';
+continueButton.style.fontSize = '16px';
+continueButton.style.cursor = 'pointer';
+continueButton.addEventListener('click', function() {
+  // Update the username immediately
+  if (usernameInput.value.trim()) {
+    gameState.username = usernameInput.value.trim();
+    console.log('Username set to:', gameState.username);
+  }
+});
+usernameContainer.appendChild(continueButton);
+
+// Add username input container to loading screen
+loadingScreen.appendChild(usernameContainer);
+
 const progressContainer = document.createElement('div');
 progressContainer.style.width = '80%';
 progressContainer.style.maxWidth = '400px';
@@ -78,6 +136,12 @@ loadingManager.onLoad = function() {
   // Initialize the portal click handler when everything is loaded
   addGlobalPortalClickHandler();
   
+  // Save the username from the input field
+  if (usernameInput && usernameInput.value.trim()) {
+    gameState.username = usernameInput.value.trim();
+    console.log('Username set to:', gameState.username);
+  }
+  
   // Hide loading screen when everything is loaded
   setTimeout(() => {
     loadingScreen.style.opacity = '0';
@@ -93,6 +157,12 @@ loadingManager.onError = function(url) {
   loadingText.textContent = 'Error loading some assets. The experience may be limited.';
   loadingText.style.color = '#ff5555';
   
+  // Save the username from input field
+  if (usernameInput && usernameInput.value.trim()) {
+    gameState.username = usernameInput.value.trim();
+    console.log('Username set to:', gameState.username);
+  }
+  
   // Still hide loading screen after a delay
   setTimeout(() => {
     loadingScreen.style.opacity = '0';
@@ -105,6 +175,12 @@ loadingManager.onError = function(url) {
 
 // Function to get username from URL parameters
 function getUsernameFromUrl() {
+  // Check if the username input field has a value
+  if (usernameInput && usernameInput.value.trim()) {
+    return usernameInput.value.trim();
+  }
+  
+  // Fall back to URL parameter
   const urlParams = new URLSearchParams(window.location.search);
   return urlParams.get('username') || 'metaverse-explorer';
 }
