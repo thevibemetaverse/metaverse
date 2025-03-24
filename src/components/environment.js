@@ -1001,7 +1001,7 @@ function createEiffelTower(environment, loadingManager) {
   // Create a placeholder for the tower while it loads
   const placeholder = new THREE.Group();
   // Position the Eiffel Tower much closer to the starting position
-  placeholder.position.set(20, 0, -20); // Moved much closer to the starting point
+  placeholder.position.set(40, 0, -20); // Moved to the right by 20 units
   environment.add(placeholder);
   
   // Try to load the GLB/GLTF model first
