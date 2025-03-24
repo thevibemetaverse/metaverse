@@ -50,6 +50,21 @@ const PortalForm = ({ onSubmit, onCancel }) => {
         })
         .then(response => {
           console.log('FormSpark submission successful:', response);
+          
+          // Show success message
+          const successMessage = document.createElement('div');
+          successMessage.className = 'portal-success-message';
+          successMessage.innerHTML = `
+            <div class="success-icon">✓</div>
+            <div class="success-text">Portal request submitted successfully!</div>
+          `;
+          document.body.appendChild(successMessage);
+          
+          // Remove success message after 3 seconds
+          setTimeout(() => {
+            successMessage.remove();
+          }, 3000);
+          
           onSubmit(formData);
         })
         .catch(error => {
@@ -2115,6 +2130,32 @@ export function showPortalForm(onSubmit) {
           })
           .then(response => {
             console.log('FormSpark submission successful:', response);
+            
+            // Show success message in the same style as the form
+            const successContainer = document.createElement('div');
+            successContainer.className = 'portal-form-overlay';
+            successContainer.innerHTML = `
+              <div class="portal-form-container" style="text-align: center; padding: 40px;">
+                <h2 style="color: #4a90e2; text-shadow: 0 0 10px #4a90e2, 0 0 20px #4a90e2;">
+                  Portal Request Submitted!
+                </h2>
+                <div style="font-size: 24px; color: #00ffff; margin: 20px 0;">
+                  ✓
+                </div>
+                <p style="color: white; font-size: 18px; margin-bottom: 30px;">
+                  Thank you for your submission. We'll review it shortly.
+                </p>
+                <button class="submit-button" style="width: 200px;" onclick="this.parentElement.parentElement.remove()">
+                  Close
+                </button>
+              </div>
+            `;
+            document.body.appendChild(successContainer);
+            
+            // Close the form and call onSubmit
+            formContainer.remove();
+            root.unmount();
+            isPortalFormOpen = false;
             onSubmit(formData);
           })
           .catch(error => {
@@ -2165,7 +2206,7 @@ export function showPortalForm(onSubmit) {
           React.createElement('button', { 
             type: 'submit', 
             className: 'submit-button'
-          }, 'Create Portal'),
+          }, 'Submit Portal'),
           React.createElement('button', { 
             type: 'button', 
             className: 'cancel-button',
@@ -2258,18 +2299,37 @@ export function showPortalForm(onSubmit) {
       })
       .then(response => {
         console.log('FormSpark submission successful:', response);
-        onSubmit(formData);
+        
+        // Show success message in the same style as the form
+        const successContainer = document.createElement('div');
+        successContainer.className = 'portal-form-overlay';
+        successContainer.innerHTML = `
+          <div class="portal-form-container" style="text-align: center; padding: 40px;">
+            <h2 style="color: #4a90e2; text-shadow: 0 0 10px #4a90e2, 0 0 20px #4a90e2;">
+              Portal Request Submitted!
+            </h2>
+            <div style="font-size: 24px; color: #00ffff; margin: 20px 0;">
+              ✓
+            </div>
+            <p style="color: white; font-size: 18px; margin-bottom: 30px;">
+              Thank you for your submission. We'll review it shortly.
+            </p>
+            <button class="submit-button" style="width: 200px;" onclick="this.parentElement.parentElement.remove()">
+              Close
+            </button>
+          </div>
+        `;
+        document.body.appendChild(successContainer);
+        
+        // Close the form and call onSubmit
         formContainer.remove();
-        // Reset the form open flag
         isPortalFormOpen = false;
+        onSubmit(formData);
       })
       .catch(error => {
         console.error('FormSpark submission error:', error);
         // Still proceed with portal creation even if FormSpark submission fails
         onSubmit(formData);
-        formContainer.remove();
-        // Reset the form open flag
-        isPortalFormOpen = false;
       });
     });
     
@@ -2307,7 +2367,7 @@ export function showPortalForm(onSubmit) {
         100% { box-shadow: 0 0 0px #4a90e2; }
       }
       
-      @keyframes success-appear {
+      @keyframes success-message-appear {
         0% { 
           transform: translate(-50%, -50%) scale(0.5);
           opacity: 0;
@@ -2375,7 +2435,7 @@ export function showPortalForm(onSubmit) {
         color: white;
         z-index: 2000;
         box-shadow: 0 0 50px #00ffff;
-        animation: success-appear 2s forwards;
+        animation: success-message-appear 3s forwards;
       }
       
       .success-icon {
@@ -2385,11 +2445,12 @@ export function showPortalForm(onSubmit) {
         margin-bottom: 10px;
       }
       
-      .success-message {
+      .success-text {
         font-size: 24px;
         font-weight: bold;
         color: white;
         text-shadow: 0 0 10px #00ffff;
+        text-align: center;
       }
       
       .portal-form-overlay {
