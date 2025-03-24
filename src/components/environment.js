@@ -337,10 +337,9 @@ const portalConfigs = [
   {
     position: { x: -25, z: -22, y: 0 },  // Third desk portal (left side)
     rotation: Math.PI / 2,  // Face towards the desk
-    imageUrl: 'assets/images/portal.jpg',
-    targetUrl: '#',
+    imageUrl: 'https://play.roostervibes.farm/',
+    targetUrl: 'https://play.roostervibes.farm/',
     scale: 1.0,
-    isFormPortal: true
   },
   {
     position: { x: -25, z: -32, y: 0 },  // Fourth desk portal (left side)
