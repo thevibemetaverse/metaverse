@@ -264,18 +264,16 @@ const portalConfigs = [
   {
     position: { x: 90, z: 25, y: 0 },  // Fourth blank portal
     rotation: 0,
-    imageUrl: '',
-    targetUrl: '#',
+    imageUrl: 'assets/images/ronansruns.png',
+    targetUrl: 'https://marcusedvalson.github.io/ronansrun.github.io/',
     scale: 1.0,
-    isFormPortal: true  // Added form portal flag
   },
   {
     position: { x: 100, z: 25, y: 0 },  // Fifth blank portal
     rotation: 0,
-    imageUrl: '',
-    targetUrl: '#',
+    imageUrl: 'assets/images/foodrunner.png',
+    targetUrl: 'https://foodvibers.netlify.app/',
     scale: 1.0,
-    isFormPortal: true  // Added form portal flag
   },
   {
     position: { x: 0, z: -25, y: 0 },  // Portal behind the user
