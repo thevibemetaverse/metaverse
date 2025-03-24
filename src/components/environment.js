@@ -212,70 +212,70 @@ const portalConfigs = [
     position: { x: -5, z: 15, y: 0 },  // Leftmost portal (levels)
     rotation: 0,
     imageUrl: 'assets/images/levels.jpeg',
-    targetUrl: `https://fly.pieter.com/?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app`,
+    targetUrl: `https://fly.pieter.com/?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app&portal=true`,
     scale: 1.0
   },
   {
     position: { x: 5, z: 15, y: 0 },  // Second from left (kyzo)
     rotation: 0,
     imageUrl: 'assets/images/kyzo.jpeg',
-    targetUrl: `https://game-one-two.vercel.app/?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app`,
+    targetUrl: `https://game-one-two.vercel.app/?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app&portal=true`,
     scale: 1.0
   },
   {
     position: { x: 15, z: 15, y: 0 },  // Center portal (darefail)
     rotation: 0,
     imageUrl: 'assets/images/darefail.png',
-    targetUrl: `https://ai.darefail.com/flappy/arms/?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app`,
+    targetUrl: `https://ai.darefail.com/flappy/arms/?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app&portal=true`,
     scale: 1.0
   },
   {
     position: { x: 25, z: 15, y: 0 },  // Second from right (yacht)
     rotation: 0,
     imageUrl: 'assets/images/yacht.png',
-    targetUrl: `https://yachtvibes.app/?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app`,
+    targetUrl: `https://yachtvibes.app/?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app&portal=true`,
     scale: 1.0
   },
   {
     position: { x: 35, z: 15, y: 0 },  // Rightmost portal (panda)
     rotation: 0,
     imageUrl: 'assets/images/panda.png',
-    targetUrl: 'https://collidingscopes.github.io/red-panda-vibes/?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app',
+    targetUrl: 'https://collidingscopes.github.io/red-panda-vibes/?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app&portal=true',
     scale: 1.0
   },
   {
     position: { x: 45, z: 15, y: 0 },  // First blank portal
     rotation: 0,
     imageUrl: 'assets/images/spacerunner.png',
-    targetUrl: 'https://spacerunner01.netlify.app/',
+    targetUrl: 'https://spacerunner01.netlify.app/?portal=true',
     scale: 1.0,
   },
   {
     position: { x: 55, z: 15, y: 0 },  // Second blank portal
     rotation: 0,
     imageUrl: 'assets/images/snowbrawl-world.jpeg',
-    targetUrl: 'https://snowbrawl.world/',
+    targetUrl: 'https://snowbrawl.world/?portal=true',
     scale: 1.0,
   },
   {
     position: { x: 65, z: 15, y: 0 },  // Third blank portal
     rotation: 0,
     imageUrl: 'assets/images/viberates.png',
-    targetUrl: 'https://viberates.io/',
+    targetUrl: 'https://viberates.io/?portal=true',
     scale: 1.0,
   },
   {
     position: { x: 75, z: 15, y: 0 },  // Fourth blank portal
     rotation: 0,
     imageUrl: 'assets/images/ronansruns.png',
-    targetUrl: 'https://marcusedvalson.github.io/ronansrun.github.io/',
+    targetUrl: 'https://marcusedvalson.github.io/ronansrun.github.io/?portal=true',
     scale: 1.0,
   },
   {
     position: { x: 85, z: 15, y: 0 },  // Fifth blank portal
     rotation: 0,
     imageUrl: 'assets/images/foodrunner.png',
-    targetUrl: 'https://foodvibers.netlify.app/',
+    targetUrl: 'https://foodvibers.netlify.app/?portal=true',
     scale: 1.0,
   },
   {
