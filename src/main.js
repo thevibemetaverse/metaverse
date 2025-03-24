@@ -26,163 +26,153 @@ trackPageView();
 const isMobile = isMobileDevice();
 console.log(`Device detected as ${isMobile ? 'mobile' : 'desktop'}`);
 
-// Create loading screen
+// Check if entering via portal
+const urlParams = new URLSearchParams(window.location.search);
+const isPortalEntrance = urlParams.get('portal') === 'true';
+
+// Create loading screen (only if not entering via portal)
 const loadingScreen = document.createElement('div');
-loadingScreen.style.position = 'fixed';
-loadingScreen.style.top = '0';
-loadingScreen.style.left = '0';
-loadingScreen.style.width = '100%';
-loadingScreen.style.height = '100%';
-loadingScreen.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-loadingScreen.style.display = 'flex';
-loadingScreen.style.flexDirection = 'column';
-loadingScreen.style.justifyContent = 'center';
-loadingScreen.style.alignItems = 'center';
-loadingScreen.style.zIndex = '1000';
-loadingScreen.style.color = 'white';
-loadingScreen.style.fontFamily = 'Arial, sans-serif';
+if (!isPortalEntrance) {
+  loadingScreen.style.position = 'fixed';
+  loadingScreen.style.top = '0';
+  loadingScreen.style.left = '0';
+  loadingScreen.style.width = '100%';
+  loadingScreen.style.height = '100%';
+  loadingScreen.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+  loadingScreen.style.display = 'flex';
+  loadingScreen.style.flexDirection = 'column';
+  loadingScreen.style.justifyContent = 'center';
+  loadingScreen.style.alignItems = 'center';
+  loadingScreen.style.zIndex = '1000';
+  loadingScreen.style.color = 'white';
+  loadingScreen.style.fontFamily = 'Arial, sans-serif';
 
-const loadingText = document.createElement('h2');
-loadingText.textContent = 'Loading Metaverse...';
-loadingScreen.appendChild(loadingText);
+  const loadingText = document.createElement('h2');
+  loadingText.textContent = 'Loading Metaverse...';
+  loadingScreen.appendChild(loadingText);
 
-// Create username input container
-const usernameContainer = document.createElement('div');
-usernameContainer.style.marginTop = '20px';
-usernameContainer.style.marginBottom = '20px';
-usernameContainer.style.width = '80%';
-usernameContainer.style.maxWidth = '400px';
-usernameContainer.style.textAlign = 'center';
+  const progressContainer = document.createElement('div');
+  progressContainer.style.width = '80%';
+  progressContainer.style.maxWidth = '400px';
+  progressContainer.style.height = '20px';
+  progressContainer.style.backgroundColor = '#333';
+  progressContainer.style.borderRadius = '10px';
+  progressContainer.style.overflow = 'hidden';
+  progressContainer.style.marginTop = '20px';
+  loadingScreen.appendChild(progressContainer);
 
-// Create label for username input
-const usernameLabel = document.createElement('label');
-usernameLabel.textContent = 'Enter your name:';
-usernameLabel.style.display = 'block';
-usernameLabel.style.marginBottom = '10px';
-usernameContainer.appendChild(usernameLabel);
+  const progressBar = document.createElement('div');
+  progressBar.style.width = '0%';
+  progressBar.style.height = '100%';
+  progressBar.style.backgroundColor = '#4CAF50';
+  progressBar.style.transition = 'width 0.3s ease';
+  progressContainer.appendChild(progressBar);
 
-// Create input field for username
-const usernameInput = document.createElement('input');
-usernameInput.type = 'text';
-usernameInput.placeholder = 'metaverse-explorer';
-usernameInput.style.width = '100%';
-usernameInput.style.padding = '10px';
-usernameInput.style.borderRadius = '5px';
-usernameInput.style.border = 'none';
-usernameInput.style.marginBottom = '10px';
-usernameInput.style.fontSize = '16px';
-usernameInput.addEventListener('keypress', function(event) {
-  if (event.key === 'Enter') {
-    // Update the username immediately
-    if (usernameInput.value.trim()) {
-      gameState.username = usernameInput.value.trim();
-      console.log('Username set to:', gameState.username);
-    }
-  }
-});
-usernameContainer.appendChild(usernameInput);
-
-// Create a continue button
-const continueButton = document.createElement('button');
-continueButton.textContent = 'Continue';
-continueButton.style.padding = '10px 20px';
-continueButton.style.backgroundColor = '#4CAF50';
-continueButton.style.color = 'white';
-continueButton.style.border = 'none';
-continueButton.style.borderRadius = '5px';
-continueButton.style.fontSize = '16px';
-continueButton.style.cursor = 'pointer';
-continueButton.addEventListener('click', function() {
-  // Update the username immediately
-  if (usernameInput.value.trim()) {
-    gameState.username = usernameInput.value.trim();
-    console.log('Username set to:', gameState.username);
-  }
-});
-usernameContainer.appendChild(continueButton);
-
-// Add username input container to loading screen
-loadingScreen.appendChild(usernameContainer);
-
-const progressContainer = document.createElement('div');
-progressContainer.style.width = '80%';
-progressContainer.style.maxWidth = '400px';
-progressContainer.style.height = '20px';
-progressContainer.style.backgroundColor = '#333';
-progressContainer.style.borderRadius = '10px';
-progressContainer.style.overflow = 'hidden';
-progressContainer.style.marginTop = '20px';
-loadingScreen.appendChild(progressContainer);
-
-const progressBar = document.createElement('div');
-progressBar.style.width = '0%';
-progressBar.style.height = '100%';
-progressBar.style.backgroundColor = '#4CAF50';
-progressBar.style.transition = 'width 0.3s ease';
-progressContainer.appendChild(progressBar);
-
-document.body.appendChild(loadingScreen);
+  document.body.appendChild(loadingScreen);
+} else {
+  // For portal entrances, create a minimal loading screen that's hidden
+  loadingScreen.style.display = 'none';
+  document.body.appendChild(loadingScreen);
+}
 
 // Setup loading manager
 const loadingManager = new THREE.LoadingManager();
 loadingManager.onProgress = function(url, itemsLoaded, itemsTotal) {
   const progress = (itemsLoaded / itemsTotal) * 100;
-  progressBar.style.width = progress + '%';
-  loadingText.textContent = `Loading Metaverse... ${Math.round(progress)}%`;
+  
+  if (!isPortalEntrance) {
+    const progressBar = loadingScreen.querySelector('div > div');
+    const loadingText = loadingScreen.querySelector('h2');
+    
+    if (progressBar) {
+      progressBar.style.width = progress + '%';
+    }
+    
+    if (loadingText) {
+      loadingText.textContent = `Loading Metaverse... ${Math.round(progress)}%`;
+    }
+  } else {
+    // For portal entrances, still log progress but don't show UI
+    if (progress % 20 === 0 || progress >= 99) { // Log at 0%, 20%, 40%, 60%, 80%, 100%
+      console.log(`Portal entrance loading: ${Math.round(progress)}% complete`);
+    }
+  }
   console.log(`Loading file: ${url} (${itemsLoaded}/${itemsTotal})`);
 };
 
 loadingManager.onLoad = function() {
+  console.log("All assets loaded successfully");
+  
   // Initialize the portal click handler when everything is loaded
   addGlobalPortalClickHandler();
   
-  // Save the username from the input field
-  if (usernameInput && usernameInput.value.trim()) {
-    gameState.username = usernameInput.value.trim();
-    console.log('Username set to:', gameState.username);
+  // Hide loading screen when everything is loaded (if it's visible)
+  if (!isPortalEntrance && loadingScreen && document.body.contains(loadingScreen)) {
+    setTimeout(() => {
+      loadingScreen.style.opacity = '0';
+      loadingScreen.style.transition = 'opacity 1s ease';
+      setTimeout(() => {
+        if (document.body.contains(loadingScreen)) {
+          document.body.removeChild(loadingScreen);
+        }
+      }, 1000);
+    }, 500);
   }
   
-  // Hide loading screen when everything is loaded
-  setTimeout(() => {
-    loadingScreen.style.opacity = '0';
-    loadingScreen.style.transition = 'opacity 1s ease';
-    setTimeout(() => {
-      document.body.removeChild(loadingScreen);
-    }, 1000);
-  }, 500);
+  // For portal entrances, make sure controls and UI are immediately visible
+  if (isPortalEntrance) {
+    const mobileControls = document.getElementById('mobile-controls');
+    const usernameContainer = document.getElementById('username-container');
+    const jumpButton = document.getElementById('jump-button');
+    
+    if (mobileControls) mobileControls.style.display = 'flex';
+    if (usernameContainer) usernameContainer.style.display = 'flex';
+    if (jumpButton) jumpButton.style.display = 'flex';
+  }
 };
 
 loadingManager.onError = function(url) {
   console.error('Error loading:', url);
-  loadingText.textContent = 'Error loading some assets. The experience may be limited.';
-  loadingText.style.color = '#ff5555';
   
-  // Save the username from input field
-  if (usernameInput && usernameInput.value.trim()) {
-    gameState.username = usernameInput.value.trim();
-    console.log('Username set to:', gameState.username);
-  }
-  
-  // Still hide loading screen after a delay
-  setTimeout(() => {
-    loadingScreen.style.opacity = '0';
-    loadingScreen.style.transition = 'opacity 1s ease';
+  if (!isPortalEntrance) {
+    const loadingText = loadingScreen.querySelector('h2');
+    if (loadingText) {
+      loadingText.textContent = 'Error loading some assets. The experience may be limited.';
+      loadingText.style.color = '#ff5555';
+    }
+    
+    // Still hide loading screen after a delay
     setTimeout(() => {
-      document.body.removeChild(loadingScreen);
-    }, 1000);
-  }, 2000);
+      loadingScreen.style.opacity = '0';
+      loadingScreen.style.transition = 'opacity 1s ease';
+      setTimeout(() => {
+        if (document.body.contains(loadingScreen)) {
+          document.body.removeChild(loadingScreen);
+        }
+      }, 2000);
+    }, 2000);
+  }
 };
 
 // Function to get username from URL parameters
 function getUsernameFromUrl() {
-  // Check if the username input field has a value
-  if (usernameInput && usernameInput.value.trim()) {
-    return usernameInput.value.trim();
+  // Get username from URL parameter
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlUsername = urlParams.get('username');
+  
+  // If username is in the URL, use it
+  if (urlUsername) {
+    return urlUsername;
   }
   
-  // Fall back to URL parameter
-  const urlParams = new URLSearchParams(window.location.search);
-  return urlParams.get('username') || 'metaverse-explorer';
+  // Otherwise check for input field
+  const usernameInputEl = document.getElementById('username-input');
+  if (usernameInputEl && usernameInputEl.value.trim()) {
+    return usernameInputEl.value.trim();
+  }
+  
+  // Fall back to default
+  return 'metaverse-explorer';
 }
 
 // Game state
@@ -1966,16 +1956,58 @@ try {
   // Add control help panel close button functionality
   const controlsHelp = document.getElementById('controls-help');
   const closeControlsHelpButton = document.getElementById('close-controls-help');
+  const controlsUsernameInput = document.getElementById('controls-username');
+  
+  // Show controls help on page load if no username is set (or using default) and not entering via portal
+  if (controlsHelp && gameState.username === 'metaverse-explorer' && !isPortalEntrance) {
+    controlsHelp.style.display = 'block';
+  } else if (controlsHelp && isPortalEntrance) {
+    // Ensure controls are hidden when entering via portal
+    controlsHelp.style.display = 'none';
+  }
   
   if (closeControlsHelpButton && controlsHelp) {
+    // Get the initial username from gameState and set it in the input field
+    if (controlsUsernameInput && gameState.username) {
+      controlsUsernameInput.value = gameState.username;
+    }
+    
+    // Handle username input changes
+    if (controlsUsernameInput) {
+      controlsUsernameInput.addEventListener('input', () => {
+        if (controlsUsernameInput.value.trim()) {
+          gameState.username = controlsUsernameInput.value.trim();
+          
+          // Update other username fields if they exist
+          const mobileUsernameInput = document.getElementById('username-input');
+          if (mobileUsernameInput) {
+            mobileUsernameInput.value = gameState.username;
+          }
+        }
+      });
+      
+      // Handle Enter key press
+      controlsUsernameInput.addEventListener('keypress', (event) => {
+        if (event.key === 'Enter') {
+          controlsHelp.style.display = 'none';
+        }
+      });
+    }
+    
     closeControlsHelpButton.addEventListener('click', () => {
       controlsHelp.style.display = 'none';
+      
+      // Save the username when closing the controls
+      if (controlsUsernameInput && controlsUsernameInput.value.trim()) {
+        gameState.username = controlsUsernameInput.value.trim();
+        console.log('Username set to:', gameState.username);
+      }
     });
   }
   
   // Update controls help for mobile
   if (isMobile && controlsHelp) {
-    const controlsContent = controlsHelp.querySelector('div');
+    const controlsContent = controlsHelp.querySelector('div:nth-child(3)');
     if (controlsContent) {
       controlsContent.innerHTML = `
         <p><strong>Left Joystick:</strong> Move</p>
