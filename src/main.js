@@ -1118,38 +1118,27 @@ try {
             if (playerData.isSkateboardMode) {
               // In skateboard mode, explicitly stop all animations
               if (avatar.userData && avatar.userData.animationActions) {
-                Object.values(avatar.userData.animationActions).forEach(action => {
-                  action.stop();
-                });
-                
-                // Play idle animation at slow speed for skating stance
-                if (avatar.userData.animationActions && 
-                    Object.keys(avatar.userData.animationActions).some(name => name.toLowerCase().includes('idle'))) {
-                  const idleAction = Object.entries(avatar.userData.animationActions)
-                    .find(([name]) => name.toLowerCase().includes('idle'))[1];
-                  if (idleAction && !idleAction.isRunning()) {
-                    idleAction.timeScale = 0.1; // Very slow speed
-                    idleAction.play();
-                  }
-                }
-                
-                // Apply skateboard-specific rotations
-                if (playerData.rotation !== undefined) {
-                  // Calculate stance rotations based on direction of travel
-                  const skateboardRotation = playerData.rotation + Math.PI/2;
-                  const playerRotation = skateboardRotation + Math.PI/2;
+                // If we're jumping, don't interfere with the jump animation
+                if (!avatar.userData.isJumping) {
+                  Object.values(avatar.userData.animationActions).forEach(action => {
+                    action.stop();
+                  });
                   
-                  // Apply rotation to match skateboard stance
-                  avatar.rotation.y = playerRotation;
-                  
-                  // Apply tilt if available in the data
-                  if (playerData.tilt !== undefined) {
-                    avatar.rotation.z = playerData.tilt * 1.2; // Apply tilt with enhanced effect
-                    // Add slight forward lean
-                    avatar.rotation.x = -0.15; // Slight forward lean for skating posture
+                  // If we have an idle animation, play it at a very slow speed to create a subtle standing pose
+                  if (avatar.userData.animationActions && 
+                      Object.keys(avatar.userData.animationActions).some(name => name.toLowerCase().includes('idle'))) {
+                    const idleAction = Object.entries(avatar.userData.animationActions)
+                      .find(([name]) => name.toLowerCase().includes('idle'))[1];
+                    if (idleAction && !idleAction.isRunning()) {
+                      idleAction.timeScale = 0.1; // Very slow speed
+                      idleAction.play();
+                    }
                   }
                 }
               }
+              
+              // Track skateboard mode state
+              playerAvatar.userData.isSkateboardMode = true;
             } else if (avatar.userData.isSkateboardMode) {
               // Just switched from skateboard mode to normal mode
               // Reset additional rotations
@@ -1331,6 +1320,30 @@ try {
     // Update portal materials
     updatePortalMaterials(deltaTime);
     
+    // Animate portal particles if present
+    if (window.portalParticles && window.portalParticles.length > 0) {
+      window.portalParticles.forEach(particle => {
+        if (particle.userData.velocity) {
+          // Update position based on velocity
+          particle.position.x += particle.userData.velocity.x * deltaTime;
+          particle.position.y += particle.userData.velocity.y * deltaTime;
+          particle.position.z += particle.userData.velocity.z * deltaTime;
+          
+          // Apply gravity
+          particle.userData.velocity.y -= 9.8 * deltaTime;
+          
+          // Fade out
+          if (particle.material.opacity > 0) {
+            particle.material.opacity -= deltaTime * 0.5;
+          }
+          
+          // Rotate particle for visual effect
+          particle.rotation.x += deltaTime;
+          particle.rotation.z += deltaTime * 0.5;
+        }
+      });
+    }
+    
     // Check if player entered any portals
     if (playerAvatar) {
       checkPortalEntry(playerAvatar);
@@ -1356,18 +1369,21 @@ try {
       if (controls.isSkateboardMode) {
         // In skateboard mode, explicitly stop all animations
         if (playerAvatar.userData && playerAvatar.userData.animationActions) {
-          Object.values(playerAvatar.userData.animationActions).forEach(action => {
-            action.stop();
-          });
-          
-          // If we have an idle animation, play it at a very slow speed to create a subtle standing pose
-          if (playerAvatar.userData.animationActions && 
-              Object.keys(playerAvatar.userData.animationActions).some(name => name.toLowerCase().includes('idle'))) {
-            const idleAction = Object.entries(playerAvatar.userData.animationActions)
-              .find(([name]) => name.toLowerCase().includes('idle'))[1];
-            if (idleAction && !idleAction.isRunning()) {
-              idleAction.timeScale = 0.1; // Very slow speed
-              idleAction.play();
+          // If we're jumping, don't interfere with the jump animation
+          if (!playerAvatar.userData.isJumping) {
+            Object.values(playerAvatar.userData.animationActions).forEach(action => {
+              action.stop();
+            });
+            
+            // If we have an idle animation, play it at a very slow speed to create a subtle standing pose
+            if (playerAvatar.userData.animationActions && 
+                Object.keys(playerAvatar.userData.animationActions).some(name => name.toLowerCase().includes('idle'))) {
+              const idleAction = Object.entries(playerAvatar.userData.animationActions)
+                .find(([name]) => name.toLowerCase().includes('idle'))[1];
+              if (idleAction && !idleAction.isRunning()) {
+                idleAction.timeScale = 0.1; // Very slow speed
+                idleAction.play();
+              }
             }
           }
         }
@@ -1383,12 +1399,13 @@ try {
       }
     }
     
-    // Handle jumping if the player has pressed space and not in skateboard mode
-    if (controls.jump && playerAvatar && playerAvatar.jump && !playerAvatar.userData.isJumping && !controls.isSkateboardMode) {
-      // Play the jump animation
+    // Handle jumping if the player has pressed space
+    if (controls.jump && playerAvatar && playerAvatar.jump) {
+      console.log("Triggering jump animation with metaverse-jump.glb");
+      // Play the jump animation regardless of skateboard mode
       playerAvatar.jump();
       // The physics-based jump is already handled in controls.js
-      controls.jump = false; // Reset the jump flag
+      controls.jump = false; // Reset the jump flag after animation is triggered
     }
     
     // Handle skateboard positioning and rotation

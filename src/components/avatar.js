@@ -1009,7 +1009,7 @@ export function createPureAvatar(scene, username, loadingManager = avatarLoading
   } else {
     modelPath = '/assets/models/metaverse-explorer.glb';
   }
-  const jumpModelPath = '/assets/models/mark_zuckerberg_jump.glb';
+  const jumpModelPath = '/assets/models/metaverse-jump.glb';
   
   // Track loading state
   let mainModelLoaded = false;
@@ -1495,6 +1495,8 @@ export function createPureAvatar(scene, username, loadingManager = avatarLoading
         
         // Add jump method
         avatarGroup.jump = function() {
+          console.log('Jump method called with metaverse-jump.glb animation');
+          
           // Check if we have a pending jump clip that needs to be processed
           if (this.userData.pendingJumpClip && mixers.has(this)) {
             const mixer = mixers.get(this);
@@ -1503,7 +1505,7 @@ export function createPureAvatar(scene, username, loadingManager = avatarLoading
             jumpAnimation.clampWhenFinished = true;
             this.userData.jumpAction = jumpAnimation;
             delete this.userData.pendingJumpClip;
-            console.log('Created jump action from pending clip');
+            console.log('Created jump action from pending metaverse-jump.glb clip');
           }
           
           // Get the jump action from userData if available
@@ -1511,7 +1513,7 @@ export function createPureAvatar(scene, username, loadingManager = avatarLoading
           
           // If we have a valid jump action
           if (jumpAction && typeof jumpAction.reset === 'function') {
-            console.log('Playing jump animation');
+            console.log('Playing jump animation from metaverse-jump.glb');
             
             // Set jumping state
             this.userData.isJumping = true;
@@ -1548,8 +1550,13 @@ export function createPureAvatar(scene, username, loadingManager = avatarLoading
             const avatar = this;
             const previousMovingState = this.userData.isMoving;
             
+            // Calculate animation duration and add a small buffer
+            const animationDuration = jumpAction.getClip().duration * 1000; // Convert to milliseconds
+            console.log(`Jump animation duration: ${animationDuration}ms`);
+            
             // Use setTimeout to match the jump animation duration
             setTimeout(() => {
+              console.log('Jump animation complete, resetting state');
               // Completely stop the jump animation to prevent blending issues
               jumpAction.stop();
               
@@ -1564,18 +1571,33 @@ export function createPureAvatar(scene, username, loadingManager = avatarLoading
                 avatar.userData.runAction.stop();
               }
               
-              // Explicitly call setMoving with a slight delay to ensure clean transition
-              setTimeout(() => {
-                avatar.setMoving(previousMovingState);
-                
-                // If we're going to idle, force the idle pose
-                if (!previousMovingState) {
-                  setTimeout(() => {
-                    avatar.forceIdlePose();
-                  }, 100);
+              // Check if we're in skateboard mode
+              if (avatar.userData.isSkateboardMode) {
+                // For skateboard mode, we may want to go back to the subtle idle pose
+                if (avatar.userData.animationActions) {
+                  const idleActions = Object.entries(avatar.userData.animationActions)
+                    .filter(([name]) => name.toLowerCase().includes('idle'));
+                  
+                  if (idleActions.length > 0) {
+                    const idleAction = idleActions[0][1];
+                    idleAction.timeScale = 0.1; // Very slow speed
+                    idleAction.reset().play();
+                  }
                 }
-              }, 50);
-            }, jumpAction.getClip().duration * 1000); // Convert to milliseconds
+              } else {
+                // Normal mode - Explicitly call setMoving with a slight delay to ensure clean transition
+                setTimeout(() => {
+                  avatar.setMoving(previousMovingState);
+                  
+                  // If we're going to idle, force the idle pose
+                  if (!previousMovingState) {
+                    setTimeout(() => {
+                      avatar.forceIdlePose();
+                    }, 100);
+                  }
+                }, 50);
+              }
+            }, animationDuration);
           } else {
             console.warn('Jump animation not properly loaded yet or invalid', jumpAction);
           }
@@ -1642,9 +1664,9 @@ export function createPureAvatar(scene, username, loadingManager = avatarLoading
         // First try to find by exact name
         for (const clip of gltf.animations) {
           const lowerName = clip.name.toLowerCase();
-          if (lowerName === 'jump') {
+          if (lowerName === 'jump' || lowerName === 'jumping') {
             jumpClip = clip;
-            console.log('Found exact match for jump animation');
+            console.log('Found exact match for jump animation:', clip.name);
             break;
           }
         }
@@ -1661,10 +1683,10 @@ export function createPureAvatar(scene, username, loadingManager = avatarLoading
           }
         }
         
-        // If still not found, use the first animation
+        // If still not found, use the first animation since this is a dedicated jump model file
         if (!jumpClip && gltf.animations.length > 0) {
           jumpClip = gltf.animations[0];
-          console.log(`Using first animation as jump: "${jumpClip.name}"`);
+          console.log(`Using first animation from metaverse-jump.glb as jump: "${jumpClip.name}"`);
         }
         
         // If we found a jump animation
