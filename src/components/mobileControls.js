@@ -6,6 +6,10 @@ import * as THREE from 'three';
  * @returns {Object} - The joystick controller object
  */
 export function setupMobileControls(controls) {
+  // Check if entering via portal
+  const urlParams = new URLSearchParams(window.location.search);
+  const isPortalEntrance = urlParams.get('portal') === 'true';
+
   // Create container for mobile controls
   const mobileControlsContainer = document.createElement('div');
   mobileControlsContainer.id = 'mobile-controls';
@@ -13,7 +17,7 @@ export function setupMobileControls(controls) {
   mobileControlsContainer.style.bottom = '20px';
   mobileControlsContainer.style.left = '0';
   mobileControlsContainer.style.width = '100%';
-  mobileControlsContainer.style.display = 'flex';
+  mobileControlsContainer.style.display = isPortalEntrance ? 'flex' : 'none'; // Hide initially if not from portal
   mobileControlsContainer.style.justifyContent = 'space-between';
   mobileControlsContainer.style.pointerEvents = 'none';
   mobileControlsContainer.style.zIndex = '100';
@@ -32,7 +36,7 @@ export function setupMobileControls(controls) {
   usernameContainer.style.color = 'white';
   usernameContainer.style.fontFamily = 'Arial, sans-serif';
   usernameContainer.style.zIndex = '100';
-  usernameContainer.style.display = 'flex';
+  usernameContainer.style.display = isPortalEntrance ? 'flex' : 'none'; // Hide initially if not from portal
   usernameContainer.style.flexDirection = 'row';
   usernameContainer.style.alignItems = 'center';
   usernameContainer.style.pointerEvents = 'auto';
@@ -67,7 +71,6 @@ export function setupMobileControls(controls) {
     usernameInput.value = window.gameState.username;
   } else {
     // Try to get username from URL
-    const urlParams = new URLSearchParams(window.location.search);
     const urlUsername = urlParams.get('username');
     if (urlUsername) {
       usernameInput.value = urlUsername;
@@ -139,7 +142,7 @@ export function setupMobileControls(controls) {
   jumpButton.style.height = '60px';
   jumpButton.style.borderRadius = '50%';
   jumpButton.style.backgroundColor = 'rgba(255, 255, 255, 0.5)';
-  jumpButton.style.display = 'flex';
+  jumpButton.style.display = isPortalEntrance ? 'flex' : 'none'; // Hide initially if not from portal
   jumpButton.style.justifyContent = 'center';
   jumpButton.style.alignItems = 'center';
   jumpButton.style.pointerEvents = 'auto';
@@ -328,9 +331,22 @@ export function setupMobileControls(controls) {
 
   // Function to show/hide mobile controls
   const toggleMobileControls = (show) => {
-    mobileControlsContainer.style.display = show ? 'flex' : 'none';
-    jumpButton.style.display = show ? 'flex' : 'none';
-    usernameContainer.style.display = show ? 'flex' : 'none';
+    // If entering via portal, show controls immediately
+    const isPortalEntrance = new URLSearchParams(window.location.search).get('portal') === 'true';
+    
+    if (isPortalEntrance) {
+      // Always show controls for portal entrance
+      console.log("Portal entrance detected - showing mobile controls");
+      mobileControlsContainer.style.display = 'flex';
+      jumpButton.style.display = 'flex';
+      usernameContainer.style.display = 'flex';
+    } else {
+      // Normal toggle behavior
+      console.log(`Toggling mobile controls: ${show ? 'showing' : 'hiding'}`);
+      mobileControlsContainer.style.display = show ? 'flex' : 'none';
+      jumpButton.style.display = show ? 'flex' : 'none';
+      usernameContainer.style.display = show ? 'flex' : 'none';
+    }
   };
 
   return {

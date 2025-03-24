@@ -26,98 +26,153 @@ trackPageView();
 const isMobile = isMobileDevice();
 console.log(`Device detected as ${isMobile ? 'mobile' : 'desktop'}`);
 
-// Create loading screen
+// Check if entering via portal
+const urlParams = new URLSearchParams(window.location.search);
+const isPortalEntrance = urlParams.get('portal') === 'true';
+
+// Create loading screen (only if not entering via portal)
 const loadingScreen = document.createElement('div');
-loadingScreen.style.position = 'fixed';
-loadingScreen.style.top = '0';
-loadingScreen.style.left = '0';
-loadingScreen.style.width = '100%';
-loadingScreen.style.height = '100%';
-loadingScreen.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-loadingScreen.style.display = 'flex';
-loadingScreen.style.flexDirection = 'column';
-loadingScreen.style.justifyContent = 'center';
-loadingScreen.style.alignItems = 'center';
-loadingScreen.style.zIndex = '1000';
-loadingScreen.style.color = 'white';
-loadingScreen.style.fontFamily = 'Arial, sans-serif';
+if (!isPortalEntrance) {
+  loadingScreen.style.position = 'fixed';
+  loadingScreen.style.top = '0';
+  loadingScreen.style.left = '0';
+  loadingScreen.style.width = '100%';
+  loadingScreen.style.height = '100%';
+  loadingScreen.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+  loadingScreen.style.display = 'flex';
+  loadingScreen.style.flexDirection = 'column';
+  loadingScreen.style.justifyContent = 'center';
+  loadingScreen.style.alignItems = 'center';
+  loadingScreen.style.zIndex = '1000';
+  loadingScreen.style.color = 'white';
+  loadingScreen.style.fontFamily = 'Arial, sans-serif';
 
-const loadingText = document.createElement('h2');
-loadingText.textContent = 'Loading Metaverse...';
-loadingScreen.appendChild(loadingText);
+  const loadingText = document.createElement('h2');
+  loadingText.textContent = 'Loading Metaverse...';
+  loadingScreen.appendChild(loadingText);
 
-const progressContainer = document.createElement('div');
-progressContainer.style.width = '80%';
-progressContainer.style.maxWidth = '400px';
-progressContainer.style.height = '20px';
-progressContainer.style.backgroundColor = '#333';
-progressContainer.style.borderRadius = '10px';
-progressContainer.style.overflow = 'hidden';
-progressContainer.style.marginTop = '20px';
-loadingScreen.appendChild(progressContainer);
+  const progressContainer = document.createElement('div');
+  progressContainer.style.width = '80%';
+  progressContainer.style.maxWidth = '400px';
+  progressContainer.style.height = '20px';
+  progressContainer.style.backgroundColor = '#333';
+  progressContainer.style.borderRadius = '10px';
+  progressContainer.style.overflow = 'hidden';
+  progressContainer.style.marginTop = '20px';
+  loadingScreen.appendChild(progressContainer);
 
-const progressBar = document.createElement('div');
-progressBar.style.width = '0%';
-progressBar.style.height = '100%';
-progressBar.style.backgroundColor = '#4CAF50';
-progressBar.style.transition = 'width 0.3s ease';
-progressContainer.appendChild(progressBar);
+  const progressBar = document.createElement('div');
+  progressBar.style.width = '0%';
+  progressBar.style.height = '100%';
+  progressBar.style.backgroundColor = '#4CAF50';
+  progressBar.style.transition = 'width 0.3s ease';
+  progressContainer.appendChild(progressBar);
 
-document.body.appendChild(loadingScreen);
+  document.body.appendChild(loadingScreen);
+} else {
+  // For portal entrances, create a minimal loading screen that's hidden
+  loadingScreen.style.display = 'none';
+  document.body.appendChild(loadingScreen);
+}
 
 // Setup loading manager
 const loadingManager = new THREE.LoadingManager();
 loadingManager.onProgress = function(url, itemsLoaded, itemsTotal) {
   const progress = (itemsLoaded / itemsTotal) * 100;
-  progressBar.style.width = progress + '%';
-  loadingText.textContent = `Loading Metaverse... ${Math.round(progress)}%`;
+  
+  if (!isPortalEntrance) {
+    const progressBar = loadingScreen.querySelector('div > div');
+    const loadingText = loadingScreen.querySelector('h2');
+    
+    if (progressBar) {
+      progressBar.style.width = progress + '%';
+    }
+    
+    if (loadingText) {
+      loadingText.textContent = `Loading Metaverse... ${Math.round(progress)}%`;
+    }
+  } else {
+    // For portal entrances, still log progress but don't show UI
+    if (progress % 20 === 0 || progress >= 99) { // Log at 0%, 20%, 40%, 60%, 80%, 100%
+      console.log(`Portal entrance loading: ${Math.round(progress)}% complete`);
+    }
+  }
   console.log(`Loading file: ${url} (${itemsLoaded}/${itemsTotal})`);
 };
 
 loadingManager.onLoad = function() {
+  console.log("All assets loaded successfully");
+  
   // Initialize the portal click handler when everything is loaded
   addGlobalPortalClickHandler();
   
-  // Hide loading screen when everything is loaded
-  setTimeout(() => {
-    loadingScreen.style.opacity = '0';
-    loadingScreen.style.transition = 'opacity 1s ease';
+  // Hide loading screen when everything is loaded (if it's visible)
+  if (!isPortalEntrance && loadingScreen && document.body.contains(loadingScreen)) {
     setTimeout(() => {
-      document.body.removeChild(loadingScreen);
-    }, 1000);
-  }, 500);
+      loadingScreen.style.opacity = '0';
+      loadingScreen.style.transition = 'opacity 1s ease';
+      setTimeout(() => {
+        if (document.body.contains(loadingScreen)) {
+          document.body.removeChild(loadingScreen);
+        }
+      }, 1000);
+    }, 500);
+  }
+  
+  // For portal entrances, make sure controls and UI are immediately visible
+  if (isPortalEntrance) {
+    const mobileControls = document.getElementById('mobile-controls');
+    const usernameContainer = document.getElementById('username-container');
+    const jumpButton = document.getElementById('jump-button');
+    
+    if (mobileControls) mobileControls.style.display = 'flex';
+    if (usernameContainer) usernameContainer.style.display = 'flex';
+    if (jumpButton) jumpButton.style.display = 'flex';
+  }
 };
 
 loadingManager.onError = function(url) {
   console.error('Error loading:', url);
-  loadingText.textContent = 'Error loading some assets. The experience may be limited.';
-  loadingText.style.color = '#ff5555';
   
-  // Still hide loading screen after a delay
-  setTimeout(() => {
-    loadingScreen.style.opacity = '0';
-    loadingScreen.style.transition = 'opacity 1s ease';
+  if (!isPortalEntrance) {
+    const loadingText = loadingScreen.querySelector('h2');
+    if (loadingText) {
+      loadingText.textContent = 'Error loading some assets. The experience may be limited.';
+      loadingText.style.color = '#ff5555';
+    }
+    
+    // Still hide loading screen after a delay
     setTimeout(() => {
-      document.body.removeChild(loadingScreen);
+      loadingScreen.style.opacity = '0';
+      loadingScreen.style.transition = 'opacity 1s ease';
+      setTimeout(() => {
+        if (document.body.contains(loadingScreen)) {
+          document.body.removeChild(loadingScreen);
+        }
+      }, 2000);
     }, 2000);
-  }, 2000);
+  }
 };
 
 // Function to get username from URL parameters
 function getUsernameFromUrl() {
   // Get username from URL parameter
   const urlParams = new URLSearchParams(window.location.search);
+  const urlUsername = urlParams.get('username');
   
-  // Get username input element if it exists
+  // If username is in the URL, use it
+  if (urlUsername) {
+    return urlUsername;
+  }
+  
+  // Otherwise check for input field
   const usernameInputEl = document.getElementById('username-input');
-  
-  // Check if the username input field has a value
   if (usernameInputEl && usernameInputEl.value.trim()) {
     return usernameInputEl.value.trim();
   }
   
-  // Fall back to URL parameter
-  return urlParams.get('username') || 'metaverse-explorer';
+  // Fall back to default
+  return 'metaverse-explorer';
 }
 
 // Game state
@@ -1903,9 +1958,12 @@ try {
   const closeControlsHelpButton = document.getElementById('close-controls-help');
   const controlsUsernameInput = document.getElementById('controls-username');
   
-  // Show controls help on page load if no username is set (or using default)
-  if (controlsHelp && gameState.username === 'metaverse-explorer') {
+  // Show controls help on page load if no username is set (or using default) and not entering via portal
+  if (controlsHelp && gameState.username === 'metaverse-explorer' && !isPortalEntrance) {
     controlsHelp.style.display = 'block';
+  } else if (controlsHelp && isPortalEntrance) {
+    // Ensure controls are hidden when entering via portal
+    controlsHelp.style.display = 'none';
   }
   
   if (closeControlsHelpButton && controlsHelp) {
