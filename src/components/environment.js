@@ -289,52 +289,50 @@ const portalConfigs = [
     position: { x: 45, z: 15, y: 0 },  // First blank portal
     rotation: 0,
     imageUrl: 'assets/images/spacerunner.png',
-    targetUrl: addAvatarToPortalUrl('https://spacerunner01.netlify.app/?portal=true'),
+    targetUrl: addAvatarToPortalUrl(`https://spacerunner01.netlify.app/?username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app&portal=true`),
     scale: 1.0,
   },
   {
     position: { x: 55, z: 15, y: 0 },  // Second blank portal
     rotation: 0,
     imageUrl: 'assets/images/snowbrawl-world.jpeg',
-    targetUrl: addAvatarToPortalUrl('https://snowbrawl.world/?portal=true'),
+    targetUrl: addAvatarToPortalUrl(`https://snowbrawl.world/?username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app&portal=true`),
     scale: 1.0,
   },
   {
     position: { x: 65, z: 15, y: 0 },  // Third blank portal
     rotation: 0,
     imageUrl: 'assets/images/viberates.png',
-    targetUrl: addAvatarToPortalUrl('https://viberates.io/?portal=true'),
+    targetUrl: addAvatarToPortalUrl(`https://viberates.io/?username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app&portal=true`),
     scale: 1.0,
   },
   {
     position: { x: 75, z: 15, y: 0 },  // Fourth blank portal
     rotation: 0,
     imageUrl: 'assets/images/ronansruns.png',
-    targetUrl: addAvatarToPortalUrl('https://marcusedvalson.github.io/ronansrun.github.io/?portal=true'),
+    targetUrl: addAvatarToPortalUrl(`https://marcusedvalson.github.io/ronansrun.github.io/?username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app&portal=true`),
     scale: 1.0,
   },
   {
     position: { x: 85, z: 15, y: 0 },  // Fifth blank portal
     rotation: 0,
     imageUrl: 'assets/images/foodrunner.png',
-    targetUrl: addAvatarToPortalUrl('https://foodvibers.netlify.app/?portal=true'),
+    targetUrl: addAvatarToPortalUrl(`https://foodvibers.netlify.app/?username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app&portal=true`),
     scale: 1.0,
   },
   {
-    position: { x: -25, z: -2, y: 0 },  // First desk portal (left side)
+    position: { x: -25, z: -2, y: 0 },  // Second desk portal (left side)
     rotation: Math.PI / 2,  // Face towards the desk
-    imageUrl: 'assets/images/portal.jpg',
-    targetUrl: '#',
+    imageUrl: 'assets/images/neon.png',
+    targetUrl: addAvatarToPortalUrl(`https://n02448428.github.io/NTB/?username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app&portal=true`),
     scale: 1.0,
-    isFormPortal: true
   },
   {
-    position: { x: -25, z: -12, y: 0 },  // Second desk portal (left side)
+    position: { x: -25, z: -12, y: 0 },  // First desk portal (left side)
     rotation: Math.PI / 2,  // Face towards the desk
-    imageUrl: 'assets/images/portal.jpg',
-    targetUrl: '#',
+    imageUrl: 'assets/images/ocean-fables.png',
+    targetUrl: addAvatarToPortalUrl(`https://oceanfables.com/?username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app&portal=true`),
     scale: 1.0,
-    isFormPortal: true
   },
   {
     position: { x: -25, z: -22, y: 0 },  // Third desk portal (left side)
