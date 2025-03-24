@@ -206,6 +206,11 @@ export function setupControls(camera, player, domElement, gameState, scene) {
           controls.velocity.y = 7.0; // Increased from 5.0 for better visibility on skateboard
           controls.isJumping = true; // Set jumping state
           
+          // Set jump state on player avatar too if available
+          if (player.userData) {
+            player.userData.isJumping = true;
+          }
+          
           // Reset the canJump flag after a short delay to prevent spam jumping
           setTimeout(() => {
             controls.canJump = true;
@@ -462,7 +467,9 @@ export function setupControls(camera, player, domElement, gameState, scene) {
             const isMoving = controls.moveForward || controls.moveBackward || 
                             controls.moveLeft || controls.moveRight;
             player.setMoving(isMoving);
-          }
+          } 
+          // For skateboard mode, let the main animation loop handle going back to the appropriate animation
+          // The avatar.jump() method will handle this transition through setTimeout callbacks
         }
       }
     }
@@ -481,12 +488,15 @@ export function setupControls(camera, player, domElement, gameState, scene) {
       controls.jumpStartTime = performance.now(); // Record jump start time
       controls.jumpLeanAmount = 0.3; // Set initial backward lean amount
       
+      // Set the animation jump state in the player avatar if available
+      if (player.userData) {
+        player.userData.isJumping = true;
+      }
+      
       // Reset the canJump flag after a short delay to prevent spam jumping
       setTimeout(() => {
         controls.canJump = true;
       }, 1000); // 1 second cooldown
-      
-      controls.jump = false; // Reset the jump flag
       
       console.log("Jump initiated, velocity.y:", controls.velocity.y); // Debug log
     }

@@ -592,6 +592,23 @@ export function checkPortalEntry(player) {
     
     console.log('Player entered the portal!');
     
+    // Create portal entry particles
+    createPortalEntryEffect(player.position);
+    
+    // Trigger jump animation when entering portal
+    if (player.jump && typeof player.jump === 'function') {
+      console.log('Triggering jump animation for portal entry!');
+      player.jump();
+      
+      // Add physical jump by applying upward velocity to player
+      // Check if controls is available on the window object
+      if (window.controls && window.controls.velocity) {
+        window.controls.velocity.y = 5.0; // Add upward velocity - adjust value as needed
+        window.controls.isJumping = true;
+        console.log('Applied physical jump velocity to player');
+      }
+    }
+    
     // Add query parameters to maintain state
     const urlParams = new URLSearchParams(window.location.search);
     const username = urlParams.get('username') || 'metaverse-explorer';
@@ -641,9 +658,9 @@ export function checkPortalEntry(player) {
           if (existingOverlay.parentNode) {
             existingOverlay.parentNode.removeChild(existingOverlay);
           }
-          window.isEnteringPortal = false;
         }, 500);
       }
+      window.isEnteringPortal = false;
     };
     
     // Add event listener for page unload to clean up the overlay
@@ -655,9 +672,13 @@ export function checkPortalEntry(player) {
       cleanupOverlay();
     }, 5000);
     
-    // Redirect after a short delay to show transition
+    // Delay navigation to allow jump animation to play
+    const jumpAnimationDelay = 800; // ms - adjust as needed for the jump animation
+    
     setTimeout(() => {
       try {
+        // Navigate to the portal URL
+        console.log('Navigating to portal URL:', portalUrl);
         window.location.href = portalUrl;
         
         // Add another safety timeout after redirect attempt
@@ -667,12 +688,68 @@ export function checkPortalEntry(player) {
         cleanupOverlay();
         clearTimeout(safetyTimeout);
       }
-    }, 1000);
+    }, jumpAnimationDelay);
     
     return true;
   }
   
   return false;
+}
+
+// Function to create particles effect when entering a portal
+function createPortalEntryEffect(position) {
+  if (!window.scene) return;
+  
+  // Number of particles to create
+  const numParticles = 30;
+  
+  for (let i = 0; i < numParticles; i++) {
+    // Create a simple particle as a small sphere
+    const particle = new THREE.Mesh(
+      new THREE.SphereGeometry(0.05 + Math.random() * 0.1, 8, 8),
+      new THREE.MeshBasicMaterial({
+        color: new THREE.Color(0x00ff00).lerp(new THREE.Color(0xffffff), Math.random() * 0.5),
+        transparent: true,
+        opacity: 0.8
+      })
+    );
+    
+    // Position particles around the player
+    const angle = Math.random() * Math.PI * 2;
+    const radius = 0.3 + Math.random() * 0.5;
+    particle.position.set(
+      position.x + Math.cos(angle) * radius,
+      position.y + Math.random() * 2, // Distribute vertically
+      position.z + Math.sin(angle) * radius
+    );
+    
+    // Add random velocity
+    particle.userData.velocity = new THREE.Vector3(
+      (Math.random() - 0.5) * 2,
+      2 + Math.random() * 3,
+      (Math.random() - 0.5) * 2
+    );
+    
+    // Add to scene
+    window.scene.add(particle);
+    
+    // Store reference for animation
+    if (!window.portalParticles) window.portalParticles = [];
+    window.portalParticles.push(particle);
+    
+    // Auto-remove particles after a delay
+    setTimeout(() => {
+      if (window.scene && particle.parent === window.scene) {
+        window.scene.remove(particle);
+      }
+      if (window.portalParticles) {
+        const index = window.portalParticles.indexOf(particle);
+        if (index > -1) {
+          window.portalParticles.splice(index, 1);
+        }
+      }
+    }, 1500 + Math.random() * 500);
+  }
 }
 
 export function createEnvironment(scene, mainCamera, loadingManager = new THREE.LoadingManager()) {
