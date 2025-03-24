@@ -19,6 +19,98 @@ export function setupMobileControls(controls) {
   mobileControlsContainer.style.zIndex = '100';
   document.body.appendChild(mobileControlsContainer);
 
+  // Create username container
+  const usernameContainer = document.createElement('div');
+  usernameContainer.id = 'username-container';
+  usernameContainer.style.position = 'fixed';
+  usernameContainer.style.top = '20px';
+  usernameContainer.style.left = '50%';
+  usernameContainer.style.transform = 'translateX(-50%)';
+  usernameContainer.style.padding = '8px 12px';
+  usernameContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.6)';
+  usernameContainer.style.borderRadius = '30px';
+  usernameContainer.style.color = 'white';
+  usernameContainer.style.fontFamily = 'Arial, sans-serif';
+  usernameContainer.style.zIndex = '100';
+  usernameContainer.style.display = 'flex';
+  usernameContainer.style.flexDirection = 'row';
+  usernameContainer.style.alignItems = 'center';
+  usernameContainer.style.pointerEvents = 'auto';
+  usernameContainer.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.3)';
+  document.body.appendChild(usernameContainer);
+  
+  // Create label for username input
+  const usernameLabel = document.createElement('label');
+  usernameLabel.textContent = 'Name:';
+  usernameLabel.style.marginRight = '8px';
+  usernameLabel.style.fontSize = '14px';
+  usernameLabel.style.fontWeight = 'bold';
+  usernameLabel.style.textShadow = '0 1px 2px rgba(0, 0, 0, 0.5)';
+  usernameContainer.appendChild(usernameLabel);
+  
+  // Create input field for username
+  const usernameInput = document.createElement('input');
+  usernameInput.id = 'username-input';
+  usernameInput.type = 'text';
+  usernameInput.placeholder = 'metaverse-explorer';
+  usernameInput.style.padding = '5px 10px';
+  usernameInput.style.borderRadius = '15px';
+  usernameInput.style.border = '1px solid rgba(255, 255, 255, 0.3)';
+  usernameInput.style.fontSize = '14px';
+  usernameInput.style.width = '140px';
+  usernameInput.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+  usernameInput.style.outline = 'none';
+  usernameInput.style.boxShadow = 'inset 0 1px 3px rgba(0, 0, 0, 0.1)';
+  
+  // Get username from window.gameState if available
+  if (window.gameState && window.gameState.username) {
+    usernameInput.value = window.gameState.username;
+  } else {
+    // Try to get username from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlUsername = urlParams.get('username');
+    if (urlUsername) {
+      usernameInput.value = urlUsername;
+      // Update gameState if it exists
+      if (window.gameState) {
+        window.gameState.username = urlUsername;
+      }
+    }
+  }
+  
+  usernameInput.addEventListener('keypress', function(event) {
+    if (event.key === 'Enter') {
+      // Update the username immediately
+      if (usernameInput.value.trim()) {
+        if (window.gameState) {
+          window.gameState.username = usernameInput.value.trim();
+          console.log('Username set to:', window.gameState.username);
+          
+          // Sync with controls username input if it exists
+          const controlsUsernameInput = document.getElementById('controls-username');
+          if (controlsUsernameInput) {
+            controlsUsernameInput.value = window.gameState.username;
+          }
+        }
+      }
+    }
+  });
+  
+  // Also listen for input events to update in real-time
+  usernameInput.addEventListener('input', function() {
+    if (usernameInput.value.trim() && window.gameState) {
+      window.gameState.username = usernameInput.value.trim();
+      
+      // Sync with controls username input if it exists
+      const controlsUsernameInput = document.getElementById('controls-username');
+      if (controlsUsernameInput) {
+        controlsUsernameInput.value = window.gameState.username;
+      }
+    }
+  });
+  
+  usernameContainer.appendChild(usernameInput);
+
   // Create left joystick container (movement)
   const leftJoystickContainer = document.createElement('div');
   leftJoystickContainer.style.width = '120px';
@@ -238,6 +330,7 @@ export function setupMobileControls(controls) {
   const toggleMobileControls = (show) => {
     mobileControlsContainer.style.display = show ? 'flex' : 'none';
     jumpButton.style.display = show ? 'flex' : 'none';
+    usernameContainer.style.display = show ? 'flex' : 'none';
   };
 
   return {
