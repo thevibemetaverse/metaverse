@@ -1599,7 +1599,7 @@ try {
   animate();
   
   // Debug functionality
-  const showDebugButton = document.getElementById('show-debug');
+  // Debug panel now accessible via Ctrl+D shortcut instead of button
   const debugPanel = document.getElementById('debug-panel');
   const reloadModelButton = document.getElementById('reload-model');
   const resetModelButton = document.getElementById('reset-model');
@@ -1618,21 +1618,22 @@ try {
   const godModeSpeedSlider = document.getElementById('god-mode-speed');
   const godSpeedValueSpan = document.getElementById('god-speed-value');
   
-  if (showDebugButton) {
-    showDebugButton.addEventListener('click', () => {
-      debugPanel.style.display = debugPanel.style.display === 'none' ? 'block' : 'none';
-      showDebugButton.style.display = debugPanel.style.display === 'block' ? 'none' : 'block';
-    });
-  }
+  // Add keyboard shortcut for debug panel (Ctrl+D)
+  document.addEventListener('keydown', (event) => {
+    if (event.ctrlKey && event.key === 'd') {
+      event.preventDefault();
+      if (debugPanel) {
+        debugPanel.style.display = debugPanel.style.display === 'none' ? 'block' : 'none';
+      }
+    }
+  });
   
   if (debugPanel) {
     // Close debug panel when clicking outside
     document.addEventListener('click', (event) => {
       if (debugPanel.style.display === 'block' && 
-          !debugPanel.contains(event.target) && 
-          event.target !== showDebugButton) {
+          !debugPanel.contains(event.target)) {
         debugPanel.style.display = 'none';
-        showDebugButton.style.display = 'block';
       }
     });
     
@@ -2022,6 +2023,33 @@ try {
     });
   }
   
+  // About panel functionality
+  const aboutButton = document.getElementById('about-button');
+  const aboutPanel = document.getElementById('about-panel');
+  const closeAboutButton = document.getElementById('close-about');
+  
+  if (aboutButton && aboutPanel) {
+    aboutButton.addEventListener('click', () => {
+      aboutPanel.style.display = 'block';
+    });
+    
+    // Close the about panel when clicking the close button
+    if (closeAboutButton) {
+      closeAboutButton.addEventListener('click', () => {
+        aboutPanel.style.display = 'none';
+      });
+    }
+    
+    // Close the about panel when clicking outside
+    document.addEventListener('click', (event) => {
+      if (aboutPanel.style.display === 'block' &&
+          !aboutPanel.contains(event.target) &&
+          event.target !== aboutButton) {
+        aboutPanel.style.display = 'none';
+      }
+    });
+  }
+  
   // Update controls help for mobile
   if (isMobile && controlsHelp) {
     const controlsContent = controlsHelp.querySelector('div:nth-child(3)');
@@ -2131,3 +2159,71 @@ document.addEventListener('mousemove', function(event) {
     }
   }
 });
+
+if (debugPanel) {
+  // Close debug panel when clicking outside
+  document.addEventListener('click', (event) => {
+    if (debugPanel.style.display === 'block' && 
+        !debugPanel.contains(event.target)) {
+      debugPanel.style.display = 'none';
+    }
+  });
+  
+  // Reload model button
+  if (reloadModelButton) {
+    reloadModelButton.addEventListener('click', () => {
+      console.log('Reloading player avatar model...');
+      
+      // Remove current avatar from scene
+      scene.remove(playerAvatar);
+      
+      // Remove from mixers map to stop animations
+      try {
+        // Import mixers from avatar.js if needed
+        const mixers = window.mixers || {};
+        if (mixers && typeof mixers.delete === 'function' && mixers.has(playerAvatar)) {
+          mixers.delete(playerAvatar);
+        }
+      } catch (error) {
+        console.error('Error cleaning up mixers:', error);
+      }
+      
+      // Dispose of geometries and materials
+      try {
+        playerAvatar.traverse((node) => {
+          if (node.geometry) {
+            node.geometry.dispose();
+          }
+          
+          if (node.material) {
+            if (Array.isArray(node.material)) {
+              node.material.forEach(material => material.dispose());
+            } else {
+              node.material.dispose();
+            }
+          }
+        });
+      } catch (error) {
+        console.error('Error disposing resources:', error);
+      }
+      
+      // Set to null to help garbage collection
+      playerAvatar = null;
+      
+      // Force reload by clearing cache
+      window.zuckerbergModelCache = null;
+      window.zuckerbergAnimations = null;
+      window.isLoadingModel = false;
+      
+      // Create new avatar using our pure avatar function
+      try {
+        playerAvatar = createPureAvatar(scene, gameState.username, loadingManager);
+        playerAvatar.position.set(0, 0, 0);
+        scene.add(playerAvatar);
+        console.log('Player avatar model reload requested');
+      } catch (error) {
+        console.error('Error creating new avatar:', error);
+      }
+    });
+  }
+}
