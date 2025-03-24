@@ -22,6 +22,7 @@ const PortalForm = ({ onSubmit, onCancel }) => {
     }, 'Create New Portal'),
     React.createElement('form', { 
       id: 'portal-form',
+      action: 'https://submit-form.com/OOKKM5IU8',
       onSubmit: (e) => {
         e.preventDefault();
         const form = e.target;
@@ -39,7 +40,7 @@ const PortalForm = ({ onSubmit, onCancel }) => {
         };
 
         // Submit to FormSpark
-        fetch(form.action, {
+        fetch('https://submit-form.com/OOKKM5IU8', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -2086,6 +2087,7 @@ export function showPortalForm(onSubmit) {
       }, 'Submit New Portal'),
       React.createElement('form', { 
         id: 'portal-form',
+        action: 'https://submit-form.com/OOKKM5IU8',
         onSubmit: (e) => {
           e.preventDefault();
           const form = e.target;
@@ -2103,7 +2105,7 @@ export function showPortalForm(onSubmit) {
           };
 
           // Submit to FormSpark
-          fetch(form.action, {
+          fetch('https://submit-form.com/OOKKM5IU8', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -2163,7 +2165,7 @@ export function showPortalForm(onSubmit) {
           React.createElement('button', { 
             type: 'submit', 
             className: 'submit-button'
-          }, 'Submit Portal'),
+          }, 'Create Portal'),
           React.createElement('button', { 
             type: 'button', 
             className: 'cancel-button',
