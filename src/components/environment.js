@@ -206,20 +206,45 @@ function getUsernameFromUrl() {
   return urlParams.get('username') || 'metaverse-explorer';
 }
 
+// Function to get avatar URL from current URL parameters
+function getAvatarUrlFromParams() {
+  const urlParams = new URLSearchParams(window.location.search);
+  return urlParams.get('avatar_url') || 'https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb';
+}
+
+// Function to add avatar URL to portal URL
+function addAvatarToPortalUrl(portalUrl) {
+  try {
+    const url = new URL(portalUrl);
+    const params = new URLSearchParams(url.search);
+    
+    // Only add avatar_url if it's not already present
+    if (!params.has('avatar_url')) {
+      params.set('avatar_url', getAvatarUrlFromParams());
+    }
+    
+    url.search = params.toString();
+    return url.toString();
+  } catch (e) {
+    console.error('Invalid portal URL:', portalUrl);
+    return portalUrl;
+  }
+}
+
 // Portal configurations
 const portalConfigs = [
   {
     position: { x: -5, z: 15, y: 0 },  // Leftmost portal (levels)
     rotation: 0,
     imageUrl: 'assets/images/levels.jpeg',
-    targetUrl: `https://fly.pieter.com/?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app&portal=true`,
+    targetUrl: addAvatarToPortalUrl(`https://fly.pieter.com/?username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app&portal=true`),
     scale: 1.0
   },
   {
     position: { x: 5, z: 15, y: 0 },  // Second from left (kyzo)
     rotation: 0,
     imageUrl: 'assets/images/kyzo.jpeg',
-    targetUrl: `https://game-one-two.vercel.app/?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app&portal=true`,
+    targetUrl: addAvatarToPortalUrl(`https://game-one-two.vercel.app/?username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app&portal=true`),
     scale: 1.0
   },
   {
@@ -1778,7 +1803,7 @@ function createPortalTrigger(targetUrl, isFormPortal = false) {
   );
   
   portalTrigger.userData.isPortal = true;
-  portalTrigger.userData.portalURL = targetUrl;
+  portalTrigger.userData.portalURL = addAvatarToPortalUrl(targetUrl);
   portalTrigger.userData.isFormPortal = isFormPortal;
   
   // Log portal trigger creation for debugging
