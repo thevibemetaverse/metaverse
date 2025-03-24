@@ -766,7 +766,15 @@ try {
       if (intersect.object.userData) {
         if (intersect.object.userData.isClickable) {
           console.log('Computer clicked!');
-          window.open(intersect.object.userData.targetUrl, '_blank');
+          if (intersect.object.userData.isPortalComputer) {
+            // Open portal form instead of URL
+            showPortalForm((formData) => {
+              console.log('Portal form submitted:', formData);
+            });
+          } else if (intersect.object.userData.targetUrl) {
+            // Open URL for other clickable objects
+            window.open(intersect.object.userData.targetUrl, '_blank');
+          }
           break;
         } else if (intersect.object.userData.isPortal) {
           console.log('Portal clicked!', intersect.object.userData);
@@ -1545,8 +1553,16 @@ try {
             // Set flag to prevent multiple triggers
             playerAvatar.userData.isComputerClicking = true;
             
-            // Open the URL immediately
-            window.open(object.userData.targetUrl, '_blank');
+            // Check if this is the portal computer
+            if (object.userData.isPortalComputer) {
+              // Open portal form instead of URL
+              showPortalForm((formData) => {
+                console.log('Portal form submitted:', formData);
+              });
+            } else if (object.userData.targetUrl) {
+              // Open URL for other clickable objects
+              window.open(object.userData.targetUrl, '_blank');
+            }
             
             // Reset the flag after a short delay
             setTimeout(() => {
@@ -2015,3 +2031,54 @@ function animateXR() {
     renderer.render(scene, camera);
   }
 }
+
+// Add the group to the environment instead of just the model
+environment.add(computerGroup);
+console.log('Office computer model loaded successfully with portal form trigger and large bounding box');
+
+// Create a simple hand cursor when hovering over the computer
+document.addEventListener('mousemove', function(event) {
+  // Calculate mouse position in normalized device coordinates
+  const mouse = new THREE.Vector2();
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+  
+  // Cast a ray
+  const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(mouse, window.camera);
+  
+  // Check for intersection with computer or its bounding box
+  const intersects = raycaster.intersectObjects([boundingBox, model], true);
+  
+  if (intersects.length > 0) {
+    // Change cursor to pointer when hovering over computer
+    document.body.style.cursor = 'pointer';
+    
+    // Optional: Add a helper message
+    const helpMessage = document.getElementById('computer-help-message');
+    if (!helpMessage) {
+      const message = document.createElement('div');
+      message.id = 'computer-help-message';
+      message.textContent = 'Click to create a portal';
+      message.style.position = 'fixed';
+      message.style.bottom = '20px';
+      message.style.left = '50%';
+      message.style.transform = 'translateX(-50%)';
+      message.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+      message.style.color = 'white';
+      message.style.padding = '10px 20px';
+      message.style.borderRadius = '5px';
+      message.style.zIndex = '1000';
+      document.body.appendChild(message);
+    }
+  } else {
+    // Reset cursor
+    document.body.style.cursor = 'auto';
+    
+    // Remove helper message if it exists
+    const helpMessage = document.getElementById('computer-help-message');
+    if (helpMessage) {
+      document.body.removeChild(helpMessage);
+    }
+  }
+});

@@ -183,6 +183,9 @@ let mouse = new THREE.Vector2();
 let camera = null;
 let billboards = [];
 
+// Add this global variable to track if the portal form is open
+let isPortalFormOpen = false;
+
 // Add this function after the imports
 function createBlankTexture() {
   const canvas = document.createElement('canvas');
@@ -1857,12 +1860,57 @@ function animatePortalUpdate(mesh) {
 }
 
 export function showPortalForm(onSubmit) {
+  // Prevent multiple forms from being opened at the same time
+  if (isPortalFormOpen) {
+    console.log('Portal form is already open');
+    return;
+  }
+  
   console.log('Showing portal form...');
+  isPortalFormOpen = true;
   
   // Create form container
   const formContainer = document.createElement('div');
   formContainer.className = 'portal-form-overlay';
   document.body.appendChild(formContainer);
+  
+  // Setup a safety cleanup mechanism in case the form is closed unexpectedly
+  // (e.g., by browser refresh, navigation away, etc.)
+  const cleanup = () => {
+    if (isPortalFormOpen) {
+      console.log('Cleaning up portal form state');
+      isPortalFormOpen = false;
+    }
+  };
+  
+  // Add event listener to detect form removal
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.type === 'childList' && mutation.removedNodes) {
+        for (let i = 0; i < mutation.removedNodes.length; i++) {
+          if (mutation.removedNodes[i] === formContainer) {
+            cleanup();
+            observer.disconnect();
+            break;
+          }
+        }
+      }
+    });
+  });
+  
+  // Start observing
+  observer.observe(document.body, { childList: true });
+  
+  // Also add an escape key handler to close the form
+  const escKeyHandler = (event) => {
+    if (event.key === 'Escape') {
+      cleanup();
+      formContainer.remove();
+      document.removeEventListener('keydown', escKeyHandler);
+    }
+  };
+  
+  document.addEventListener('keydown', escKeyHandler);
   
   // Ensure the form is visible with important styles
   formContainer.style.cssText = `
@@ -1892,11 +1940,9 @@ export function showPortalForm(onSubmit) {
           textShadow: '0 0 10px #4a90e2, 0 0 20px #4a90e2',
           animation: 'portal-glow 2s infinite alternate'
         }
-      }, 'Create New Portal'),
+      }, 'Submit New Portal'),
       React.createElement('form', { 
         id: 'portal-form',
-        action: 'https://submit-form.com/OOKKM5IU8',
-        method: 'POST',
         onSubmit: (e) => {
           e.preventDefault();
           const form = e.target;
@@ -1974,7 +2020,7 @@ export function showPortalForm(onSubmit) {
           React.createElement('button', { 
             type: 'submit', 
             className: 'submit-button'
-          }, 'Create Portal'),
+          }, 'Submit Portal'),
           React.createElement('button', { 
             type: 'button', 
             className: 'cancel-button',
@@ -1995,10 +2041,14 @@ export function showPortalForm(onSubmit) {
           onSubmit(formData);
           formContainer.remove();
           root.unmount();
+          // Reset the form open flag
+          isPortalFormOpen = false;
         },
         onCancel: () => {
           formContainer.remove();
           root.unmount();
+          // Reset the form open flag
+          isPortalFormOpen = false;
         }
       })
     );
@@ -2065,17 +2115,23 @@ export function showPortalForm(onSubmit) {
         console.log('FormSpark submission successful:', response);
         onSubmit(formData);
         formContainer.remove();
+        // Reset the form open flag
+        isPortalFormOpen = false;
       })
       .catch(error => {
         console.error('FormSpark submission error:', error);
         // Still proceed with portal creation even if FormSpark submission fails
         onSubmit(formData);
         formContainer.remove();
+        // Reset the form open flag
+        isPortalFormOpen = false;
       });
     });
     
     cancelButton.addEventListener('click', () => {
       formContainer.remove();
+      // Reset the form open flag
+      isPortalFormOpen = false;
     });
   }
   
@@ -2542,12 +2598,103 @@ function createOfficeComputer(environment, loadingManager) {
         }
       });
       
-      // Make the entire model clickable
-      model.userData.isClickable = true;
-      model.userData.targetUrl = 'https://docs.google.com/forms/d/1vEfJJ7eGr-aFvnzMfoNVGWMHGvqZTRtLRE87Vt79Paw/edit';
+      // Create a group to hold the model and its bounding box
+      const computerGroup = new THREE.Group();
+      computerGroup.add(model);
+      computerGroup.position.copy(model.position);
+      model.position.set(0, 0, 0); // Reset model position since it's now relative to the group
       
-      environment.add(model);
-      console.log('Office computer model loaded successfully with clickable trigger');
+      // Create a larger invisible bounding box for easier clicking
+      const boundingBoxSize = new THREE.Vector3(3, 3, 3); // Much larger bounding box
+      const boundingBoxGeo = new THREE.BoxGeometry(boundingBoxSize.x, boundingBoxSize.y, boundingBoxSize.z);
+      const boundingBoxMat = new THREE.MeshBasicMaterial({ 
+        transparent: true, 
+        opacity: 0.0, // Completely invisible
+        wireframe: false
+      });
+      
+      const boundingBox = new THREE.Mesh(boundingBoxGeo, boundingBoxMat);
+      boundingBox.position.set(0, 1.5, 0); // Position it above the ground, centered on the computer
+      
+      // For debugging - can be toggled via console with: window.debugPortalComputerBoundingBox = true;
+      if (typeof window !== 'undefined') {
+        Object.defineProperty(window, 'debugPortalComputerBoundingBox', {
+          get: function() {
+            return boundingBoxMat.opacity > 0;
+          },
+          set: function(value) {
+            console.log('Setting computer bounding box visibility to:', value);
+            boundingBoxMat.opacity = value ? 0.3 : 0.0;
+            boundingBoxMat.wireframe = value;
+            boundingBoxMat.needsUpdate = true;
+          }
+        });
+      }
+      
+      // Make the bounding box clickable
+      boundingBox.userData.isClickable = true;
+      boundingBox.userData.isPortalComputer = true; // Flag to identify this as the computer for opening portal form
+      
+      // Add the bounding box to the group
+      computerGroup.add(boundingBox);
+      
+      // Make the entire model clickable and set it to open the portal form
+      model.userData.isClickable = true;
+      model.userData.isPortalComputer = true; // Flag to identify this as the computer for opening portal form
+      
+      // Add the group to the environment instead of just the model
+      environment.add(computerGroup);
+      console.log('Office computer model loaded successfully with portal form trigger and large bounding box');
+      
+      // Create a simple hand cursor when hovering over the computer
+      document.addEventListener('mousemove', function(event) {
+        // Only proceed if camera is available
+        if (!window.camera) return;
+        
+        // Calculate mouse position in normalized device coordinates
+        const mouse = new THREE.Vector2();
+        mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+        
+        // Cast a ray
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(mouse, window.camera);
+        
+        // Check for intersection with computer or its bounding box
+        const intersects = raycaster.intersectObjects([boundingBox, model], true);
+        
+        if (intersects.length > 0) {
+          // Change cursor to pointer when hovering over computer
+          document.body.style.cursor = 'pointer';
+          
+          // Optional: Add a helper message
+          const helpMessage = document.getElementById('computer-help-message');
+          if (!helpMessage) {
+            const message = document.createElement('div');
+            message.id = 'computer-help-message';
+            message.textContent = 'Click to create a portal';
+            message.style.position = 'fixed';
+            message.style.bottom = '20px';
+            message.style.left = '50%';
+            message.style.transform = 'translateX(-50%)';
+            message.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+            message.style.color = 'white';
+            message.style.padding = '10px 20px';
+            message.style.borderRadius = '5px';
+            message.style.zIndex = '1000';
+            document.body.appendChild(message);
+          }
+        } else {
+          // Reset cursor
+          document.body.style.cursor = 'auto';
+          
+          // Remove helper message if it exists
+          const helpMessage = document.getElementById('computer-help-message');
+          if (helpMessage) {
+            document.body.removeChild(helpMessage);
+          }
+        }
+      });
     },
     function(xhr) {
       console.log('Office computer: ' + (xhr.loaded / xhr.total * 100) + '% loaded');
