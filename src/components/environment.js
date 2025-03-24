@@ -209,77 +209,77 @@ function getUsernameFromUrl() {
 // Portal configurations
 const portalConfigs = [
   {
-    position: { x: 10, z: 15, y: 0 },  // Leftmost portal (levels)
+    position: { x: -5, z: 15, y: 0 },  // Leftmost portal (levels)
     rotation: 0,
     imageUrl: 'assets/images/levels.jpeg',
     targetUrl: `https://fly.pieter.com/?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app`,
     scale: 1.0
   },
   {
-    position: { x: 20, z: 15, y: 0 },  // Second from left (kyzo)
+    position: { x: 5, z: 15, y: 0 },  // Second from left (kyzo)
     rotation: 0,
     imageUrl: 'assets/images/kyzo.jpeg',
     targetUrl: `https://game-one-two.vercel.app/?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app`,
     scale: 1.0
   },
   {
-    position: { x: 30, z: 15, y: 0 },  // Center portal (darefail)
+    position: { x: 15, z: 15, y: 0 },  // Center portal (darefail)
     rotation: 0,
     imageUrl: 'assets/images/darefail.png',
     targetUrl: `https://ai.darefail.com/flappy/arms/?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app`,
     scale: 1.0
   },
   {
-    position: { x: 40, z: 15, y: 0 },  // Second from right (yacht)
+    position: { x: 25, z: 15, y: 0 },  // Second from right (yacht)
     rotation: 0,
     imageUrl: 'assets/images/yacht.png',
     targetUrl: `https://yachtvibes.app/?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app`,
     scale: 1.0
   },
   {
-    position: { x: 50, z: 15, y: 0 },  // Rightmost portal (panda)
+    position: { x: 35, z: 15, y: 0 },  // Rightmost portal (panda)
     rotation: 0,
     imageUrl: 'assets/images/panda.png',
     targetUrl: 'https://collidingscopes.github.io/red-panda-vibes/?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app',
     scale: 1.0
   },
   {
-    position: { x: 60, z: 15, y: 0 },  // First blank portal
+    position: { x: 45, z: 15, y: 0 },  // First blank portal
     rotation: 0,
     imageUrl: 'assets/images/spacerunner.png',
     targetUrl: 'https://spacerunner01.netlify.app/',
     scale: 1.0,
   },
   {
-    position: { x: 70, z: 15, y: 0 },  // Second blank portal
+    position: { x: 55, z: 15, y: 0 },  // Second blank portal
     rotation: 0,
     imageUrl: 'assets/images/snowbrawl-world.jpeg',
     targetUrl: 'https://snowbrawl.world/',
     scale: 1.0,
   },
   {
-    position: { x: 80, z: 15, y: 0 },  // Third blank portal
+    position: { x: 65, z: 15, y: 0 },  // Third blank portal
     rotation: 0,
     imageUrl: 'assets/images/viberates.png',
     targetUrl: 'https://viberates.io/',
     scale: 1.0,
   },
   {
-    position: { x: 90, z: 15, y: 0 },  // Fourth blank portal
+    position: { x: 75, z: 15, y: 0 },  // Fourth blank portal
     rotation: 0,
     imageUrl: 'assets/images/ronansruns.png',
     targetUrl: 'https://marcusedvalson.github.io/ronansrun.github.io/',
     scale: 1.0,
   },
   {
-    position: { x: 100, z: 15, y: 0 },  // Fifth blank portal
+    position: { x: 85, z: 15, y: 0 },  // Fifth blank portal
     rotation: 0,
     imageUrl: 'assets/images/foodrunner.png',
     targetUrl: 'https://foodvibers.netlify.app/',
     scale: 1.0,
   },
   {
-    position: { x: 0, z: -25, y: 0 },  // Portal behind the user
+    position: { x: -15, z: -25, y: 0 },  // Portal behind the user
     rotation: Math.PI,  // Rotate 180 degrees to face the user
     imageUrl: 'assets/images/portal.jpg',
     targetUrl: `https://portal.pieter.com?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app`,
@@ -360,7 +360,7 @@ function createPortalFormInputs(portalGroup) {
 function createStartPortal(scene) {
   // Create portal group to contain all portal elements
   const startPortalGroup = new THREE.Group();
-  startPortalGroup.position.set(0, 15, 10);
+  startPortalGroup.position.set(-15, 15, 10);
   startPortalGroup.rotation.x = 0.35;
   startPortalGroup.rotation.y = 0;
   startPortalGroup.scale.set(0.2, 0.2, 0.2);
@@ -446,7 +446,7 @@ function createStartPortal(scene) {
 function createExitPortal(scene) {
   // Create portal group to contain all portal elements
   const exitPortalGroup = new THREE.Group();
-  exitPortalGroup.position.set(0, 5, 15);
+  exitPortalGroup.position.set(-15, 5, 15);
   exitPortalGroup.rotation.x = 0.35;
   exitPortalGroup.rotation.y = Math.PI;
   exitPortalGroup.scale.set(0.2, 0.2, 0.2);
@@ -1001,7 +1001,7 @@ function createEiffelTower(environment, loadingManager) {
   // Create a placeholder for the tower while it loads
   const placeholder = new THREE.Group();
   // Position the Eiffel Tower much closer to the starting position
-  placeholder.position.set(20, 0, -20); // Moved much closer to the starting point
+  placeholder.position.set(30, 0, -25); // Moved to the right by 20 units
   environment.add(placeholder);
   
   // Try to load the GLB/GLTF model first
