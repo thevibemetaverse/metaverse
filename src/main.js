@@ -818,10 +818,17 @@ try {
   
   // Setup mobile controls if on a mobile device
   let mobileControls = null;
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                   (window.innerWidth <= 800 && window.innerHeight <= 900);
+  
   if (isMobile) {
     console.log('Setting up mobile controls');
     mobileControls = setupMobileControls(controls);
     controls.mobileControls = mobileControls;
+    controls.isMobile = true;
+    
+    // Show mobile controls immediately if not coming from portal
+    mobileControls.toggleMobileControls(true);
     
     // Setup device orientation for mobile
     setupDeviceOrientation(controls);
@@ -829,32 +836,8 @@ try {
     // Create mobile UI
     const mobileUI = createMobileUI();
     
-    // Listen for mobile settings changes
-    window.addEventListener('mobile-settings-changed', (event) => {
-      const { graphicsQuality, useGyroscope } = event.detail;
-      
-      // Update graphics quality
-      if (graphicsQuality === 'low') {
-        renderer.setPixelRatio(1);
-        renderer.shadowMap.enabled = false;
-      } else if (graphicsQuality === 'medium') {
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-        renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFShadowMap;
-      } else if (graphicsQuality === 'high') {
-        renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-      }
-      
-      // Update gyroscope usage
-      if (useGyroscope) {
-        setupDeviceOrientation(controls);
-      }
-      
-      // Force shadow map update
-      renderer.shadowMap.needsUpdate = true;
-    });
+    // Optimize renderer for mobile
+    optimizeForMobile(renderer);
   }
   
   // Position camera for a selfie-style view - in front of player looking back

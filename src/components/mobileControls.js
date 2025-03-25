@@ -244,18 +244,21 @@ export function setupMobileControls(controls) {
       joystickState.left.position.x = normalizedX;
       joystickState.left.position.y = normalizedY;
       
-      // Update movement controls
-      controls.moveForward = normalizedY < -0.2;
-      controls.moveBackward = normalizedY > 0.2;
-      controls.moveLeft = normalizedX < -0.2;
-      controls.moveRight = normalizedX > 0.2;
+      // Update movement controls with lower threshold for better responsiveness
+      controls.moveForward = normalizedY < -0.15;
+      controls.moveBackward = normalizedY > 0.15;
+      controls.moveLeft = normalizedX < -0.15;
+      controls.moveRight = normalizedX > 0.15;
+      
+      // Add analog movement speed
+      controls.movementSpeed = Math.min(Math.abs(normalizedY), 1.0);
     } else {
       joystickState.right.position.x = normalizedX;
       joystickState.right.position.y = normalizedY;
       
-      // Update rotation based on horizontal movement of right joystick
-      if (Math.abs(normalizedX) > 0.1) {
-        controls.targetRotation -= normalizedX * 0.05;
+      // Update rotation based on horizontal movement of right joystick with improved sensitivity
+      if (Math.abs(normalizedX) > 0.05) {
+        controls.targetRotation -= normalizedX * 0.08; // Increased rotation speed
       }
     }
   };
@@ -281,35 +284,41 @@ export function setupMobileControls(controls) {
 
   // Left joystick event listeners
   leftJoystickContainer.addEventListener('touchstart', (event) => {
+    event.preventDefault();
     joystickState.left.active = true;
     handleJoystickTouch(leftJoystickContainer, leftStick, event, true);
   }, { passive: false });
 
   leftJoystickContainer.addEventListener('touchmove', (event) => {
+    event.preventDefault();
     if (joystickState.left.active) {
       handleJoystickTouch(leftJoystickContainer, leftStick, event, true);
     }
   }, { passive: false });
 
-  leftJoystickContainer.addEventListener('touchend', () => {
+  leftJoystickContainer.addEventListener('touchend', (event) => {
+    event.preventDefault();
     resetJoystick(leftStick, true);
-  });
+  }, { passive: false });
 
   // Right joystick event listeners
   rightJoystickContainer.addEventListener('touchstart', (event) => {
+    event.preventDefault();
     joystickState.right.active = true;
     handleJoystickTouch(rightJoystickContainer, rightStick, event, false);
   }, { passive: false });
 
   rightJoystickContainer.addEventListener('touchmove', (event) => {
+    event.preventDefault();
     if (joystickState.right.active) {
       handleJoystickTouch(rightJoystickContainer, rightStick, event, false);
     }
   }, { passive: false });
 
-  rightJoystickContainer.addEventListener('touchend', () => {
+  rightJoystickContainer.addEventListener('touchend', (event) => {
+    event.preventDefault();
     resetJoystick(rightStick, false);
-  });
+  }, { passive: false });
 
   // Jump button event listener
   jumpButton.addEventListener('touchstart', (event) => {
