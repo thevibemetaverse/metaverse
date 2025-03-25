@@ -328,14 +328,14 @@ const portalConfigs = [
   {
     position: { x: -25, z: -22, y: 0 },  // Roostervibes portal
     rotation: Math.PI / 2,
-    imageUrl: 'assets/images/roostervibes.png',
+    imageUrl: 'assets/images/rooster.jpg',
     targetUrl: addAvatarToPortalUrl(`https://play.roostervibes.farm/?username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app&portal=true`),
     scale: 1.0,
   },
   {
     position: { x: -25, z: -32, y: 0 },  // Fourth desk portal (left side)
     rotation: Math.PI / 2,  // Face towards the desk
-    imageUrl: 'assets/images/jet-ski.jpeg',
+    imageUrl: 'assets/images/jet-ski.jpg',
     targetUrl: 'https://jetski.cemilsevim.com',
     scale: 1.0,
   },
