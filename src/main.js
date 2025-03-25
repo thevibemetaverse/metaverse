@@ -1040,13 +1040,17 @@ try {
     console.log(`Connecting to multiplayer server at: ${socketServerUrl}`);
     
     socket = io(socketServerUrl, {
-      transports: ['websocket'],
+      transports: ['polling', 'websocket'], // Try polling first, then websocket
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
       timeout: 20000
     });
+    
+    // Make socket available globally for portal counters immediately
+    window.socket = socket;
+    console.log('PORTAL: Socket made available globally (before connect):', !!window.socket);
     
     // Add debug event listeners to track socket lifecycle
     socket.io.on("error", (error) => {

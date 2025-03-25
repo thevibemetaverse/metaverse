@@ -108,6 +108,18 @@ io.on('connection', (socket) => {
   });
   socket.emit('portal-counts', portalCounts);
   
+  // Handle get-portal-counts request
+  socket.on('get-portal-counts', () => {
+    console.log(`Player ${socket.id} requested portal counts`);
+    const portalCounts = {};
+    portalCounters.forEach((count, url) => {
+      portalCounts[url] = count;
+    });
+    console.log('Sending portal counts:', portalCounts);
+    socket.emit('portal-counts', portalCounts);
+    console.log('Portal counts sent to client');
+  });
+  
   // Handle player joining
   socket.on('player-join', (data) => {
     console.log(`Player ${data.username} joined the game`);
