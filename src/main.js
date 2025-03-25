@@ -358,6 +358,11 @@ function handleGodModeMouseUp(event) {
 
 // Initialize Three.js scene
 const scene = new THREE.Scene();
+window.scene = scene; // Make scene available globally for debugging
+
+// Set sky background
+scene.background = new THREE.Color(0x87CEEB);
+
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 const renderer = new THREE.WebGLRenderer({ antialias: !isMobile });
 renderer.setSize(window.innerWidth, window.innerHeight);

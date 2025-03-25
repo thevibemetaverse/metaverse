@@ -1553,7 +1553,7 @@ export function createEnvironment(scene, mainCamera, loadingManager = new THREE.
   // Add ground plane
   const groundGeometry = new THREE.PlaneGeometry(200, 200);
   const groundMaterial = new THREE.MeshStandardMaterial({ 
-    color: 0x1a1a1a,
+    color: 0x4CAF50,
     roughness: 0.8,
     metalness: 0.2
   });
@@ -1578,6 +1578,9 @@ export function createEnvironment(scene, mainCamera, loadingManager = new THREE.
   // Add some decorative elements
   const gridHelper = new THREE.GridHelper(200, 50, 0x555555, 0x333333);
   environment.add(gridHelper);
+  
+  // Add hills in the background
+  createHills(environment);
   
   // Create portals based on configurations
   portalConfigs.forEach((config, index) => {
@@ -1616,4 +1619,71 @@ export function createEnvironment(scene, mainCamera, loadingManager = new THREE.
   createOfficeComputer(environment, loadingManager);
   
   return environment;
+}
+
+// Function to create hills in the background
+function createHills(environment) {
+  // Create several hills with different sizes and positions
+  const hillColors = [0x3e8c41, 0x4CAF50, 0x388E3C];
+  
+  // Create a larger number of hills for a more complete range effect
+  for (let i = 0; i < 50; i++) {
+    // Create a hill with random properties
+    const radius = 30 + Math.random() * 80; // Much larger radius
+    const height = 20 + Math.random() * 60; // Much taller hills
+    const segments = 16; // Reduced segments for distant objects (performance)
+    
+    const hillGeometry = new THREE.ConeGeometry(radius, height, segments, 1, true);
+    const hillMaterial = new THREE.MeshStandardMaterial({
+      color: hillColors[Math.floor(Math.random() * hillColors.length)],
+      roughness: 0.9,
+      metalness: 0.1,
+      flatShading: true
+    });
+    
+    const hill = new THREE.Mesh(hillGeometry, hillMaterial);
+    
+    // Position hills in a circle around the scene at a much greater distance
+    const angle = (i / 50) * Math.PI * 2;
+    const distance = 400 + Math.random() * 100; // Placed very far away (400-500 units)
+    hill.position.x = Math.cos(angle) * distance;
+    hill.position.z = Math.sin(angle) * distance;
+    hill.position.y = -height / 2; // Half-buried for a smoother look
+    
+    // Random rotation for variety
+    hill.rotation.y = Math.random() * Math.PI * 2;
+    
+    // Add hill to the environment
+    hill.receiveShadow = true;
+    hill.castShadow = true;
+    environment.add(hill);
+    
+    // For some hills, add a second overlapping hill to create more complex mountain shapes
+    if (Math.random() > 0.5) {
+      const secondRadius = 20 + Math.random() * 60;
+      const secondHeight = 15 + Math.random() * 40;
+      
+      const secondHillGeometry = new THREE.ConeGeometry(secondRadius, secondHeight, segments, 1, true);
+      const secondHillMaterial = new THREE.MeshStandardMaterial({
+        color: hillColors[Math.floor(Math.random() * hillColors.length)],
+        roughness: 0.9,
+        metalness: 0.1,
+        flatShading: true
+      });
+      
+      const secondHill = new THREE.Mesh(secondHillGeometry, secondHillMaterial);
+      
+      // Position slightly offset from the first hill
+      const offsetAngle = angle + (Math.random() * 0.2 - 0.1);
+      const offsetDistance = distance + (Math.random() * 40 - 20);
+      secondHill.position.x = Math.cos(offsetAngle) * offsetDistance;
+      secondHill.position.z = Math.sin(offsetAngle) * offsetDistance;
+      secondHill.position.y = -secondHeight / 2;
+      
+      secondHill.rotation.y = Math.random() * Math.PI * 2;
+      secondHill.receiveShadow = true;
+      secondHill.castShadow = true;
+      environment.add(secondHill);
+    }
+  }
 }
