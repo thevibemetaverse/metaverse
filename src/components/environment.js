@@ -1575,10 +1575,6 @@ export function createEnvironment(scene, mainCamera, loadingManager = new THREE.
   directionalLight.shadow.mapSize.height = 2048;
   environment.add(directionalLight);
   
-  // Add some decorative elements
-  const gridHelper = new THREE.GridHelper(200, 50, 0x555555, 0x333333);
-  environment.add(gridHelper);
-  
   // Add hills in the background
   createHills(environment);
   
@@ -1624,66 +1620,107 @@ export function createEnvironment(scene, mainCamera, loadingManager = new THREE.
 // Function to create hills in the background
 function createHills(environment) {
   // Create several hills with different sizes and positions
-  const hillColors = [0x3e8c41, 0x4CAF50, 0x388E3C];
+  // Using more vibrant, stylized colors similar to the Horizon Worlds image
+  const hillColors = [0x8AE68A, 0x9EEE9E, 0xB0F7B0];
   
-  // Create a larger number of hills for a more complete range effect
-  for (let i = 0; i < 50; i++) {
-    // Create a hill with random properties
-    const radius = 30 + Math.random() * 80; // Much larger radius
-    const height = 20 + Math.random() * 60; // Much taller hills
-    const segments = 16; // Reduced segments for distant objects (performance)
+  // Create a series of large, rounded hills
+  for (let i = 0; i < 40; i++) {
+    // Use spheres cut in half to create smooth, rounded hills
+    const radius = 50 + Math.random() * 100; // Very large radius for big fluffy hills
     
-    const hillGeometry = new THREE.ConeGeometry(radius, height, segments, 1, true);
+    // Create a hemisphere by scaling a sphere
+    const hillGeometry = new THREE.SphereGeometry(radius, 24, 16, 0, Math.PI * 2, 0, Math.PI / 2);
     const hillMaterial = new THREE.MeshStandardMaterial({
       color: hillColors[Math.floor(Math.random() * hillColors.length)],
-      roughness: 0.9,
+      roughness: 0.6,
       metalness: 0.1,
-      flatShading: true
+      flatShading: false // Smooth shading for soft appearance
     });
     
     const hill = new THREE.Mesh(hillGeometry, hillMaterial);
     
-    // Position hills in a circle around the scene at a much greater distance
-    const angle = (i / 50) * Math.PI * 2;
-    const distance = 400 + Math.random() * 100; // Placed very far away (400-500 units)
+    // Position hills in a circle around the scene at a distance
+    const angle = (i / 40) * Math.PI * 2;
+    const baseDistance = 320 + Math.random() * 80;
+    // Vary distance more for some hills to create layered effect
+    const distance = baseDistance - Math.random() * 40;
+    
     hill.position.x = Math.cos(angle) * distance;
     hill.position.z = Math.sin(angle) * distance;
-    hill.position.y = -height / 2; // Half-buried for a smoother look
+    hill.position.y = -10; // Slightly buried
     
     // Random rotation for variety
     hill.rotation.y = Math.random() * Math.PI * 2;
+    
+    // Scale to make hills wider than tall for that fluffy look
+    const scaleX = 1.0 + Math.random() * 0.5;
+    const scaleZ = 1.0 + Math.random() * 0.5;
+    hill.scale.set(scaleX, 0.7, scaleZ); // Flatter on Y-axis
     
     // Add hill to the environment
     hill.receiveShadow = true;
     hill.castShadow = true;
     environment.add(hill);
     
-    // For some hills, add a second overlapping hill to create more complex mountain shapes
-    if (Math.random() > 0.5) {
-      const secondRadius = 20 + Math.random() * 60;
-      const secondHeight = 15 + Math.random() * 40;
+    // Add overlapping hills to create more complex shapes and smoother transitions
+    if (Math.random() > 0.3) { // 70% chance of adding an overlapping hill
+      const secondRadius = 30 + Math.random() * 70;
       
-      const secondHillGeometry = new THREE.ConeGeometry(secondRadius, secondHeight, segments, 1, true);
+      const secondHillGeometry = new THREE.SphereGeometry(secondRadius, 24, 16, 0, Math.PI * 2, 0, Math.PI / 2);
       const secondHillMaterial = new THREE.MeshStandardMaterial({
         color: hillColors[Math.floor(Math.random() * hillColors.length)],
-        roughness: 0.9,
+        roughness: 0.6,
         metalness: 0.1,
-        flatShading: true
+        flatShading: false
       });
       
       const secondHill = new THREE.Mesh(secondHillGeometry, secondHillMaterial);
       
-      // Position slightly offset from the first hill
+      // Position the second hill partially overlapping with the first
+      const offsetDistance = distance - (10 + Math.random() * 25);
       const offsetAngle = angle + (Math.random() * 0.2 - 0.1);
-      const offsetDistance = distance + (Math.random() * 40 - 20);
+      
       secondHill.position.x = Math.cos(offsetAngle) * offsetDistance;
       secondHill.position.z = Math.sin(offsetAngle) * offsetDistance;
-      secondHill.position.y = -secondHeight / 2;
+      secondHill.position.y = -5; // Slightly higher for variation
       
-      secondHill.rotation.y = Math.random() * Math.PI * 2;
+      // Scale similarly to first hill
+      const scaleX2 = 1.0 + Math.random() * 0.7;
+      const scaleZ2 = 1.0 + Math.random() * 0.7;
+      secondHill.scale.set(scaleX2, 0.6, scaleZ2);
+      
       secondHill.receiveShadow = true;
       secondHill.castShadow = true;
       environment.add(secondHill);
     }
+  }
+  
+  // Add a few extra large hills in key positions for landmark effect
+  for (let i = 0; i < 8; i++) {
+    const landmarkRadius = 120 + Math.random() * 40;
+    const landmarkGeometry = new THREE.SphereGeometry(landmarkRadius, 32, 24, 0, Math.PI * 2, 0, Math.PI / 2);
+    const landmarkMaterial = new THREE.MeshStandardMaterial({
+      color: hillColors[Math.floor(Math.random() * hillColors.length)],
+      roughness: 0.6,
+      metalness: 0.1,
+      flatShading: false
+    });
+    
+    const landmarkHill = new THREE.Mesh(landmarkGeometry, landmarkMaterial);
+    
+    // Place these at specific angles for best visual effect
+    const landmarkAngle = (i / 8) * Math.PI * 2;
+    const landmarkDistance = 480; // Further back
+    
+    landmarkHill.position.x = Math.cos(landmarkAngle) * landmarkDistance;
+    landmarkHill.position.z = Math.sin(landmarkAngle) * landmarkDistance;
+    landmarkHill.position.y = -30;
+    
+    // Scale to make them extra wide
+    landmarkHill.scale.set(1.6, 0.7, 1.6);
+    
+    landmarkHill.receiveShadow = true;
+    landmarkHill.castShadow = true;
+    environment.add(landmarkHill);
   }
 }
