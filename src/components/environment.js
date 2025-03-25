@@ -335,7 +335,7 @@ const portalConfigs = [
   {
     position: { x: -25, z: -32, y: 0 },  // Fourth desk portal (left side)
     rotation: Math.PI / 2,  // Face towards the desk
-    imageUrl: 'assets/images/jet-ski.jpg',
+    imageUrl: 'assets/images/jet-ski.jpeg',
     targetUrl: 'https://jetski.cemilsevim.com',
     scale: 1.0,
   },
