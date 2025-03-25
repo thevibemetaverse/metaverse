@@ -1435,6 +1435,45 @@ try {
     // Check if player entered any portals
     if (playerAvatar) {
       checkPortalEntry(playerAvatar);
+      
+      // Check if player has entered exit portal
+      if (window.exitPortalBox) {
+        const playerBox = new THREE.Box3().setFromObject(playerAvatar);
+        // Check if player is within 50 units of the portal
+        const portalDistance = playerBox.getCenter(new THREE.Vector3()).distanceTo(window.exitPortalBox.getCenter(new THREE.Vector3()));
+        if (portalDistance < 50) {
+          // Start loading the next page in the background
+          const currentParams = new URLSearchParams(window.location.search);
+          const newParams = new URLSearchParams();
+          newParams.append('portal', true);
+          newParams.append('username', getUsernameFromUrl());
+          newParams.append('color', 'white');
+          
+          // Copy any other existing params
+          for (const [key, value] of currentParams) {
+            if (!newParams.has(key)) { // Don't duplicate params we already set
+              newParams.append(key, value);
+            }
+          }
+          
+          const paramString = newParams.toString();
+          const nextPage = 'https://portal.pieter.com' + (paramString ? '?' + paramString : '');
+
+          // Create hidden iframe to preload next page
+          if (!document.getElementById('preloadFrame')) {
+            const iframe = document.createElement('iframe');
+            iframe.id = 'preloadFrame';
+            iframe.style.display = 'none';
+            iframe.src = nextPage;
+            document.body.appendChild(iframe);
+          }
+
+          // Only redirect once actually in the portal
+          if (playerBox.intersectsBox(window.exitPortalBox)) {
+            window.location.href = nextPage;
+          }
+        }
+      }
     }
     
     // Update God Mode camera if enabled
