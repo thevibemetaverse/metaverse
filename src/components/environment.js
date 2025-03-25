@@ -239,6 +239,13 @@ function addAvatarToPortalUrl(portalUrl) {
     return url.toString();
 }
 
+// Function to ensure URL has https://
+function ensureHttps(url) {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  return `https://${url}`;
+}
+
 // Portal configurations
 const portalConfigs = [
   {
@@ -353,13 +360,13 @@ const portalConfigs = [
     targetUrl: 'https://auto-boss.vercel.app/',
     scale: 1.0,
   },
-  {
-    position: { x: 0, z: -25, y: 0 },  // Portal behind the user
+  ...(new URLSearchParams(window.location.search).get('portal') === 'true' ? [{
+    position: { x: 0, z: -35, y: 0 },  // Portal behind the user
     rotation: Math.PI,  // Rotate 180 degrees to face the user
     imageUrl: 'assets/images/portal.jpg',
-    targetUrl: `https://portal.pieter.com?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app`,
+    targetUrl: `${ensureHttps(encodeURIComponent(new URLSearchParams(window.location.search).get('ref')))}?avatar_url=${encodeURIComponent(new URLSearchParams(window.location.search).get('avatar_url'))}&username=${getUsernameFromUrl()}`,
     scale: 1.0
-  }
+  }] : [])
 ];
 
 // Add this at the top of the file after the imports
@@ -1646,7 +1653,7 @@ export function createEnvironment(scene, mainCamera, loadingManager = new THREE.
     portalGroup.scale.set(config.scale, config.scale, config.scale);
     
     // Create invisible plane for portal detection
-    const portalGeometry = new THREE.PlaneGeometry(4, 8);
+    const portalGeometry = new THREE.PlaneGeometry(8, 12); // Increased size
     const portalMaterial = new THREE.MeshBasicMaterial({
       transparent: true,
       opacity: 0,
@@ -1657,7 +1664,7 @@ export function createEnvironment(scene, mainCamera, loadingManager = new THREE.
     portal.userData.portalURL = config.targetUrl;
     portal.userData.portalIndex = index;
     portal.userData.isFormPortal = config.isFormPortal || config.targetUrl === '#';
-    portal.position.y = 4; // Position at eye level
+    portal.position.y = 2; // Lowered to be more accessible
     portalGroup.add(portal);
     
     // Load portal frame model
