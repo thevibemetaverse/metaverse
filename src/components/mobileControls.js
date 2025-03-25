@@ -354,7 +354,8 @@ export function setupMobileControls(controls) {
       console.log(`Toggling mobile controls: ${show ? 'showing' : 'hiding'}`);
       mobileControlsContainer.style.display = show ? 'flex' : 'none';
       jumpButton.style.display = show ? 'flex' : 'none';
-      usernameContainer.style.display = show ? 'flex' : 'none';
+      // Never show the username container outside of portal entrance
+      usernameContainer.style.display = 'none';
     }
   };
 
@@ -421,114 +422,12 @@ export function setupDeviceOrientation(controls) {
  * Creates a mobile-friendly UI
  */
 export function createMobileUI() {
-  // Create a container for mobile UI elements
-  const mobileUIContainer = document.createElement('div');
-  mobileUIContainer.id = 'mobile-ui';
-  mobileUIContainer.style.position = 'fixed';
-  mobileUIContainer.style.top = '10px';
-  mobileUIContainer.style.right = '10px';
-  mobileUIContainer.style.zIndex = '100';
-  document.body.appendChild(mobileUIContainer);
-
-  // Create settings button
-  const settingsButton = document.createElement('button');
-  settingsButton.id = 'mobile-settings-button';
-  settingsButton.style.width = '40px';
-  settingsButton.style.height = '40px';
-  settingsButton.style.borderRadius = '50%';
-  settingsButton.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
-  settingsButton.style.border = 'none';
-  settingsButton.style.boxShadow = '0 2px 5px rgba(0, 0, 0, 0.2)';
-  settingsButton.style.marginBottom = '10px';
-  settingsButton.innerHTML = '⚙️';
-  mobileUIContainer.appendChild(settingsButton);
-
-  // Create mobile settings panel
-  const settingsPanel = document.createElement('div');
-  settingsPanel.id = 'mobile-settings-panel';
-  settingsPanel.style.position = 'fixed';
-  settingsPanel.style.top = '50%';
-  settingsPanel.style.left = '50%';
-  settingsPanel.style.transform = 'translate(-50%, -50%)';
-  settingsPanel.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-  settingsPanel.style.padding = '20px';
-  settingsPanel.style.borderRadius = '10px';
-  settingsPanel.style.color = 'white';
-  settingsPanel.style.zIndex = '1000';
-  settingsPanel.style.display = 'none';
-  settingsPanel.style.maxWidth = '80%';
-  settingsPanel.style.width = '300px';
+  // This function now returns an empty object without creating any UI elements
+  // All settings UI elements (button and panel) have been removed
   
-  settingsPanel.innerHTML = `
-    <h3 style="margin-top: 0; text-align: center;">Mobile Settings</h3>
-    
-    <div style="margin: 15px 0;">
-      <label for="graphics-quality">Graphics Quality:</label>
-      <select id="graphics-quality" style="width: 100%; padding: 8px; margin-top: 5px; background: #333; color: white; border: 1px solid #555;">
-        <option value="low">Low (Better Performance)</option>
-        <option value="medium" selected>Medium</option>
-        <option value="high">High (Better Graphics)</option>
-      </select>
-    </div>
-    
-    <div style="margin: 15px 0;">
-      <label for="joystick-size">Joystick Size:</label>
-      <input type="range" id="joystick-size" min="80" max="150" value="120" style="width: 100%;">
-    </div>
-    
-    <div style="margin: 15px 0;">
-      <label>
-        <input type="checkbox" id="use-gyroscope" checked>
-        Use Gyroscope for Rotation (if available)
-      </label>
-    </div>
-    
-    <div style="display: flex; justify-content: space-between; margin-top: 20px;">
-      <button id="close-settings" style="padding: 8px 15px; background: #555; color: white; border: none; border-radius: 5px;">Close</button>
-      <button id="apply-settings" style="padding: 8px 15px; background: #4CAF50; color: white; border: none; border-radius: 5px;">Apply</button>
-    </div>
-  `;
-  
-  document.body.appendChild(settingsPanel);
-
-  // Settings button event listener
-  settingsButton.addEventListener('click', () => {
-    settingsPanel.style.display = 'block';
-  });
-
-  // Close settings button event listener
-  document.getElementById('close-settings').addEventListener('click', () => {
-    settingsPanel.style.display = 'none';
-  });
-
-  // Apply settings button event listener
-  document.getElementById('apply-settings').addEventListener('click', () => {
-    const graphicsQuality = document.getElementById('graphics-quality').value;
-    const joystickSize = document.getElementById('joystick-size').value;
-    const useGyroscope = document.getElementById('use-gyroscope').checked;
-    
-    // Apply joystick size
-    const leftJoystick = document.querySelector('#mobile-controls > div:first-child');
-    const rightJoystick = document.querySelector('#mobile-controls > div:last-child');
-    
-    if (leftJoystick && rightJoystick) {
-      leftJoystick.style.width = `${joystickSize}px`;
-      leftJoystick.style.height = `${joystickSize}px`;
-      rightJoystick.style.width = `${joystickSize}px`;
-      rightJoystick.style.height = `${joystickSize}px`;
-    }
-    
-    // Apply graphics quality
-    window.dispatchEvent(new CustomEvent('mobile-settings-changed', { 
-      detail: { graphicsQuality, joystickSize, useGyroscope } 
-    }));
-    
-    // Close settings panel
-    settingsPanel.style.display = 'none';
-  });
-
+  // Return empty object to maintain the expected interface
   return {
-    settingsButton,
-    settingsPanel
+    settingsButton: null,
+    settingsPanel: null
   };
 } 
