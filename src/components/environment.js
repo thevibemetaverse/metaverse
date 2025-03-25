@@ -1653,7 +1653,7 @@ export function createEnvironment(scene, mainCamera, loadingManager = new THREE.
     portalGroup.scale.set(config.scale, config.scale, config.scale);
     
     // Create invisible plane for portal detection
-    const portalGeometry = new THREE.PlaneGeometry(4, 8);
+    const portalGeometry = new THREE.PlaneGeometry(8, 12); // Increased size
     const portalMaterial = new THREE.MeshBasicMaterial({
       transparent: true,
       opacity: 0,
@@ -1664,7 +1664,7 @@ export function createEnvironment(scene, mainCamera, loadingManager = new THREE.
     portal.userData.portalURL = config.targetUrl;
     portal.userData.portalIndex = index;
     portal.userData.isFormPortal = config.isFormPortal || config.targetUrl === '#';
-    portal.position.y = 4; // Position at eye level
+    portal.position.y = 2; // Lowered to be more accessible
     portalGroup.add(portal);
     
     // Load portal frame model

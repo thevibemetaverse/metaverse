@@ -1644,59 +1644,39 @@ try {
         if (object.userData && object.userData.isPortal) {
           // Get the portal's bounding box and expand it slightly
           const portalBox = new THREE.Box3().setFromObject(object);
-          portalBox.expandByScalar(1.5); // Expand the box by 50% to trigger earlier
+          portalBox.expandByScalar(2.0); // Increased expansion for easier triggering
           
           // Check if the player's bounding box intersects with the portal's bounding box
           if (playerBox.intersectsBox(portalBox) && !playerAvatar.userData.isPortalJumping) {
+            console.log('Portal collision detected!');
             // Set flag to prevent multiple triggers
             playerAvatar.userData.isPortalJumping = true;
             
-            // First increment the portal counter
+            // First try to increment the portal counter, but don't wait for it
             (async () => {
               try {
                 // Determine server URL based on environment
                 const isLocalDevelopment = window.location.hostname === 'localhost' || 
                                          window.location.hostname === '127.0.0.1';
                 const serverUrl = isLocalDevelopment
-                  ? 'http://localhost:3000'  // Always use port 3000 for the server
+                  ? 'http://localhost:3000'
                   : 'https://metaverse-production-821f.up.railway.app';
                 
-                try {
-                  const response = await fetch(`${serverUrl}/portal-counter`, {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      'Accept': 'application/json'
-                    },
-                    body: JSON.stringify({
-                      portalURL: object.userData.portalURL
-                    })
-                  });
-                  
-                  // Try to get the response text first
-                  const responseText = await response.text();
-                  
-                  // Try to parse the response as JSON if it's not empty
-                  let responseData;
-                  if (responseText) {
-                    try {
-                      responseData = JSON.parse(responseText);
-                    } catch (e) {
-                      console.error('PORTAL: Failed to parse response as JSON:', e);
-                      responseData = null;
-                    }
-                  }
-                  
-                  if (!response.ok) {
-                    console.error('Failed to increment portal counter. Status:', response.status);
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                  }
-                } catch (fetchError) {
-                  console.error('Fetch error:', fetchError);
-                  throw fetchError;
-                }
+                // Fire and forget the counter increment
+                fetch(`${serverUrl}/portal-counter`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                  },
+                  body: JSON.stringify({
+                    portalURL: object.userData.portalURL
+                  })
+                }).catch(error => {
+                  console.error('Failed to increment portal counter:', error);
+                });
                 
-                // After counter is incremented, trigger jump animation if available
+                // Don't wait for the counter increment, proceed with portal entry
                 if (playerAvatar.jump && !playerAvatar.userData.isJumping) {
                   playerAvatar.jump();
                   
@@ -1706,19 +1686,20 @@ try {
                     playerAvatar.userData.isPortalJumping = false;
                     // Open the URL after animation completes
                     if (object.userData.portalURL) {
+                      console.log('Opening portal URL:', object.userData.portalURL);
                       window.open(object.userData.portalURL, '_blank', 'noopener,noreferrer');
                     }
-                  }, 750); // Reduced to 750ms for a snappier feel
+                  }, 750);
                 } else {
-                  // If no jump animation, just open the URL
+                  // If no jump animation, just open the URL immediately
                   playerAvatar.userData.isPortalJumping = false;
                   if (object.userData.portalURL) {
+                    console.log('Opening portal URL:', object.userData.portalURL);
                     window.open(object.userData.portalURL, '_blank', 'noopener,noreferrer');
                   }
                 }
               } catch (error) {
                 console.error('Error during portal entry:', error);
-                console.error('Error stack:', error.stack);
                 playerAvatar.userData.isPortalJumping = false;
               }
             })();
