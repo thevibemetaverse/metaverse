@@ -3058,41 +3058,76 @@ function addCounterImage(portalGroup) {
   // Create a plane geometry for the counter image
   const counterGeometry = new THREE.PlaneGeometry(2, 2);
   
+  // Create canvas for the number
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  canvas.width = 512;
+  canvas.height = 512;
+  
+  // Fill with transparent background
+  context.fillStyle = 'rgba(0, 0, 0, 0)';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  
+  // Add the number "0" with smaller font size
+  context.fillStyle = '#01579b';
+  context.font = 'bold 150px Arial'; // Reduced from 400px to 150px
+  context.textAlign = 'right';
+  context.textBaseline = 'middle';
+  context.fillText('0', canvas.width - 50, canvas.height / 2);
+  
+  // Create number texture
+  const numberTexture = new THREE.CanvasTexture(canvas);
+  
   // Load the counter image texture
   const textureLoader = new THREE.TextureLoader();
   textureLoader.load('/assets/images/counter.png', (texture) => {
+    // Create a container group for the counter that will maintain standard orientation
+    const counterContainer = new THREE.Group();
+    
+    // Create the counter mesh with the counter image
     const counterMaterial = new THREE.MeshBasicMaterial({
       map: texture,
       transparent: true,
       side: THREE.DoubleSide
     });
-    
-    // Create a container group for the counter that will maintain standard orientation
-    const counterContainer = new THREE.Group();
-    
-    // Create the counter mesh
     const counterMesh = new THREE.Mesh(counterGeometry, counterMaterial);
+    
+    // Create the number mesh
+    const numberMaterial = new THREE.MeshBasicMaterial({
+      map: numberTexture,
+      transparent: true,
+      side: THREE.DoubleSide
+    });
+    const numberMesh = new THREE.Mesh(counterGeometry, numberMaterial);
     
     // Position counter above portal in local space
     counterMesh.position.y = 9;
+    numberMesh.position.y = 9;
     
     // Check portal's rotation and adjust counter position and rotation accordingly
     if (Math.abs(portalGroup.rotation.y - Math.PI / 2) < 0.01) {
       // For portals facing right (90 degrees)
       counterMesh.position.x = -0.5; // Offset to the left
-      counterMesh.rotation.y = - 2 * Math.PI; // Rotate to face entrance
+      counterMesh.rotation.y = -2 * Math.PI; // Rotate to face entrance
+      numberMesh.position.x = -0.5;
+      numberMesh.rotation.y = -2 * Math.PI;
     } else if (Math.abs(portalGroup.rotation.y - Math.PI) < 0.01) {
       // For portals facing backward (180 degrees)
       counterMesh.position.z = 0.5; // Offset forward
       counterMesh.rotation.y = 0; // No rotation needed
+      numberMesh.position.z = 0.5;
+      numberMesh.rotation.y = 0;
     } else {
       // For portals facing forward (0 degrees)
       counterMesh.position.z = -0.5; // Offset backward
       counterMesh.rotation.y = Math.PI; // Rotate to face entrance
+      numberMesh.position.z = -0.5;
+      numberMesh.rotation.y = Math.PI;
     }
     
-    // Add counter to container
+    // Add both meshes to container
     counterContainer.add(counterMesh);
+    counterContainer.add(numberMesh);
     
     // Add container to portal group
     portalGroup.add(counterContainer);
