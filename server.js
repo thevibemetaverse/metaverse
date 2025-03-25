@@ -10,7 +10,7 @@ const server = http.createServer(app);
 // Configure CORS for production
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://metaverse-simulator.vercel.app', 'https://*.vercel.app', 'http://localhost:5173', 'http://localhost:8080'] 
+    ? ['https://metaverse-simulator.vercel.app', 'https://metaverse-delta.vercel.app', 'https://thevibemetaverse.com', 'https://*.vercel.app', 'http://localhost:5173', 'http://localhost:8080'] 
     : '*',
   methods: ['GET', 'POST']
 }));
@@ -20,7 +20,7 @@ app.use(express.json()); // Add JSON body parser
 const io = new Server(server, {
   cors: {
     origin: process.env.NODE_ENV === 'production' 
-      ? ['https://metaverse-simulator.vercel.app', 'https://*.vercel.app', 'http://localhost:5173'] 
+      ? ['https://metaverse-simulator.vercel.app', 'https://metaverse-delta.vercel.app', 'https://thevibemetaverse.com', 'https://*.vercel.app', 'http://localhost:5173'] 
       : '*',
     methods: ['GET', 'POST']
   },

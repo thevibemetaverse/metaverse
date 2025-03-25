@@ -746,94 +746,153 @@ export async function initializePortalCounters() {
     return;
   }
 
-  // Wait for socket to be available
+  // Wait for socket to be available with a timeout
   attempts = 0;
-  while (!window.socket && attempts < maxAttempts) {
+  let socketAvailable = false;
+  
+  // Try to wait for socket connection but proceed even if not available
+  while (!window.socket && attempts < 20) {
     console.log('PORTAL: Waiting for socket to be available...', attempts + 1);
     await new Promise(resolve => setTimeout(resolve, 300)); // Longer delay for socket connection
     attempts++;
   }
   
-  // Check for socket availability
   if (!window.socket) {
-    console.error('PORTAL: Socket not available for portal counter initialization after', maxAttempts, 'attempts');
+    console.warn('PORTAL: Socket not available for portal counter initialization - will use fallback mode');
+    // Set fallback mode - display "0" for all counters
+    setFallbackCounters();
     return;
   }
 
-  // Check socket connection status
-  if (!window.socket.connected) {
-    console.log('PORTAL: Socket exists but not connected yet. Waiting for connection...');
-    
-    // Wait for socket to connect if it exists but isn't connected
-    const socketConnectPromise = new Promise((resolve, reject) => {
-      // Set a timeout to prevent hanging indefinitely
-      const timeout = setTimeout(() => {
-        console.warn('PORTAL: Socket connection timeout - proceeding anyway');
-        resolve(); // Resolve anyway after timeout to avoid blocking
-      }, 8000); // Increased timeout
-      
-      // If socket connects, resolve
-      const onConnect = () => {
-        clearTimeout(timeout);
-        window.socket.off('connect', onConnect);
-        resolve();
-      };
-      
-      // If already connected, resolve immediately
-      if (window.socket.connected) {
-        clearTimeout(timeout);
-        resolve();
+  // Try to set up socket connection with a timeout
+  try {
+    // Set a timeout for the whole socket setup process
+    const socketSetupPromise = new Promise(async (resolve) => {
+      // Check socket connection status
+      if (!window.socket.connected) {
+        console.log('PORTAL: Socket exists but not connected yet. Waiting for connection...');
+        
+        // Wait for socket to connect if it exists but isn't connected
+        const socketConnectPromise = new Promise((connectResolve) => {
+          // Set a timeout to prevent hanging indefinitely
+          const timeout = setTimeout(() => {
+            console.warn('PORTAL: Socket connection timeout - proceeding anyway');
+            connectResolve(false); // Resolve with false indicating timeout
+          }, 5000); // Reduced timeout for faster fallback
+          
+          // If socket connects, resolve
+          const onConnect = () => {
+            clearTimeout(timeout);
+            window.socket.off('connect', onConnect);
+            connectResolve(true); // Connected successfully
+          };
+          
+          // If already connected, resolve immediately
+          if (window.socket.connected) {
+            clearTimeout(timeout);
+            connectResolve(true);
+          } else {
+            // Otherwise wait for connect event
+            window.socket.on('connect', onConnect);
+          }
+        });
+        
+        socketAvailable = await socketConnectPromise;
       } else {
-        // Otherwise wait for connect event
-        window.socket.on('connect', onConnect);
+        socketAvailable = true;
       }
+      
+      resolve(socketAvailable);
     });
     
-    await socketConnectPromise;
+    // Wait for socket setup with overall timeout
+    const socketSetupSuccess = await Promise.race([
+      socketSetupPromise,
+      new Promise(resolve => setTimeout(() => resolve(false), 8000)) // Overall timeout
+    ]);
+    
+    if (!socketSetupSuccess) {
+      console.warn('PORTAL: Socket setup timed out - using fallback mode');
+      setFallbackCounters();
+      return;
+    }
+    
     console.log('PORTAL: Socket connection wait complete, status:', window.socket.connected);
+  } catch (error) {
+    console.error('PORTAL: Error during socket setup:', error);
+    setFallbackCounters();
+    return;
+  }
+  
+  if (!socketAvailable) {
+    console.warn('PORTAL: Socket connection failed - using fallback mode');
+    setFallbackCounters();
+    return;
   }
   
   console.log('PORTAL: Setting up counter listeners');
   
-  // Remove any existing listeners to prevent duplicates
-  window.socket.off('portal-count-update');
-  window.socket.off('portal-counts');
-  
-  // Listen for portal count updates
-  window.socket.on('portal-count-update', ({ portalURL, count }) => {
-    console.log(`PORTAL: Received count update for ${portalURL}: ${count}`);
-    // Find the portal group with this URL and update its counter
-    window.scene.traverse((object) => {
-      if (object.userData && object.userData.isPortal && object.userData.portalURL === portalURL) {
-        const portalGroup = object.parent;
-        updateCounterDisplay(portalGroup, count);
-      }
-    });
-  });
-
-  // Listen for initial portal counts
-  window.socket.on('portal-counts', (portalCounts) => {
-    console.log('PORTAL: Received initial portal counts:', portalCounts);
-    Object.entries(portalCounts).forEach(([portalURL, count]) => {
-      window.scene.traverse((object) => {
-        if (object.userData && object.userData.isPortal && object.userData.portalURL === portalURL) {
-          const portalGroup = object.parent;
-          updateCounterDisplay(portalGroup, count);
-        }
+  try {
+    // Remove any existing listeners to prevent duplicates
+    if (window.socket) {
+      window.socket.off('portal-count-update');
+      window.socket.off('portal-counts');
+      
+      // Listen for portal count updates
+      window.socket.on('portal-count-update', ({ portalURL, count }) => {
+        console.log(`PORTAL: Received count update for ${portalURL}: ${count}`);
+        // Find the portal group with this URL and update its counter
+        window.scene.traverse((object) => {
+          if (object.userData && object.userData.isPortal && object.userData.portalURL === portalURL) {
+            const portalGroup = object.parent;
+            updateCounterDisplay(portalGroup, count);
+          }
+        });
       });
-    });
-  });
+
+      // Listen for initial portal counts
+      window.socket.on('portal-counts', (portalCounts) => {
+        console.log('PORTAL: Received initial portal counts:', portalCounts);
+        Object.entries(portalCounts).forEach(([portalURL, count]) => {
+          window.scene.traverse((object) => {
+            if (object.userData && object.userData.isPortal && object.userData.portalURL === portalURL) {
+              const portalGroup = object.parent;
+              updateCounterDisplay(portalGroup, count);
+            }
+          });
+        });
+      });
+      
+      // Request initial portal counts from server if connected
+      if (window.socket.connected) {
+        window.socket.emit('get-portal-counts');
+        console.log('PORTAL: Requested initial portal counts from server');
+      } else {
+        console.log('PORTAL: Socket not connected, will request counts when connected');
+        // Setup a one-time connect handler to request counts when connection is established
+        window.socket.once('connect', () => {
+          window.socket.emit('get-portal-counts');
+          console.log('PORTAL: Requested initial portal counts after connection');
+        });
+      }
+    }
+  } catch (error) {
+    console.error('PORTAL: Error setting up counter listeners:', error);
+    setFallbackCounters();
+  }
+}
+
+// Function to set fallback zero counters when socket is unavailable
+function setFallbackCounters() {
+  console.log('PORTAL: Setting fallback zero counters for all portals');
   
-  // Request initial portal counts from server if connected
-  if (window.socket.connected) {
-    window.socket.emit('get-portal-counts');
-    console.log('PORTAL: Requested initial portal counts from server');
-  } else {
-    console.log('PORTAL: Socket not connected, will request counts when connected');
-    // Setup a one-time connect handler to request counts when connection is established
-    window.socket.once('connect', () => {
-      window.socket.emit('get-portal-counts');
-      console.log('PORTAL: Requested initial portal counts after connection');
+  // Find all portals in the scene and set their counter to zero
+  if (window.scene) {
+    window.scene.traverse((object) => {
+      if (object.userData && object.userData.isPortal) {
+        const portalGroup = object.parent;
+        updateCounterDisplay(portalGroup, 0);
+      }
     });
   }
 }
