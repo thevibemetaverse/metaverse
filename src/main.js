@@ -2155,6 +2155,12 @@ try {
         gameState.username = controlsUsernameInput.value.trim();
         console.log('Username set to:', gameState.username);
       }
+      
+      // Ensure the username container remains hidden after controls are closed
+      const usernameContainer = document.getElementById('username-container');
+      if (usernameContainer) {
+        usernameContainer.style.display = 'none';
+      }
     });
   }
   

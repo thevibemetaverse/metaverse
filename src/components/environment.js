@@ -251,8 +251,8 @@ const portalConfigs = [
   {
     position: { x: 5, z: 15, y: 0 },  // Leftmost portal (chess)
     rotation: 0,
-    imageUrl: 'assets/images/chess.png',
-    targetUrl: addAvatarToPortalUrl(`https://chess-ai-beta.vercel.app/?username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app&portal=true`),
+    imageUrl: 'assets/images/kyzo.jpeg',
+    targetUrl: addAvatarToPortalUrl(`http://quack.kyzo.io//?username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app&portal=true`),
     scale: 1.0
   },
   {
