@@ -1047,10 +1047,13 @@ try {
     socket = io(socketServerUrl, {
       transports: ['polling', 'websocket'], // Try polling first, then websocket
       reconnection: true,
-      reconnectionAttempts: 5,
+      reconnectionAttempts: 10, // Increase from 5 to 10
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
-      timeout: 20000
+      timeout: 30000, // Increase timeout from 20000 to 30000
+      forceNew: true,
+      autoConnect: true,
+      withCredentials: false
     });
     
     // Make socket available globally for portal counters immediately
