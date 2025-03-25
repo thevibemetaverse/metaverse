@@ -521,9 +521,9 @@ function createStartPortal(scene) {
 function createExitPortal(scene) {
   // Create portal group to contain all portal elements
   const exitPortalGroup = new THREE.Group();
-  exitPortalGroup.position.set(-15, 5, 15);
+  exitPortalGroup.position.set(-12, 5, 15); // Position next to the fly.pieter portal
   exitPortalGroup.rotation.x = 0.35;
-  exitPortalGroup.rotation.y = Math.PI;
+  exitPortalGroup.rotation.y = 0; // Face the same direction as the other portals
   exitPortalGroup.scale.set(0.2, 0.2, 0.2);
 
   // Create portal effect
@@ -549,7 +549,6 @@ function createExitPortal(scene) {
   exitPortalGroup.add(exitPortalInner);
   
   // Add portal label
-  const loader = new THREE.TextureLoader();
   const canvas = document.createElement('canvas');
   const context = canvas.getContext('2d');
   canvas.width = 512; // Increased width
@@ -603,7 +602,7 @@ function createExitPortal(scene) {
   exitPortalGroup.add(exitPortalParticleSystem);
 
   // Create collision detection trigger
-  const portalTriggerGeometry = new THREE.BoxGeometry(10, 10, 10);
+  const portalTriggerGeometry = new THREE.BoxGeometry(20, 20, 20);
   const portalTriggerMaterial = new THREE.MeshBasicMaterial({
     transparent: true,
     opacity: 0,
@@ -622,6 +621,7 @@ function createExitPortal(scene) {
   const exitPortalBox = new THREE.Box3().setFromObject(exitPortalGroup);
   exitPortalGroup.userData.portalBox = exitPortalBox;
   window.exitPortalGroup = exitPortalGroup; // Store for collision detection
+  window.exitPortalBox = exitPortalBox; // Store for collision detection
 
   // Animate particles and portal
   function animateExitPortal() {
@@ -1669,6 +1669,9 @@ export function createEnvironment(scene, mainCamera, loadingManager = new THREE.
     // Add portal to environment
     environment.add(portalGroup);
   });
+  
+  // Create exit portal
+  createExitPortal(scene);
   
   // Add office computer
   createOfficeComputer(environment, loadingManager);
