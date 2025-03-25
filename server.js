@@ -8,7 +8,12 @@ const app = express();
 const server = http.createServer(app);
 
 // Configure CORS for production
-app.use(cors());
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' 
+    ? ['https://metaverse-simulator.vercel.app', 'https://*.vercel.app', 'http://localhost:5173', 'http://localhost:8080'] 
+    : '*',
+  methods: ['GET', 'POST']
+}));
 app.use(express.json()); // Add JSON body parser
 
 // Configure Socket.IO with production-ready settings
@@ -39,14 +44,18 @@ app.get('/portal-counter', (req, res) => {
 });
 
 app.post('/portal-counter', (req, res) => {
+  console.log('Received portal counter request:', req.body);
   const { portalURL } = req.body;
   if (!portalURL) {
+    console.error('No portalURL provided in request');
     return res.status(400).json({ error: 'portalURL is required' });
   }
   
   const currentCount = portalCounters.get(portalURL) || 0;
   const newCount = currentCount + 1;
   portalCounters.set(portalURL, newCount);
+  
+  console.log(`Portal counter updated for ${portalURL}: ${currentCount} -> ${newCount}`);
   
   // Broadcast the updated count to all connected clients
   io.emit('portal-count-update', { portalURL, count: newCount });

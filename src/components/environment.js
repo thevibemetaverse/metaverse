@@ -644,6 +644,7 @@ function createExitPortal(scene) {
 
 // Function to increment portal counter
 async function incrementPortalCounter(portalURL) {
+  console.log('Attempting to increment portal counter for URL:', portalURL);
   try {
     const response = await fetch('/portal-counter', {
       method: 'POST',
@@ -656,10 +657,12 @@ async function incrementPortalCounter(portalURL) {
     });
 
     if (!response.ok) {
+      console.error('Failed to increment counter. Response status:', response.status);
       throw new Error('Failed to increment counter');
     }
 
     const data = await response.json();
+    console.log('Portal counter increment successful. New count:', data.count);
     return data.count;
   } catch (error) {
     console.error('Error incrementing portal counter:', error);
@@ -686,31 +689,52 @@ async function getPortalCount(portalURL) {
 
 // Function to handle portal entry
 async function handlePortalEntry(portalGroup) {
-  if (!portalGroup || !portalGroup.children[0] || !portalGroup.children[0].userData) return;
+  console.log('handlePortalEntry called with portalGroup:', portalGroup);
+  if (!portalGroup || !portalGroup.children[0] || !portalGroup.children[0].userData) {
+    console.error('Invalid portalGroup or missing userData:', portalGroup);
+    return;
+  }
 
   const portalURL = portalGroup.children[0].userData.portalURL;
-  if (!portalURL) return;
+  console.log('Portal URL from userData:', portalURL);
+  if (!portalURL) {
+    console.error('No portalURL found in userData');
+    return;
+  }
 
   // Increment the counter
+  console.log('Calling incrementPortalCounter...');
   const newCount = await incrementPortalCounter(portalURL);
+  console.log('incrementPortalCounter returned:', newCount);
+  
   if (newCount !== null) {
     // Update the counter display
+    console.log('Updating counter display with new count:', newCount);
     updateCounterDisplay(portalGroup, newCount);
+  } else {
+    console.error('Failed to update counter display - newCount is null');
   }
 }
 
 // Function to initialize portal counters
-async function initializePortalCounters() {
+export async function initializePortalCounters() {
+  console.log('Initializing portal counters...');
   // Find all portal groups in the scene
-  if (!window.scene) return;
+  if (!window.scene) {
+    console.error('Scene not available for portal counter initialization');
+    return;
+  }
 
   // Listen for portal count updates
   if (window.socket) {
+    console.log('Setting up portal counter socket listeners...');
     window.socket.on('portal-count-update', ({ portalURL, count }) => {
+      console.log('Received portal count update:', { portalURL, count });
       // Find the portal group with this URL and update its counter
       window.scene.traverse((object) => {
         if (object.userData && object.userData.isPortal && object.userData.portalURL === portalURL) {
           const portalGroup = object.parent;
+          console.log('Updating counter display for portal:', portalURL);
           updateCounterDisplay(portalGroup, count);
         }
       });
@@ -718,15 +742,19 @@ async function initializePortalCounters() {
 
     // Listen for initial portal counts
     window.socket.on('portal-counts', (portalCounts) => {
+      console.log('Received initial portal counts:', portalCounts);
       Object.entries(portalCounts).forEach(([portalURL, count]) => {
         window.scene.traverse((object) => {
           if (object.userData && object.userData.isPortal && object.userData.portalURL === portalURL) {
             const portalGroup = object.parent;
+            console.log('Updating initial counter display for portal:', portalURL);
             updateCounterDisplay(portalGroup, count);
           }
         });
       });
     });
+  } else {
+    console.error('Socket not available for portal counter initialization');
   }
 
   // Initialize counters for all portals
@@ -740,6 +768,7 @@ async function initializePortalCounters() {
         const count = await getPortalCount(portalURL);
         if (count !== null) {
           // Update the counter display
+          console.log('Setting initial counter display for portal:', portalURL);
           updateCounterDisplay(portalGroup, count);
         }
       }
@@ -749,41 +778,63 @@ async function initializePortalCounters() {
 
 // Modify checkPortalEntry function to include counter increment
 export function checkPortalEntry(player) {
-  if (!player || !window.scene) return false;
+  if (!player || !window.scene) {
+    console.log('checkPortalEntry: No player or scene available');
+    return false;
+  }
   
   // Create a bounding box for the player
   const playerBox = new THREE.Box3().setFromObject(player);
+  console.log('Player bounding box:', {
+    min: playerBox.min,
+    max: playerBox.max
+  });
   
+  let portalFound = false;
   // Find all portal triggers in the scene
-  window.scene.traverse(async (object) => {
+  window.scene.traverse((object) => {
     if (object.userData && object.userData.isPortal) {
+      portalFound = true;
+      console.log('Found portal object:', {
+        id: object.id,
+        name: object.name,
+        userData: object.userData,
+        position: object.position,
+        parent: object.parent ? {
+          id: object.parent.id,
+          name: object.parent.name
+        } : null
+      });
+      
       // Create a bounding box for the portal trigger
       const portalBox = new THREE.Box3().setFromObject(object);
+      console.log('Portal bounding box:', {
+        min: portalBox.min,
+        max: portalBox.max
+      });
       
       // Check for collision
-      if (playerBox.intersectsBox(portalBox)) {
+      const isColliding = playerBox.intersectsBox(portalBox);
+      console.log('Collision check result:', isColliding);
+      
+      if (isColliding) {
+        console.log('Player collided with portal!');
         // Check if we're already in the process of entering a portal
-        if (window.isEnteringPortal) return false;
+        if (window.isEnteringPortal) {
+          console.log('Already entering a portal, skipping...');
+          return false;
+        }
         window.isEnteringPortal = true;
         
-        console.log('Player entered the portal!');
+        console.log('Starting portal entry process...');
         
-        // Increment the counter before navigation
-        await handlePortalEntry(object.parent);
-        
-        // Create portal entry particles
-        createPortalEntryEffect(player.position);
-        
-        // Trigger jump animation
-        if (player.jump && typeof player.jump === 'function') {
-          console.log('Triggering jump animation for portal entry!');
-          player.jump();
-          
-          if (window.controls && window.controls.velocity) {
-            window.controls.velocity.y = 5.0;
-            window.controls.isJumping = true;
-          }
-        }
+        // First, increment the counter
+        console.log('About to call handlePortalEntry with parent:', object.parent);
+        handlePortalEntry(object.parent).then(() => {
+          console.log('handlePortalEntry completed');
+        }).catch(error => {
+          console.error('Error in handlePortalEntry:', error);
+        });
         
         // Add query parameters
         const urlParams = new URLSearchParams(window.location.search);
@@ -793,7 +844,10 @@ export function checkPortalEntry(player) {
         let portalUrl = object.userData.portalURL;
         portalUrl += `?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${username}&ref=https://metaverse-delta.vercel.app`;
         
+        console.log('Portal URL constructed:', portalUrl);
+        
         // Create loading overlay
+        console.log('Creating loading overlay...');
         const overlay = document.createElement('div');
         overlay.id = 'portal-entry-overlay';
         overlay.style.cssText = `
@@ -846,6 +900,21 @@ export function checkPortalEntry(player) {
           cleanupOverlay();
         }, 5000);
         
+        // Create portal entry particles
+        console.log('Creating portal entry effect...');
+        createPortalEntryEffect(player.position);
+        
+        // Trigger jump animation
+        if (player.jump && typeof player.jump === 'function') {
+          console.log('Triggering jump animation...');
+          player.jump();
+          
+          if (window.controls && window.controls.velocity) {
+            window.controls.velocity.y = 5.0;
+            window.controls.isJumping = true;
+          }
+        }
+        
         // Delay navigation
         const jumpAnimationDelay = 800;
         
@@ -866,6 +935,10 @@ export function checkPortalEntry(player) {
       }
     }
   });
+  
+  if (!portalFound) {
+    console.log('No portal objects found in scene');
+  }
   
   return false;
 }
