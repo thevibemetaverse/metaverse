@@ -231,21 +231,12 @@ function getAvatarUrlFromParams() {
 
 // Function to add avatar URL to portal URL
 function addAvatarToPortalUrl(portalUrl) {
-  try {
     const url = new URL(portalUrl);
-    const params = new URLSearchParams(url.search);
-    
-    // Only add avatar_url if it's not already present
-    if (!params.has('avatar_url')) {
-      params.set('avatar_url', getAvatarUrlFromParams());
+    // Only add avatar_url if it doesn't already exist in the URL
+    if (!url.searchParams.has('avatar_url')) {
+        url.searchParams.append('avatar_url', 'https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb');
     }
-    
-    url.search = params.toString();
     return url.toString();
-  } catch (e) {
-    console.error('Invalid portal URL:', portalUrl);
-    return portalUrl;
-  }
 }
 
 // Portal configurations
@@ -258,10 +249,10 @@ const portalConfigs = [
     scale: 1.0
   },
   {
-    position: { x: 5, z: 15, y: 0 },  // Second from left (kyzo)
+    position: { x: 5, z: 15, y: 0 },  // Leftmost portal (chess)
     rotation: 0,
-    imageUrl: 'assets/images/kyzo.jpeg',
-    targetUrl: addAvatarToPortalUrl(`https://game-one-two.vercel.app/?username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app&portal=true`),
+    imageUrl: 'assets/images/chess.png',
+    targetUrl: addAvatarToPortalUrl(`https://chess-ai-beta.vercel.app/?username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app&portal=true`),
     scale: 1.0
   },
   {
@@ -335,28 +326,32 @@ const portalConfigs = [
     scale: 1.0,
   },
   {
-    position: { x: -25, z: -22, y: 0 },  // Third desk portal (left side)
-    rotation: Math.PI / 2,  // Face towards the desk
-    imageUrl: 'assets/images/rooster.jpg',
+    position: { x: -25, z: -22, y: 0 },  // Roostervibes portal
+    rotation: Math.PI / 2,
+    imageUrl: 'assets/images/roostervibes.png',
     targetUrl: addAvatarToPortalUrl(`https://play.roostervibes.farm/?username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app&portal=true`),
-
     scale: 1.0,
   },
   {
     position: { x: -25, z: -32, y: 0 },  // Fourth desk portal (left side)
     rotation: Math.PI / 2,  // Face towards the desk
-    imageUrl: 'assets/images/portal.jpg',
-    targetUrl: '#',
+    imageUrl: 'assets/images/jet-ski.jpg',
+    targetUrl: 'https://jetski.cemilsevim.com',
     scale: 1.0,
-    isFormPortal: true
   },
   {
     position: { x: -25, z: -42, y: 0 },  // Fifth desk portal (left side)
     rotation: Math.PI / 2,  // Face towards the desk
-    imageUrl: 'assets/images/portal.jpg',
-    targetUrl: '#',
+    imageUrl: 'assets/images/tidefall.jpeg',
+    targetUrl: 'https://tidefall.io',
     scale: 1.0,
-    isFormPortal: true
+  },
+  {
+    position: { x: -25, z: -52, y: 0 },  // Fifth desk portal (left side)
+    rotation: Math.PI / 2,  // Face towards the desk
+    imageUrl: 'assets/images/auto-boss.png',
+    targetUrl: 'https://auto-boss.vercel.app/',
+    scale: 1.0,
   },
   {
     position: { x: 0, z: -25, y: 0 },  // Portal behind the user
