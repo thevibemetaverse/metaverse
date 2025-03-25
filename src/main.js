@@ -366,6 +366,13 @@ renderer.shadowMap.enabled = true;
 renderer.xr.enabled = true;
 document.body.appendChild(renderer.domElement);
 
+// Create environment
+const environment = createEnvironment(scene, camera, loadingManager);
+
+// Make scene available globally for portal counters
+window.scene = scene;
+console.log('PORTAL: Scene made available globally:', !!window.scene);
+
 // If on mobile, optimize renderer settings
 if (isMobile) {
   optimizeForMobile(renderer);
@@ -719,9 +726,6 @@ directionalLight.shadow.mapSize.width = 1024;
 directionalLight.shadow.mapSize.height = 1024;
 scene.add(directionalLight);
 
-// Create environment
-const environment = createEnvironment(scene, camera, loadingManager);
-
 // Create player avatar
 console.log('Creating player avatar...');
 try {
@@ -736,6 +740,26 @@ try {
   
   // Setup controls
   const controls = setupControls(camera, playerAvatar, renderer.domElement, gameState, scene);
+  
+  // Initialize portal counters after environment and player are set up
+  if (typeof initializePortalCounters === 'function') {
+    console.log('PORTAL: Calling initializePortalCounters...');
+    console.log('PORTAL: Global scene status:', {
+      exists: !!window.scene,
+      childrenCount: window.scene ? window.scene.children.length : 0
+    });
+    console.log('PORTAL: Global socket status:', {
+      exists: !!window.socket,
+      connected: window.socket ? window.socket.connected : false,
+      id: window.socket ? window.socket.id : null
+    });
+    
+    initializePortalCounters().catch(error => {
+      console.error('PORTAL: Error initializing portal counters:', error);
+    });
+  } else {
+    console.error('PORTAL: initializePortalCounters function not found');
+  }
   
   // Add click event listener for the computer
   document.addEventListener('click', function(event) {
@@ -1002,9 +1026,10 @@ try {
   // Setup socket connection for multiplayer
   let socket;
   try {
+    console.log('PORTAL: Starting socket setup...');
     // More reliable environment detection - check if the current URL is localhost
     const isLocalDevelopment = window.location.hostname === 'localhost' || 
-                               window.location.hostname === '127.0.0.1';
+                             window.location.hostname === '127.0.0.1';
     
     // Determine server URL based on more reliable environment detection
     const socketServerUrl = isLocalDevelopment
@@ -1015,16 +1040,51 @@ try {
     console.log(`Connecting to multiplayer server at: ${socketServerUrl}`);
     
     socket = io(socketServerUrl, {
-      transports: ['websocket', 'polling'],
+      transports: ['websocket'],
+      reconnection: true,
       reconnectionAttempts: 5,
-      reconnectionDelay: 1000
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      timeout: 20000
     });
     
-    // Make socket available globally for UI components
-    window.socket = socket;
+    // Add debug event listeners to track socket lifecycle
+    socket.io.on("error", (error) => {
+      console.error("PORTAL: Socket.io error:", error);
+    });
     
+    socket.io.on("reconnect_attempt", (attempt) => {
+      console.log(`PORTAL: Socket.io reconnect attempt ${attempt}`);
+    });
+    
+    socket.io.on("reconnect_error", (error) => {
+      console.error("PORTAL: Socket.io reconnect error:", error);
+    });
+    
+    socket.io.on("reconnect_failed", () => {
+      console.error("PORTAL: Socket.io reconnect failed");
+    });
+    
+    console.log('Setting up socket connection to:', socketServerUrl);
+    console.log('PORTAL: Initial socket state:', {
+      connected: socket.connected,
+      id: socket.id,
+      connectionState: socket.io ? socket.io.engine ? socket.io.engine.readyState : 'no engine' : 'no io',
+      transport: socket.io ? socket.io.engine ? socket.io.engine.transport ? socket.io.engine.transport.name : 'no transport' : 'no engine' : 'no io'
+    });
+    
+    // Remove all existing socket event listeners
+    socket.removeAllListeners();
+    
+    // Single socket.on('connect') handler
     socket.on('connect', () => {
-      console.log('Connected to server');
+      console.log('PORTAL: Connected to server');
+      console.log('PORTAL: Socket ID:', socket.id);
+      console.log('PORTAL: Socket connected:', socket.connected);
+      
+      // Make socket available globally for portal counters
+      window.socket = socket;
+      console.log('PORTAL: Socket made available globally:', !!window.socket);
       
       // Set up NPC multiplayer synchronization
       npcManager.setupMultiplayer(socket);
@@ -1044,32 +1104,53 @@ try {
         rotation: playerAvatar.rotation.y
       });
 
-      // Make socket available globally for portal counters
-      window.socket = socket;
-      console.log('Socket made available globally for portal counters');
-
       // Initialize portal counters after socket connection is established
       if (typeof initializePortalCounters === 'function') {
-        console.log('Initializing portal counters...');
-        initializePortalCounters();
+        console.log('PORTAL: Calling initializePortalCounters...');
+        console.log('PORTAL: Global scene status:', {
+          exists: !!window.scene,
+          childrenCount: window.scene ? window.scene.children.length : 0
+        });
+        console.log('PORTAL: Global socket status:', {
+          exists: !!window.socket,
+          connected: window.socket ? window.socket.connected : false,
+          id: window.socket ? window.socket.id : null
+        });
+        
+        initializePortalCounters().catch(error => {
+          console.error('PORTAL: Error initializing portal counters:', error);
+        });
       } else {
-        console.error('initializePortalCounters function not found');
+        console.error('PORTAL: initializePortalCounters function not found');
       }
     });
     
     socket.on('connect_error', (error) => {
-      console.error('Connection error:', error);
+      console.error('PORTAL: Socket connection error:', error);
+      console.error('PORTAL: Error details:', {
+        message: error.message,
+        stack: error.stack,
+        type: error.type,
+        description: error.description
+      });
       displayMessage('Multiplayer server connection failed. Playing in single-player mode.');
     });
     
+    socket.on('disconnect', (reason) => {
+      console.log('PORTAL: Socket disconnected:', reason);
+    });
+    
     socket.on('reconnect_attempt', (attemptNumber) => {
-      console.log(`Attempting to reconnect (${attemptNumber})...`);
+      console.log(`PORTAL: Attempting to reconnect (${attemptNumber})...`);
     });
     
     socket.on('reconnect_failed', () => {
-      console.log('Failed to reconnect to multiplayer server');
+      console.log('PORTAL: Failed to reconnect to multiplayer server');
       displayMessage('Could not reconnect to multiplayer server. Playing in single-player mode.');
     });
+    
+    // Make socket available globally for UI components
+    window.socket = socket;
     
     socket.on('players-update', (players) => {
       // Update other players
@@ -1516,7 +1597,7 @@ try {
           
           // Check if the player's bounding box intersects with the portal's bounding box
           if (playerBox.intersectsBox(portalBox) && !playerAvatar.userData.isPortalJumping) {
-            console.log('Portal collision detected!');
+            console.log('PORTAL: Portal collision detected!');
             
             // Set flag to prevent multiple triggers
             playerAvatar.userData.isPortalJumping = true;
@@ -1524,7 +1605,7 @@ try {
             // First increment the portal counter
             (async () => {
               try {
-                console.log('Incrementing portal counter for URL:', object.userData.portalURL);
+                console.log('PORTAL: Incrementing portal counter for URL:', object.userData.portalURL);
                 
                 // Determine server URL based on environment
                 const isLocalDevelopment = window.location.hostname === 'localhost' || 
@@ -1533,8 +1614,8 @@ try {
                   ? 'http://localhost:3000'  // Always use port 3000 for the server
                   : 'https://metaverse-production-821f.up.railway.app';
                 
-                console.log('Making request to server:', serverUrl);
-                console.log('Request body:', {
+                console.log('PORTAL: Making request to server:', serverUrl);
+                console.log('PORTAL: Request body:', {
                   portalURL: object.userData.portalURL
                 });
                 
@@ -1550,11 +1631,11 @@ try {
                     })
                   });
                   
-                  console.log('Portal counter response status:', response.status);
+                  console.log('PORTAL: Portal counter response status:', response.status);
                   
                   // Try to get the response text first
                   const responseText = await response.text();
-                  console.log('Portal counter response text:', responseText);
+                  console.log('PORTAL: Portal counter response text:', responseText);
                   
                   // Try to parse the response as JSON if it's not empty
                   let responseData;
@@ -1562,7 +1643,7 @@ try {
                     try {
                       responseData = JSON.parse(responseText);
                     } catch (e) {
-                      console.error('Failed to parse response as JSON:', e);
+                      console.error('PORTAL: Failed to parse response as JSON:', e);
                       responseData = null;
                     }
                   }
