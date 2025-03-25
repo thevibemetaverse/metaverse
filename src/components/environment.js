@@ -689,27 +689,22 @@ async function getPortalCount(portalURL) {
 
 // Function to handle portal entry
 async function handlePortalEntry(portalGroup) {
-  console.log('handlePortalEntry called with portalGroup:', portalGroup);
   if (!portalGroup || !portalGroup.children[0] || !portalGroup.children[0].userData) {
-    console.error('Invalid portalGroup or missing userData:', portalGroup);
+    console.error('Invalid portalGroup or missing userData');
     return;
   }
 
   const portalURL = portalGroup.children[0].userData.portalURL;
-  console.log('Portal URL from userData:', portalURL);
   if (!portalURL) {
     console.error('No portalURL found in userData');
     return;
   }
 
   // Increment the counter
-  console.log('Calling incrementPortalCounter...');
   const newCount = await incrementPortalCounter(portalURL);
-  console.log('incrementPortalCounter returned:', newCount);
   
   if (newCount !== null) {
     // Update the counter display
-    console.log('Updating counter display with new count:', newCount);
     updateCounterDisplay(portalGroup, newCount);
   } else {
     console.error('Failed to update counter display - newCount is null');
@@ -724,8 +719,6 @@ export async function initializePortalCounters() {
   let attempts = 0;
   const maxAttempts = 10;
   while (!window.scene && attempts < maxAttempts) {
-    console.log('PORTAL: Waiting for scene to be available...', attempts + 1);
-    console.log('PORTAL: Current window.scene state:', window.scene);
     await new Promise(resolve => setTimeout(resolve, 100));
     attempts++;
   }
@@ -736,22 +729,11 @@ export async function initializePortalCounters() {
     return;
   }
 
-  console.log('PORTAL: Scene found, checking for portals...');
-  console.log('PORTAL: Scene children count:', window.scene.children.length);
-
   // Check for socket availability
   if (!window.socket) {
     console.error('PORTAL: Socket not available for portal counter initialization');
     return;
   }
-
-  console.log('PORTAL: Socket state:', {
-    connected: window.socket.connected,
-    id: window.socket.id,
-    listeners: window.socket.eventNames()
-  });
-
-  console.log('PORTAL: Setting up portal counter socket listeners...');
   
   // Remove any existing listeners to prevent duplicates
   window.socket.off('portal-count-update');
@@ -759,14 +741,10 @@ export async function initializePortalCounters() {
   
   // Listen for portal count updates
   window.socket.on('portal-count-update', ({ portalURL, count }) => {
-    console.log('PORTAL: Received portal count update event:', { portalURL, count });
     // Find the portal group with this URL and update its counter
     window.scene.traverse((object) => {
       if (object.userData && object.userData.isPortal && object.userData.portalURL === portalURL) {
-        console.log('PORTAL: Found matching portal:', object);
         const portalGroup = object.parent;
-        console.log('PORTAL: Portal group:', portalGroup);
-        console.log('PORTAL: Updating counter display for portal:', portalURL);
         updateCounterDisplay(portalGroup, count);
       }
     });
@@ -774,22 +752,15 @@ export async function initializePortalCounters() {
 
   // Listen for initial portal counts
   window.socket.on('portal-counts', (portalCounts) => {
-    console.log('PORTAL: Received initial portal counts event:', portalCounts);
     Object.entries(portalCounts).forEach(([portalURL, count]) => {
-      console.log('PORTAL: Processing initial count for portal:', portalURL, count);
       window.scene.traverse((object) => {
         if (object.userData && object.userData.isPortal && object.userData.portalURL === portalURL) {
-          console.log('PORTAL: Found matching portal for initial count:', object);
           const portalGroup = object.parent;
-          console.log('PORTAL: Portal group:', portalGroup);
-          console.log('PORTAL: Updating initial counter display for portal:', portalURL);
           updateCounterDisplay(portalGroup, count);
         }
       });
     });
   });
-
-  console.log('PORTAL: Portal counter socket listeners setup complete');
 }
 
 // Modify checkPortalEntry function to include counter increment

@@ -1597,27 +1597,18 @@ try {
           
           // Check if the player's bounding box intersects with the portal's bounding box
           if (playerBox.intersectsBox(portalBox) && !playerAvatar.userData.isPortalJumping) {
-            console.log('PORTAL: Portal collision detected!');
-            
             // Set flag to prevent multiple triggers
             playerAvatar.userData.isPortalJumping = true;
             
             // First increment the portal counter
             (async () => {
               try {
-                console.log('PORTAL: Incrementing portal counter for URL:', object.userData.portalURL);
-                
                 // Determine server URL based on environment
                 const isLocalDevelopment = window.location.hostname === 'localhost' || 
                                          window.location.hostname === '127.0.0.1';
                 const serverUrl = isLocalDevelopment
                   ? 'http://localhost:3000'  // Always use port 3000 for the server
                   : 'https://metaverse-production-821f.up.railway.app';
-                
-                console.log('PORTAL: Making request to server:', serverUrl);
-                console.log('PORTAL: Request body:', {
-                  portalURL: object.userData.portalURL
-                });
                 
                 try {
                   const response = await fetch(`${serverUrl}/portal-counter`, {
@@ -1631,11 +1622,8 @@ try {
                     })
                   });
                   
-                  console.log('PORTAL: Portal counter response status:', response.status);
-                  
                   // Try to get the response text first
                   const responseText = await response.text();
-                  console.log('PORTAL: Portal counter response text:', responseText);
                   
                   // Try to parse the response as JSON if it's not empty
                   let responseData;
@@ -1650,13 +1638,7 @@ try {
                   
                   if (!response.ok) {
                     console.error('Failed to increment portal counter. Status:', response.status);
-                    console.error('Response text:', responseText);
                     throw new Error(`HTTP error! status: ${response.status}`);
-                  } else {
-                    console.log('Portal counter increment successful');
-                    if (responseData) {
-                      console.log('Portal counter response data:', responseData);
-                    }
                   }
                 } catch (fetchError) {
                   console.error('Fetch error:', fetchError);
@@ -1698,8 +1680,6 @@ try {
           clickableBox.expandByScalar(1.5); // Expand the box by 50% to trigger earlier
           
           if (playerBox.intersectsBox(clickableBox) && !playerAvatar.userData.isComputerClicking) {
-            console.log('Computer click detected!');
-            
             // Set flag to prevent multiple triggers
             playerAvatar.userData.isComputerClicking = true;
             
@@ -1707,7 +1687,7 @@ try {
             if (object.userData.isPortalComputer) {
               // Open portal form instead of URL
               showPortalForm((formData) => {
-                console.log('Portal form submitted:', formData);
+                // Form submitted
               });
             } else if (object.userData.targetUrl) {
               // Open URL for other clickable objects
