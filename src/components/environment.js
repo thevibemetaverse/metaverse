@@ -2686,8 +2686,10 @@ function addPortalImage(portalGroup, imageUrl, loadingManager) {
       portalGroup.add(frontMesh);
       portalGroup.add(backMesh);
 
+      // Add counter image above portal
+      addCounterImage(portalGroup);
+
       // If this is a form portal, create a form texture
-      // Check if portalGroup has a portalTrigger with isFormPortal flag
       const isFormPortal = portalGroup.children.length > 0 && 
                           portalGroup.children[0].userData && 
                           portalGroup.children[0].userData.isFormPortal;
@@ -3049,4 +3051,50 @@ export function updatePortalClickOverlays(camera) {
       button.style.display = isFrontFacing ? 'block' : 'none';
     });
   }
-} 
+}
+
+// Add function to create counter image above portal
+function addCounterImage(portalGroup) {
+  // Create a plane geometry for the counter image
+  const counterGeometry = new THREE.PlaneGeometry(2, 2);
+  
+  // Load the counter image texture
+  const textureLoader = new THREE.TextureLoader();
+  textureLoader.load('/assets/images/counter.png', (texture) => {
+    const counterMaterial = new THREE.MeshBasicMaterial({
+      map: texture,
+      transparent: true,
+      side: THREE.DoubleSide
+    });
+    
+    // Create a container group for the counter that will maintain standard orientation
+    const counterContainer = new THREE.Group();
+    
+    // Create the counter mesh
+    const counterMesh = new THREE.Mesh(counterGeometry, counterMaterial);
+    
+    // Position counter above portal in local space
+    counterMesh.position.y = 9;
+    
+    // Check portal's rotation and adjust counter position and rotation accordingly
+    if (Math.abs(portalGroup.rotation.y - Math.PI / 2) < 0.01) {
+      // For portals facing right (90 degrees)
+      counterMesh.position.x = -0.5; // Offset to the left
+      counterMesh.rotation.y = - 2 * Math.PI; // Rotate to face entrance
+    } else if (Math.abs(portalGroup.rotation.y - Math.PI) < 0.01) {
+      // For portals facing backward (180 degrees)
+      counterMesh.position.z = 0.5; // Offset forward
+      counterMesh.rotation.y = 0; // No rotation needed
+    } else {
+      // For portals facing forward (0 degrees)
+      counterMesh.position.z = -0.5; // Offset backward
+      counterMesh.rotation.y = Math.PI; // Rotate to face entrance
+    }
+    
+    // Add counter to container
+    counterContainer.add(counterMesh);
+    
+    // Add container to portal group
+    portalGroup.add(counterContainer);
+  });
+}
