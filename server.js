@@ -9,6 +9,7 @@ const server = http.createServer(app);
 
 // Configure CORS for production
 app.use(cors());
+app.use(express.json()); // Add JSON body parser
 
 // Configure Socket.IO with production-ready settings
 const io = new Server(server, {
@@ -23,13 +24,47 @@ const io = new Server(server, {
   transports: ['websocket', 'polling']
 });
 
+// In-memory store for portal counters
+const portalCounters = new Map();
+
+// Portal counter endpoints
+app.get('/portal-counter', (req, res) => {
+  const portalURL = req.query.portalURL;
+  if (!portalURL) {
+    return res.status(400).json({ error: 'portalURL is required' });
+  }
+  
+  const count = portalCounters.get(portalURL) || 0;
+  res.json({ count });
+});
+
+app.post('/portal-counter', (req, res) => {
+  const { portalURL } = req.body;
+  if (!portalURL) {
+    return res.status(400).json({ error: 'portalURL is required' });
+  }
+  
+  const currentCount = portalCounters.get(portalURL) || 0;
+  const newCount = currentCount + 1;
+  portalCounters.set(portalURL, newCount);
+  
+  // Broadcast the updated count to all connected clients
+  io.emit('portal-count-update', { portalURL, count: newCount });
+  
+  res.json({ count: newCount });
+});
+
 // Serve static files from the dist directory if we're running in production
 // This allows us to use the same server for both game assets and Socket.IO in dev
 app.use(express.static(path.join(__dirname, 'dist')));
 
 // Add a simple health check endpoint
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok', players: Object.keys(players).length });
+  res.status(200).json({ 
+    status: 'ok', 
+    players: Object.keys(players).length,
+    portals: portalCounters.size
+  });
 });
 
 // Serve our main page
@@ -56,6 +91,13 @@ const gameState = {
 // Socket.io connection handling
 io.on('connection', (socket) => {
   console.log(`Player connected: ${socket.id}`);
+  
+  // Send current portal counts to new players
+  const portalCounts = {};
+  portalCounters.forEach((count, url) => {
+    portalCounts[url] = count;
+  });
+  socket.emit('portal-counts', portalCounts);
   
   // Handle player joining
   socket.on('player-join', (data) => {

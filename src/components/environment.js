@@ -642,131 +642,230 @@ function createExitPortal(scene) {
   return exitPortalGroup;
 }
 
-// Add a function to check if player is entering the portal
+// Function to increment portal counter
+async function incrementPortalCounter(portalURL) {
+  try {
+    const response = await fetch('/portal-counter', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        portalURL: portalURL
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to increment counter');
+    }
+
+    const data = await response.json();
+    return data.count;
+  } catch (error) {
+    console.error('Error incrementing portal counter:', error);
+    return null;
+  }
+}
+
+// Function to get current portal count
+async function getPortalCount(portalURL) {
+  try {
+    const response = await fetch(`/portal-counter?portalURL=${encodeURIComponent(portalURL)}`);
+    
+    if (!response.ok) {
+      throw new Error('Failed to get counter');
+    }
+
+    const data = await response.json();
+    return data.count;
+  } catch (error) {
+    console.error('Error getting portal count:', error);
+    return null;
+  }
+}
+
+// Function to handle portal entry
+async function handlePortalEntry(portalGroup) {
+  if (!portalGroup || !portalGroup.children[0] || !portalGroup.children[0].userData) return;
+
+  const portalURL = portalGroup.children[0].userData.portalURL;
+  if (!portalURL) return;
+
+  // Increment the counter
+  const newCount = await incrementPortalCounter(portalURL);
+  if (newCount !== null) {
+    // Update the counter display
+    updateCounterDisplay(portalGroup, newCount);
+  }
+}
+
+// Function to initialize portal counters
+async function initializePortalCounters() {
+  // Find all portal groups in the scene
+  if (!window.scene) return;
+
+  // Listen for portal count updates
+  if (window.socket) {
+    window.socket.on('portal-count-update', ({ portalURL, count }) => {
+      // Find the portal group with this URL and update its counter
+      window.scene.traverse((object) => {
+        if (object.userData && object.userData.isPortal && object.userData.portalURL === portalURL) {
+          const portalGroup = object.parent;
+          updateCounterDisplay(portalGroup, count);
+        }
+      });
+    });
+
+    // Listen for initial portal counts
+    window.socket.on('portal-counts', (portalCounts) => {
+      Object.entries(portalCounts).forEach(([portalURL, count]) => {
+        window.scene.traverse((object) => {
+          if (object.userData && object.userData.isPortal && object.userData.portalURL === portalURL) {
+            const portalGroup = object.parent;
+            updateCounterDisplay(portalGroup, count);
+          }
+        });
+      });
+    });
+  }
+
+  // Initialize counters for all portals
+  window.scene.traverse(async (object) => {
+    if (object.userData && object.userData.isPortal) {
+      const portalGroup = object.parent;
+      const portalURL = object.userData.portalURL;
+      
+      if (portalURL) {
+        // Get the current count
+        const count = await getPortalCount(portalURL);
+        if (count !== null) {
+          // Update the counter display
+          updateCounterDisplay(portalGroup, count);
+        }
+      }
+    }
+  });
+}
+
+// Modify checkPortalEntry function to include counter increment
 export function checkPortalEntry(player) {
-  if (!player || !window.exitPortalGroup) return false;
+  if (!player || !window.scene) return false;
   
   // Create a bounding box for the player
   const playerBox = new THREE.Box3().setFromObject(player);
   
-  // Get the portal trigger
-  const portalTrigger = window.exitPortalGroup.children.find(child => 
-    child.userData && child.userData.isPortalTrigger
-  );
-  
-  if (!portalTrigger) return false;
-  
-  // Create a bounding box for the portal trigger
-  const portalBox = new THREE.Box3().setFromObject(portalTrigger);
-  
-  // Check for collision
-  if (playerBox.intersectsBox(portalBox)) {
-    // Check if we're already in the process of entering a portal to prevent multiple triggers
-    if (window.isEnteringPortal) return false;
-    window.isEnteringPortal = true;
-    
-    console.log('Player entered the portal!');
-    
-    // Create portal entry particles
-    createPortalEntryEffect(player.position);
-    
-    // Trigger jump animation when entering portal
-    if (player.jump && typeof player.jump === 'function') {
-      console.log('Triggering jump animation for portal entry!');
-      player.jump();
+  // Find all portal triggers in the scene
+  window.scene.traverse(async (object) => {
+    if (object.userData && object.userData.isPortal) {
+      // Create a bounding box for the portal trigger
+      const portalBox = new THREE.Box3().setFromObject(object);
       
-      // Add physical jump by applying upward velocity to player
-      // Check if controls is available on the window object
-      if (window.controls && window.controls.velocity) {
-        window.controls.velocity.y = 5.0; // Add upward velocity - adjust value as needed
-        window.controls.isJumping = true;
-        console.log('Applied physical jump velocity to player');
+      // Check for collision
+      if (playerBox.intersectsBox(portalBox)) {
+        // Check if we're already in the process of entering a portal
+        if (window.isEnteringPortal) return false;
+        window.isEnteringPortal = true;
+        
+        console.log('Player entered the portal!');
+        
+        // Increment the counter before navigation
+        await handlePortalEntry(object.parent);
+        
+        // Create portal entry particles
+        createPortalEntryEffect(player.position);
+        
+        // Trigger jump animation
+        if (player.jump && typeof player.jump === 'function') {
+          console.log('Triggering jump animation for portal entry!');
+          player.jump();
+          
+          if (window.controls && window.controls.velocity) {
+            window.controls.velocity.y = 5.0;
+            window.controls.isJumping = true;
+          }
+        }
+        
+        // Add query parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const username = urlParams.get('username') || 'metaverse-explorer';
+        
+        // Construct URL with query parameters
+        let portalUrl = object.userData.portalURL;
+        portalUrl += `?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${username}&ref=https://metaverse-delta.vercel.app`;
+        
+        // Create loading overlay
+        const overlay = document.createElement('div');
+        overlay.id = 'portal-entry-overlay';
+        overlay.style.cssText = `
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0, 255, 0, 0.2);
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          z-index: 9999;
+          transition: opacity 0.5s;
+        `;
+        
+        const message = document.createElement('div');
+        message.innerHTML = 'Entering Portal...';
+        message.style.cssText = `
+          color: #00ff00;
+          font-size: 32px;
+          font-weight: bold;
+          background: rgba(0, 0, 0, 0.7);
+          padding: 20px 40px;
+          border-radius: 10px;
+          text-shadow: 0 0 10px #00ff00;
+        `;
+        
+        overlay.appendChild(message);
+        document.body.appendChild(overlay);
+        
+        // Cleanup function
+        const cleanupOverlay = () => {
+          const existingOverlay = document.getElementById('portal-entry-overlay');
+          if (existingOverlay) {
+            existingOverlay.style.opacity = '0';
+            setTimeout(() => {
+              if (existingOverlay.parentNode) {
+                existingOverlay.parentNode.removeChild(existingOverlay);
+              }
+            }, 500);
+          }
+          window.isEnteringPortal = false;
+        };
+        
+        window.addEventListener('beforeunload', cleanupOverlay);
+        
+        const safetyTimeout = setTimeout(() => {
+          console.log('Portal entry safety timeout triggered');
+          cleanupOverlay();
+        }, 5000);
+        
+        // Delay navigation
+        const jumpAnimationDelay = 800;
+        
+        setTimeout(() => {
+          try {
+            console.log('Navigating to portal URL:', portalUrl);
+            window.location.href = portalUrl;
+            
+            setTimeout(cleanupOverlay, 1000);
+          } catch (error) {
+            console.error('Error during portal redirect:', error);
+            cleanupOverlay();
+            clearTimeout(safetyTimeout);
+          }
+        }, jumpAnimationDelay);
+        
+        return true;
       }
     }
-    
-    // Add query parameters to maintain state
-    const urlParams = new URLSearchParams(window.location.search);
-    const username = urlParams.get('username') || 'metaverse-explorer';
-    
-    // Construct URL with query parameters
-    let portalUrl = portalTrigger.userData.portalURL;
-    portalUrl += `?avatar_url=https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb&username=${username}&ref=https://metaverse-delta.vercel.app`;
-    
-    // Create loading overlay
-    const overlay = document.createElement('div');
-    overlay.id = 'portal-entry-overlay';
-    overlay.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 255, 0, 0.2);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      z-index: 9999;
-      transition: opacity 0.5s;
-    `;
-    
-    const message = document.createElement('div');
-    message.innerHTML = 'Entering Portal...';
-    message.style.cssText = `
-      color: #00ff00;
-      font-size: 32px;
-      font-weight: bold;
-      background: rgba(0, 0, 0, 0.7);
-      padding: 20px 40px;
-      border-radius: 10px;
-      text-shadow: 0 0 10px #00ff00;
-    `;
-    
-    overlay.appendChild(message);
-    document.body.appendChild(overlay);
-    
-    // Function to clean up the overlay if it gets stuck
-    const cleanupOverlay = () => {
-      const existingOverlay = document.getElementById('portal-entry-overlay');
-      if (existingOverlay) {
-        existingOverlay.style.opacity = '0';
-        setTimeout(() => {
-          if (existingOverlay.parentNode) {
-            existingOverlay.parentNode.removeChild(existingOverlay);
-          }
-        }, 500);
-      }
-      window.isEnteringPortal = false;
-    };
-    
-    // Add event listener for page unload to clean up the overlay
-    window.addEventListener('beforeunload', cleanupOverlay);
-    
-    // Safety timeout - if redirect doesn't happen, remove the overlay after 5 seconds
-    const safetyTimeout = setTimeout(() => {
-      console.log('Portal entry safety timeout triggered');
-      cleanupOverlay();
-    }, 5000);
-    
-    // Delay navigation to allow jump animation to play
-    const jumpAnimationDelay = 800; // ms - adjust as needed for the jump animation
-    
-    setTimeout(() => {
-      try {
-        // Navigate to the portal URL
-        console.log('Navigating to portal URL:', portalUrl);
-        window.location.href = portalUrl;
-        
-        // Add another safety timeout after redirect attempt
-        setTimeout(cleanupOverlay, 1000);
-      } catch (error) {
-        console.error('Error during portal redirect:', error);
-        cleanupOverlay();
-        clearTimeout(safetyTimeout);
-      }
-    }, jumpAnimationDelay);
-    
-    return true;
-  }
+  });
   
   return false;
 }
@@ -859,6 +958,9 @@ export function createEnvironment(scene, mainCamera, loadingManager = new THREE.
   
   // Setup event listeners for dragging
   setupDragControls();
+  
+  // Initialize portal counters
+  initializePortalCounters();
   
   return environment;
 }
@@ -3053,6 +3155,41 @@ export function updatePortalClickOverlays(camera) {
   }
 }
 
+// Function to update counter display
+function updateCounterDisplay(portalGroup, count) {
+  // Find the number mesh in the portal group
+  let numberMesh = null;
+  portalGroup.traverse((child) => {
+    if (child.userData && child.userData.isCounterNumber) {
+      numberMesh = child;
+    }
+  });
+
+  if (!numberMesh) return;
+
+  // Create new canvas for the updated number
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  canvas.width = 512;
+  canvas.height = 512;
+  
+  // Fill with transparent background
+  context.fillStyle = 'rgba(0, 0, 0, 0)';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  
+  // Add the updated number
+  context.fillStyle = '#01579b';
+  context.font = 'bold 150px Arial';
+  context.textAlign = 'right';
+  context.textBaseline = 'middle';
+  context.fillText(count.toString(), canvas.width - 50, canvas.height / 2);
+  
+  // Update the texture
+  const numberTexture = new THREE.CanvasTexture(canvas);
+  numberMesh.material.map = numberTexture;
+  numberMesh.material.needsUpdate = true;
+}
+
 // Add function to create counter image above portal
 function addCounterImage(portalGroup) {
   // Create a plane geometry for the counter image
@@ -3070,7 +3207,7 @@ function addCounterImage(portalGroup) {
   
   // Add the number "0" with smaller font size
   context.fillStyle = '#01579b';
-  context.font = 'bold 150px Arial'; // Reduced from 400px to 150px
+  context.font = 'bold 150px Arial';
   context.textAlign = 'right';
   context.textBaseline = 'middle';
   context.fillText('0', canvas.width - 50, canvas.height / 2);
@@ -3099,6 +3236,7 @@ function addCounterImage(portalGroup) {
       side: THREE.DoubleSide
     });
     const numberMesh = new THREE.Mesh(counterGeometry, numberMaterial);
+    numberMesh.userData.isCounterNumber = true; // Add flag to identify this mesh
     
     // Position counter above portal in local space
     counterMesh.position.y = 9;
@@ -3107,20 +3245,20 @@ function addCounterImage(portalGroup) {
     // Check portal's rotation and adjust counter position and rotation accordingly
     if (Math.abs(portalGroup.rotation.y - Math.PI / 2) < 0.01) {
       // For portals facing right (90 degrees)
-      counterMesh.position.x = -0.5; // Offset to the left
-      counterMesh.rotation.y = -2 * Math.PI; // Rotate to face entrance
+      counterMesh.position.x = -0.5;
+      counterMesh.rotation.y = -2 * Math.PI;
       numberMesh.position.x = -0.5;
       numberMesh.rotation.y = -2 * Math.PI;
     } else if (Math.abs(portalGroup.rotation.y - Math.PI) < 0.01) {
       // For portals facing backward (180 degrees)
-      counterMesh.position.z = 0.5; // Offset forward
-      counterMesh.rotation.y = 0; // No rotation needed
+      counterMesh.position.z = 0.5;
+      counterMesh.rotation.y = 0;
       numberMesh.position.z = 0.5;
       numberMesh.rotation.y = 0;
     } else {
       // For portals facing forward (0 degrees)
-      counterMesh.position.z = -0.5; // Offset backward
-      counterMesh.rotation.y = Math.PI; // Rotate to face entrance
+      counterMesh.position.z = -0.5;
+      counterMesh.rotation.y = Math.PI;
       numberMesh.position.z = -0.5;
       numberMesh.rotation.y = Math.PI;
     }
@@ -3131,5 +3269,10 @@ function addCounterImage(portalGroup) {
     
     // Add container to portal group
     portalGroup.add(counterContainer);
+
+    // Store portal URL in the counter container for reference
+    if (portalGroup.children[0] && portalGroup.children[0].userData) {
+      counterContainer.userData.portalURL = portalGroup.children[0].userData.portalURL;
+    }
   });
 }
