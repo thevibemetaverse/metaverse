@@ -428,15 +428,15 @@ const portalConfigs = [
   {
     position: { x: 55, z: -15, y: 0 },  // Second from right (yacht)
     rotation: 0,
-    imageUrl: '',
-    targetUrl: '#',
+    imageUrl: 'assets/images/boatrace3d.jpg',
+    targetUrl: 'https://boatrace3d.com/',
     scale: 1.0
   },
   {
     position: { x: 65, z: -15, y: 0 },  // Second from right (yacht)
     rotation: 0,
-    imageUrl: '',
-    targetUrl: '#',
+    imageUrl: 'assets/images/neonrequiem.png',
+    targetUrl: 'https://aialchemistart.github.io/NeonRequiem/',
     scale: 1.0
 },
   {
