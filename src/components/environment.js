@@ -51,6 +51,12 @@ const PortalForm = ({ onSubmit, onCancel }) => {
         .then(response => {
           console.log('FormSpark submission successful:', response);
           
+          // Use the consolidated success notification
+          showSuccessNotification();
+          
+          onSubmit(formData);
+        })
+        .catch(error => {
           // Create enhanced success message
           const successMessage = document.createElement('div');
           successMessage.className = 'portal-success-message';
@@ -2150,4 +2156,138 @@ function createConfettiEffect() {
     confettiContainer.remove();
     confettiStyle.remove();
   }, 5000);
+}
+
+// Add this function near the createConfettiEffect function
+function showSuccessNotification() {
+  // Create enhanced success message
+  const successMessage = document.createElement('div');
+  successMessage.className = 'portal-success-message';
+  successMessage.innerHTML = `
+    <div class="success-container">
+      <div class="success-icon">✓</div>
+      <div class="success-text">
+        <h3>Portal Submitted Successfully!</h3>
+        <p>Your portal request has been received and will be reviewed soon.</p>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(successMessage);
+  
+  // Add CSS styles for the enhanced success message
+  const style = document.createElement('style');
+  style.textContent = `
+    .portal-success-message {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: rgba(0, 128, 0, 0.9);
+      color: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+      z-index: 10000;
+      text-align: center;
+      animation: portal-success-appear 0.5s ease-out forwards, 
+                 portal-success-glow 2s infinite alternate;
+      max-width: 80%;
+    }
+    
+    @keyframes portal-success-appear {
+      0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.8);
+      }
+      100% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+      }
+    }
+    
+    @keyframes portal-success-glow {
+      0% {
+        box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+      }
+      100% {
+        box-shadow: 0 0 30px rgba(0, 255, 0, 0.8);
+      }
+    }
+    
+    .success-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+    }
+    
+    .success-icon {
+      font-size: 48px;
+      height: 80px;
+      width: 80px;
+      background-color: rgba(255, 255, 255, 0.2);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #00ff00;
+      text-shadow: 0 0 10px #00ff00;
+      animation: success-icon-pulse 1.5s infinite alternate;
+    }
+    
+    @keyframes success-icon-pulse {
+      0% {
+        transform: scale(1);
+        text-shadow: 0 0 10px #00ff00;
+      }
+      100% {
+        transform: scale(1.1);
+        text-shadow: 0 0 20px #00ff00;
+      }
+    }
+    
+    .success-text h3 {
+      margin: 0 0 10px 0;
+      font-size: 24px;
+      font-weight: bold;
+    }
+    
+    .success-text p {
+      margin: 0;
+      font-size: 16px;
+      opacity: 0.9;
+    }
+  `;
+  document.head.appendChild(style);
+  
+  // Create confetti effect
+  createConfettiEffect();
+  
+  // Remove success message after 4 seconds
+  setTimeout(() => {
+    successMessage.style.animation = 'portal-success-disappear 0.5s ease-in forwards';
+    
+    // Add disappear animation
+    const disappearStyle = document.createElement('style');
+    disappearStyle.textContent = `
+      @keyframes portal-success-disappear {
+        0% {
+          opacity: 1;
+          transform: translate(-50%, -50%) scale(1);
+        }
+        100% {
+          opacity: 0;
+          transform: translate(-50%, -50%) scale(0.8);
+        }
+      }
+    `;
+    document.head.appendChild(disappearStyle);
+    
+    // Remove element after animation completes
+    setTimeout(() => {
+      successMessage.remove();
+      style.remove();
+      disappearStyle.remove();
+    }, 500);
+  }, 4000);
 }
