@@ -2008,6 +2008,9 @@ export function createEnvironment(scene, mainCamera, loadingManager = new THREE.
   createEiffelTower(environment, loadingManager);
   createSagradaFamilia(environment, loadingManager);
   
+  // Add London phone box
+  createLondonPhoneBox(environment, loadingManager);
+  
   // Create portals based on configurations
   portalConfigs.forEach((config, index) => {
     // Create portal group to hold frame and image
@@ -2664,6 +2667,123 @@ function createSagradaFamilia(environment, loadingManager) {
     
     // Add the basic Sagrada to the placeholder
     placeholder.add(sagradaGroup);
+  }
+  
+  return placeholder;
+}
+
+function createLondonPhoneBox(environment, loadingManager) {
+  // Create a placeholder for the phone box
+  const placeholder = new THREE.Group();
+  // Position the phone box at the requested location
+  placeholder.position.set(15, 0, -15); // Positioning at x: 15, z: -15, y: 0
+  environment.add(placeholder);
+  
+  // Try to load the GLB model
+  const gltfLoader = new GLTFLoader(loadingManager);
+  gltfLoader.load(
+    '/assets/models/london_red_phone_box.glb',
+    function(gltf) {
+      // Model loaded successfully
+      const model = gltf.scene;
+      
+      // Scale and position the model (adjust scale as needed)
+      model.scale.set(4, 4, 4); // Start with 1:1 scale, adjust if needed
+      model.position.set(0, 0, 0);
+      
+      // Add shadows
+      model.traverse(function(node) {
+        if (node.isMesh) {
+          node.castShadow = true;
+          node.receiveShadow = true;
+        }
+      });
+      
+      // Add the model to the placeholder
+      placeholder.add(model);
+      
+      // Add collision detection
+      placeholder.userData.isObstacle = true;
+      
+      console.log('London phone box model loaded successfully');
+    },
+    function(xhr) {
+      // Loading progress
+      console.log('London phone box: ' + (xhr.loaded / xhr.total * 100) + '% loaded');
+    },
+    function(error) {
+      // Error loading GLTF, fall back to basic geometries
+      console.warn('Error loading London phone box model, falling back to basic geometries:', error);
+      createBasicPhoneBox(placeholder);
+    }
+  );
+  
+  // Function to create a basic phone box with geometries as fallback
+  function createBasicPhoneBox(placeholder) {
+    console.log('Creating basic London phone box with geometries');
+    
+    // Create a simplified phone box using basic geometries
+    const phoneBoxGroup = new THREE.Group();
+    
+    // Main box structure
+    const boxMaterial = new THREE.MeshStandardMaterial({ color: 0xDD0000 }); // British red color
+    const box = new THREE.Mesh(
+      new THREE.BoxGeometry(1.2, 2.8, 1.2),
+      boxMaterial
+    );
+    box.position.y = 1.4; // Half height to place on ground
+    phoneBoxGroup.add(box);
+    
+    // Top crown
+    const crownMaterial = new THREE.MeshStandardMaterial({ color: 0xDD0000 });
+    const crown = new THREE.Mesh(
+      new THREE.BoxGeometry(1.4, 0.3, 1.4),
+      crownMaterial
+    );
+    crown.position.y = 2.95; // Place on top of box
+    phoneBoxGroup.add(crown);
+    
+    // Windows (white frames)
+    const windowFrameMaterial = new THREE.MeshStandardMaterial({ color: 0xFFFFFF });
+    
+    // For each side of the box
+    for (let i = 0; i < 4; i++) {
+      const angle = (i * Math.PI / 2);
+      const windowFrame = new THREE.Mesh(
+        new THREE.BoxGeometry(0.9, 1.8, 0.05),
+        windowFrameMaterial
+      );
+      
+      windowFrame.position.set(
+        0.6 * Math.sin(angle),
+        1.7, // Middle of the box
+        0.6 * Math.cos(angle)
+      );
+      
+      windowFrame.rotation.y = angle;
+      phoneBoxGroup.add(windowFrame);
+      
+      // Glass panels (blue transparent)
+      const glassMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x3333FF, 
+        transparent: true,
+        opacity: 0.4
+      });
+      
+      const glass = new THREE.Mesh(
+        new THREE.BoxGeometry(0.8, 1.7, 0.02),
+        glassMaterial
+      );
+      
+      glass.position.z = 0.02; // Slightly in front of the frame
+      windowFrame.add(glass);
+    }
+    
+    // Add the basic phone box to the placeholder
+    placeholder.add(phoneBoxGroup);
+    
+    // Add collision detection
+    placeholder.userData.isObstacle = true;
   }
   
   return placeholder;
