@@ -812,8 +812,9 @@ try {
             const event = new CustomEvent('portalclick', { detail: { targetObject: intersect.object } });
             document.dispatchEvent(event);
           } else if (intersect.object.userData.portalURL) {
-            // Handle regular portal clicks
-            window.open(intersect.object.userData.portalURL, '_blank');
+            // Handle regular portal clicks - but don't open URL
+            console.log('Portal URL clicked but not opening:', intersect.object.userData.portalURL);
+            // window.open(intersect.object.userData.portalURL, '_blank');
           }
           break;
         }
@@ -1408,6 +1409,11 @@ try {
     const deltaTime = (currentTime - lastTime) / 1000; // Convert to seconds
     lastTime = currentTime;
     
+    // Track when portals were last opened to prevent double-triggering
+    if (!window.lastPortalOpenTimes) {
+      window.lastPortalOpenTimes = {};
+    }
+    
     // Update portal button positions if they exist
     if (camera && typeof updatePortalClickOverlays === 'function') {
       updatePortalClickOverlays(camera);
@@ -1655,65 +1661,171 @@ try {
         if (object.userData && object.userData.isPortal) {
           // Get the portal's bounding box and expand it slightly
           const portalBox = new THREE.Box3().setFromObject(object);
-          portalBox.expandByScalar(2.0); // Increased expansion for easier triggering
+          
+          // Increase expansion for mobile devices
+          const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                         (window.innerWidth <= 800 && window.innerHeight <= 900);
+          const expansionFactor = isMobile ? 3.0 : 2.0; // Larger expansion for mobile
+          portalBox.expandByScalar(expansionFactor);
+          
+          // Store the portal ID for tracking
+          const portalId = object.uuid;
           
           // Check if the player's bounding box intersects with the portal's bounding box
           if (playerBox.intersectsBox(portalBox) && !playerAvatar.userData.isPortalJumping) {
-            console.log('Portal collision detected!');
-            // Set flag to prevent multiple triggers
-            playerAvatar.userData.isPortalJumping = true;
+            console.log('Portal collision detected!', isMobile ? '(mobile)' : '(desktop)');
             
-            // First try to increment the portal counter, but don't wait for it
-            (async () => {
-              try {
-                // Determine server URL based on environment
-                const isLocalDevelopment = window.location.hostname === 'localhost' || 
-                                         window.location.hostname === '127.0.0.1';
-                const serverUrl = isLocalDevelopment
-                  ? 'http://localhost:3000'
-                  : 'https://metaverse-production-821f.up.railway.app';
-                
-                // Fire and forget the counter increment
-                fetch(`${serverUrl}/portal-counter`, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                  },
-                  body: JSON.stringify({
-                    portalURL: object.userData.portalURL
-                  })
-                }).catch(error => {
-                  console.error('Failed to increment portal counter:', error);
-                });
-                
-                // Don't wait for the counter increment, proceed with portal entry
-                if (playerAvatar.jump && !playerAvatar.userData.isJumping) {
-                  playerAvatar.jump();
+            // Check if this is a new portal collision
+            if (!playerAvatar.userData.lastPortalCollision || 
+                playerAvatar.userData.lastPortalCollision !== portalId) {
+              
+              // Set flag to prevent multiple triggers and track which portal
+              playerAvatar.userData.isPortalJumping = true;
+              playerAvatar.userData.lastPortalCollision = portalId;
+              
+              // First try to increment the portal counter, but don't wait for it
+              (async () => {
+                try {
+                  // Determine server URL based on environment
+                  const isLocalDevelopment = window.location.hostname === 'localhost' || 
+                                           window.location.hostname === '127.0.0.1';
+                  const serverUrl = isLocalDevelopment
+                    ? 'http://localhost:3000'
+                    : 'https://metaverse-production-821f.up.railway.app';
                   
-                  // Wait for the jump animation to complete before opening the URL
-                  setTimeout(() => {
-                    // Reset the portal jumping flag
+                  // Fire and forget the counter increment
+                  fetch(`${serverUrl}/portal-counter`, {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                      portalURL: object.userData.portalURL
+                    })
+                  }).catch(error => {
+                    console.error('Failed to increment portal counter:', error);
+                  });
+                  
+                  // Don't wait for the counter increment, proceed with portal entry
+                  if (playerAvatar.jump && !playerAvatar.userData.isJumping) {
+                    playerAvatar.jump();
+                    
+                    // Wait for the jump animation to complete before opening the URL
+                    setTimeout(() => {
+                      // Reset the portal jumping flag
+                      playerAvatar.userData.isPortalJumping = false;
+                      // Open the URL after animation completes
+                      if (object.userData.portalURL) {
+                        // Check if this portal was recently opened
+                        const portalURL = object.userData.portalURL;
+                        const lastOpenTime = window.lastPortalOpenTimes[portalURL] || 0;
+                        const now = Date.now();
+                        
+                        // Increase debounce time to 5 seconds to be even safer
+                        if (now - lastOpenTime > 5000) {
+                          console.log('Opening portal URL from collision:', portalURL);
+                          window.lastPortalOpenTimes[portalURL] = now;
+                          
+                          // On mobile, create a button that auto-clicks to bypass popup blockers
+                          if (isMobile) {
+                            console.log('Creating clickable button for mobile portal URL');
+                            const clickButton = document.createElement('button');
+                            clickButton.style.position = 'fixed';
+                            clickButton.style.top = '50%';
+                            clickButton.style.left = '50%';
+                            clickButton.style.transform = 'translate(-50%, -50%)';
+                            clickButton.style.zIndex = '10000';
+                            clickButton.style.padding = '20px';
+                            clickButton.style.backgroundColor = '#4CAF50';
+                            clickButton.style.color = 'white';
+                            clickButton.style.border = 'none';
+                            clickButton.style.borderRadius = '10px';
+                            clickButton.style.fontSize = '18px';
+                            clickButton.textContent = 'Continue to Portal';
+                            
+                            clickButton.addEventListener('click', () => {
+                              window.open(portalURL, '_blank', 'noopener,noreferrer');
+                              document.body.removeChild(clickButton);
+                            });
+                            
+                            document.body.appendChild(clickButton);
+                            
+                            // Auto-click after a brief delay
+                            setTimeout(() => {
+                              clickButton.click();
+                            }, 500);
+                          } else {
+                            // Desktop - open URL directly
+                            window.open(portalURL, '_blank', 'noopener,noreferrer');
+                          }
+                        } else {
+                          console.log('Ignoring repeated portal open attempt:', portalURL);
+                        }
+                      }
+                    }, 750);
+                  } else {
+                    // If no jump animation, just open the URL immediately
                     playerAvatar.userData.isPortalJumping = false;
-                    // Open the URL after animation completes
                     if (object.userData.portalURL) {
-                      console.log('Opening portal URL:', object.userData.portalURL);
-                      window.open(object.userData.portalURL, '_blank', 'noopener,noreferrer');
+                      // Check if this portal was recently opened
+                      const portalURL = object.userData.portalURL;
+                      const lastOpenTime = window.lastPortalOpenTimes[portalURL] || 0;
+                      const now = Date.now();
+                      
+                      // Increase debounce time to 5 seconds to be even safer
+                      if (now - lastOpenTime > 5000) {
+                        console.log('Opening portal URL from collision:', portalURL);
+                        window.lastPortalOpenTimes[portalURL] = now;
+                        
+                        // On mobile, create a button that auto-clicks to bypass popup blockers
+                        if (isMobile) {
+                          console.log('Creating clickable button for mobile portal URL');
+                          const clickButton = document.createElement('button');
+                          clickButton.style.position = 'fixed';
+                          clickButton.style.top = '50%';
+                          clickButton.style.left = '50%';
+                          clickButton.style.transform = 'translate(-50%, -50%)';
+                          clickButton.style.zIndex = '10000';
+                          clickButton.style.padding = '20px';
+                          clickButton.style.backgroundColor = '#4CAF50';
+                          clickButton.style.color = 'white';
+                          clickButton.style.border = 'none';
+                          clickButton.style.borderRadius = '10px';
+                          clickButton.style.fontSize = '18px';
+                          clickButton.textContent = 'Continue to Portal';
+                          
+                          clickButton.addEventListener('click', () => {
+                            window.open(portalURL, '_blank', 'noopener,noreferrer');
+                            document.body.removeChild(clickButton);
+                          });
+                          
+                          document.body.appendChild(clickButton);
+                          
+                          // Auto-click after a brief delay
+                          setTimeout(() => {
+                            clickButton.click();
+                          }, 500);
+                        } else {
+                          // Desktop - open URL directly
+                          window.open(portalURL, '_blank', 'noopener,noreferrer');
+                        }
+                      } else {
+                        console.log('Ignoring repeated portal open attempt:', portalURL);
+                      }
                     }
-                  }, 750);
-                } else {
-                  // If no jump animation, just open the URL immediately
-                  playerAvatar.userData.isPortalJumping = false;
-                  if (object.userData.portalURL) {
-                    console.log('Opening portal URL:', object.userData.portalURL);
-                    window.open(object.userData.portalURL, '_blank', 'noopener,noreferrer');
                   }
+                } catch (error) {
+                  console.error('Error during portal entry:', error);
+                  playerAvatar.userData.isPortalJumping = false;
                 }
-              } catch (error) {
-                console.error('Error during portal entry:', error);
-                playerAvatar.userData.isPortalJumping = false;
-              }
-            })();
+              })();
+            }
+          } else if (playerAvatar.userData.lastPortalCollision === portalId && !playerBox.intersectsBox(portalBox)) {
+            // Player has left a portal we were tracking
+            console.log('Player left portal area');
+            delete playerAvatar.userData.lastPortalCollision;
+            playerAvatar.userData.isPortalJumping = false;
           }
         }
         
