@@ -407,22 +407,22 @@ const portalConfigs = [
   {
     position: { x: 25, z: -15, y: 0 },  // Second from right (yacht)
     rotation: 0,
-    imageUrl: '',
-    targetUrl: '#',
+    imageUrl: 'assets/images/getitspinning.png',
+    targetUrl: 'https://www.getitspinning.com/',
     scale: 1.0
   },
   {
     position: { x: 35, z: -15, y: 0 },  // Second from right (yacht)
     rotation: 0,
-    imageUrl: '',
-    targetUrl: '#',
+    imageUrl: 'assets/images/playable.png',
+    targetUrl: 'https://playable.lol/',
     scale: 1.0
   },
   {
     position: { x: 45, z: -15, y: 0 },  // Second from right (yacht)
     rotation: 0,
-    imageUrl: '',
-    targetUrl: '#',
+    imageUrl: 'assets/images/fart-surfer.jpeg',
+    targetUrl: 'https://www.fart-surfer.com/',
     scale: 1.0
   },
   {
