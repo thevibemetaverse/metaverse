@@ -1880,10 +1880,10 @@ export function checkPortalEntry(playerAvatar) {
         // Increment the counter
         handlePortalEntry(portalGroup);
         
-        // Log portal URL but don't open it
+        // Open the portal URL when colliding/entering
         if (object.userData.portalURL !== '#') {
-          console.log('Player entered portal but not opening URL:', object.userData.portalURL);
-          // window.open(object.userData.portalURL, '_blank');
+          console.log('Opening portal URL from entry:', object.userData.portalURL);
+          window.open(object.userData.portalURL, '_blank');
         }
       }
     }

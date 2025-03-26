@@ -1696,18 +1696,18 @@ try {
                   setTimeout(() => {
                     // Reset the portal jumping flag
                     playerAvatar.userData.isPortalJumping = false;
-                    // Log the URL but don't open it
+                    // Open the URL after animation completes
                     if (object.userData.portalURL) {
-                      console.log('Portal collision detected but not opening URL:', object.userData.portalURL);
-                      // window.open(object.userData.portalURL, '_blank', 'noopener,noreferrer');
+                      console.log('Opening portal URL from collision:', object.userData.portalURL);
+                      window.open(object.userData.portalURL, '_blank', 'noopener,noreferrer');
                     }
                   }, 750);
                 } else {
-                  // If no jump animation, just log the URL immediately
+                  // If no jump animation, just open the URL immediately
                   playerAvatar.userData.isPortalJumping = false;
                   if (object.userData.portalURL) {
-                    console.log('Portal collision detected but not opening URL:', object.userData.portalURL);
-                    // window.open(object.userData.portalURL, '_blank', 'noopener,noreferrer');
+                    console.log('Opening portal URL from collision:', object.userData.portalURL);
+                    window.open(object.userData.portalURL, '_blank', 'noopener,noreferrer');
                   }
                 }
               } catch (error) {
