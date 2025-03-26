@@ -1409,6 +1409,11 @@ try {
     const deltaTime = (currentTime - lastTime) / 1000; // Convert to seconds
     lastTime = currentTime;
     
+    // Track when portals were last opened to prevent double-triggering
+    if (!window.lastPortalOpenTimes) {
+      window.lastPortalOpenTimes = {};
+    }
+    
     // Update portal button positions if they exist
     if (camera && typeof updatePortalClickOverlays === 'function') {
       updatePortalClickOverlays(camera);
@@ -1658,63 +1663,100 @@ try {
           const portalBox = new THREE.Box3().setFromObject(object);
           portalBox.expandByScalar(2.0); // Increased expansion for easier triggering
           
+          // Store the portal ID for tracking
+          const portalId = object.uuid;
+          
           // Check if the player's bounding box intersects with the portal's bounding box
           if (playerBox.intersectsBox(portalBox) && !playerAvatar.userData.isPortalJumping) {
             console.log('Portal collision detected!');
-            // Set flag to prevent multiple triggers
-            playerAvatar.userData.isPortalJumping = true;
             
-            // First try to increment the portal counter, but don't wait for it
-            (async () => {
-              try {
-                // Determine server URL based on environment
-                const isLocalDevelopment = window.location.hostname === 'localhost' || 
-                                         window.location.hostname === '127.0.0.1';
-                const serverUrl = isLocalDevelopment
-                  ? 'http://localhost:3000'
-                  : 'https://metaverse-production-821f.up.railway.app';
-                
-                // Fire and forget the counter increment
-                fetch(`${serverUrl}/portal-counter`, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                  },
-                  body: JSON.stringify({
-                    portalURL: object.userData.portalURL
-                  })
-                }).catch(error => {
-                  console.error('Failed to increment portal counter:', error);
-                });
-                
-                // Don't wait for the counter increment, proceed with portal entry
-                if (playerAvatar.jump && !playerAvatar.userData.isJumping) {
-                  playerAvatar.jump();
+            // Check if this is a new portal collision
+            if (!playerAvatar.userData.lastPortalCollision || 
+                playerAvatar.userData.lastPortalCollision !== portalId) {
+              
+              // Set flag to prevent multiple triggers and track which portal
+              playerAvatar.userData.isPortalJumping = true;
+              playerAvatar.userData.lastPortalCollision = portalId;
+              
+              // First try to increment the portal counter, but don't wait for it
+              (async () => {
+                try {
+                  // Determine server URL based on environment
+                  const isLocalDevelopment = window.location.hostname === 'localhost' || 
+                                           window.location.hostname === '127.0.0.1';
+                  const serverUrl = isLocalDevelopment
+                    ? 'http://localhost:3000'
+                    : 'https://metaverse-production-821f.up.railway.app';
                   
-                  // Wait for the jump animation to complete before opening the URL
-                  setTimeout(() => {
-                    // Reset the portal jumping flag
+                  // Fire and forget the counter increment
+                  fetch(`${serverUrl}/portal-counter`, {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                      portalURL: object.userData.portalURL
+                    })
+                  }).catch(error => {
+                    console.error('Failed to increment portal counter:', error);
+                  });
+                  
+                  // Don't wait for the counter increment, proceed with portal entry
+                  if (playerAvatar.jump && !playerAvatar.userData.isJumping) {
+                    playerAvatar.jump();
+                    
+                    // Wait for the jump animation to complete before opening the URL
+                    setTimeout(() => {
+                      // Reset the portal jumping flag
+                      playerAvatar.userData.isPortalJumping = false;
+                      // Open the URL after animation completes
+                      if (object.userData.portalURL) {
+                        // Check if this portal was recently opened
+                        const portalURL = object.userData.portalURL;
+                        const lastOpenTime = window.lastPortalOpenTimes[portalURL] || 0;
+                        const now = Date.now();
+                        
+                        // Increase debounce time to 5 seconds to be even safer
+                        if (now - lastOpenTime > 5000) {
+                          console.log('Opening portal URL from collision:', portalURL);
+                          window.lastPortalOpenTimes[portalURL] = now;
+                          window.open(portalURL, '_blank', 'noopener,noreferrer');
+                        } else {
+                          console.log('Ignoring repeated portal open attempt:', portalURL);
+                        }
+                      }
+                    }, 750);
+                  } else {
+                    // If no jump animation, just open the URL immediately
                     playerAvatar.userData.isPortalJumping = false;
-                    // Open the URL after animation completes
                     if (object.userData.portalURL) {
-                      console.log('Opening portal URL from collision:', object.userData.portalURL);
-                      window.open(object.userData.portalURL, '_blank', 'noopener,noreferrer');
+                      // Check if this portal was recently opened
+                      const portalURL = object.userData.portalURL;
+                      const lastOpenTime = window.lastPortalOpenTimes[portalURL] || 0;
+                      const now = Date.now();
+                      
+                      // Increase debounce time to 5 seconds to be even safer
+                      if (now - lastOpenTime > 5000) {
+                        console.log('Opening portal URL from collision:', portalURL);
+                        window.lastPortalOpenTimes[portalURL] = now;
+                        window.open(portalURL, '_blank', 'noopener,noreferrer');
+                      } else {
+                        console.log('Ignoring repeated portal open attempt:', portalURL);
+                      }
                     }
-                  }, 750);
-                } else {
-                  // If no jump animation, just open the URL immediately
-                  playerAvatar.userData.isPortalJumping = false;
-                  if (object.userData.portalURL) {
-                    console.log('Opening portal URL from collision:', object.userData.portalURL);
-                    window.open(object.userData.portalURL, '_blank', 'noopener,noreferrer');
                   }
+                } catch (error) {
+                  console.error('Error during portal entry:', error);
+                  playerAvatar.userData.isPortalJumping = false;
                 }
-              } catch (error) {
-                console.error('Error during portal entry:', error);
-                playerAvatar.userData.isPortalJumping = false;
-              }
-            })();
+              })();
+            }
+          } else if (playerAvatar.userData.lastPortalCollision === portalId && !playerBox.intersectsBox(portalBox)) {
+            // Player has left a portal we were tracking
+            console.log('Player left portal area');
+            delete playerAvatar.userData.lastPortalCollision;
+            playerAvatar.userData.isPortalJumping = false;
           }
         }
         

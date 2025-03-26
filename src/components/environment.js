@@ -1877,13 +1877,12 @@ export function checkPortalEntry(playerAvatar) {
       
       // If player is close enough to portal, consider it an entry
       if (distance < 2) {
-        // Increment the counter
+        // Only increment the counter, don't open URL (main.js collision will handle that)
         handlePortalEntry(portalGroup);
         
-        // Open the portal URL when colliding/entering
+        // Log but don't open URL - let the collision detection in main.js handle URL opening
         if (object.userData.portalURL !== '#') {
-          console.log('Opening portal URL from entry:', object.userData.portalURL);
-          window.open(object.userData.portalURL, '_blank');
+          console.log('Portal entry detected for:', object.userData.portalURL);
         }
       }
     }
