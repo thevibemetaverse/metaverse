@@ -200,7 +200,12 @@ let camera = null;
 let billboards = [];
 
 // Add this global variable to track if the portal form is open
-let isPortalFormOpen = false;
+export let isPortalFormOpen = false;
+
+// Make it available globally so other modules can access it
+if (typeof window !== 'undefined') {
+  window.isPortalFormOpen = false;
+}
 
 // Add this function after the imports
 function createBlankTexture() {
@@ -1581,6 +1586,7 @@ export function showPortalForm(onSubmit) {
   
   // Create portal form container
   const portalFormContainer = document.createElement('div');
+  portalFormContainer.className = 'portal-form-overlay';
   document.body.appendChild(portalFormContainer);
   
   // Create a root for React rendering
@@ -1612,7 +1618,7 @@ export function showPortalForm(onSubmit) {
 
 // Function to check if player is entering a portal
 export function checkPortalEntry(playerAvatar) {
-  if (!playerAvatar || !window.scene) return;
+  if (!playerAvatar || !window.scene || isPortalFormOpen) return;
 
   // Get player position
   const playerPosition = new THREE.Vector3();
