@@ -1661,14 +1661,19 @@ try {
         if (object.userData && object.userData.isPortal) {
           // Get the portal's bounding box and expand it slightly
           const portalBox = new THREE.Box3().setFromObject(object);
-          portalBox.expandByScalar(2.0); // Increased expansion for easier triggering
+          
+          // Increase expansion for mobile devices
+          const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                         (window.innerWidth <= 800 && window.innerHeight <= 900);
+          const expansionFactor = isMobile ? 3.0 : 2.0; // Larger expansion for mobile
+          portalBox.expandByScalar(expansionFactor);
           
           // Store the portal ID for tracking
           const portalId = object.uuid;
           
           // Check if the player's bounding box intersects with the portal's bounding box
           if (playerBox.intersectsBox(portalBox) && !playerAvatar.userData.isPortalJumping) {
-            console.log('Portal collision detected!');
+            console.log('Portal collision detected!', isMobile ? '(mobile)' : '(desktop)');
             
             // Check if this is a new portal collision
             if (!playerAvatar.userData.lastPortalCollision || 
@@ -1721,7 +1726,39 @@ try {
                         if (now - lastOpenTime > 5000) {
                           console.log('Opening portal URL from collision:', portalURL);
                           window.lastPortalOpenTimes[portalURL] = now;
-                          window.open(portalURL, '_blank', 'noopener,noreferrer');
+                          
+                          // On mobile, create a button that auto-clicks to bypass popup blockers
+                          if (isMobile) {
+                            console.log('Creating clickable button for mobile portal URL');
+                            const clickButton = document.createElement('button');
+                            clickButton.style.position = 'fixed';
+                            clickButton.style.top = '50%';
+                            clickButton.style.left = '50%';
+                            clickButton.style.transform = 'translate(-50%, -50%)';
+                            clickButton.style.zIndex = '10000';
+                            clickButton.style.padding = '20px';
+                            clickButton.style.backgroundColor = '#4CAF50';
+                            clickButton.style.color = 'white';
+                            clickButton.style.border = 'none';
+                            clickButton.style.borderRadius = '10px';
+                            clickButton.style.fontSize = '18px';
+                            clickButton.textContent = 'Continue to Portal';
+                            
+                            clickButton.addEventListener('click', () => {
+                              window.open(portalURL, '_blank', 'noopener,noreferrer');
+                              document.body.removeChild(clickButton);
+                            });
+                            
+                            document.body.appendChild(clickButton);
+                            
+                            // Auto-click after a brief delay
+                            setTimeout(() => {
+                              clickButton.click();
+                            }, 500);
+                          } else {
+                            // Desktop - open URL directly
+                            window.open(portalURL, '_blank', 'noopener,noreferrer');
+                          }
                         } else {
                           console.log('Ignoring repeated portal open attempt:', portalURL);
                         }
@@ -1740,7 +1777,39 @@ try {
                       if (now - lastOpenTime > 5000) {
                         console.log('Opening portal URL from collision:', portalURL);
                         window.lastPortalOpenTimes[portalURL] = now;
-                        window.open(portalURL, '_blank', 'noopener,noreferrer');
+                        
+                        // On mobile, create a button that auto-clicks to bypass popup blockers
+                        if (isMobile) {
+                          console.log('Creating clickable button for mobile portal URL');
+                          const clickButton = document.createElement('button');
+                          clickButton.style.position = 'fixed';
+                          clickButton.style.top = '50%';
+                          clickButton.style.left = '50%';
+                          clickButton.style.transform = 'translate(-50%, -50%)';
+                          clickButton.style.zIndex = '10000';
+                          clickButton.style.padding = '20px';
+                          clickButton.style.backgroundColor = '#4CAF50';
+                          clickButton.style.color = 'white';
+                          clickButton.style.border = 'none';
+                          clickButton.style.borderRadius = '10px';
+                          clickButton.style.fontSize = '18px';
+                          clickButton.textContent = 'Continue to Portal';
+                          
+                          clickButton.addEventListener('click', () => {
+                            window.open(portalURL, '_blank', 'noopener,noreferrer');
+                            document.body.removeChild(clickButton);
+                          });
+                          
+                          document.body.appendChild(clickButton);
+                          
+                          // Auto-click after a brief delay
+                          setTimeout(() => {
+                            clickButton.click();
+                          }, 500);
+                        } else {
+                          // Desktop - open URL directly
+                          window.open(portalURL, '_blank', 'noopener,noreferrer');
+                        }
                       } else {
                         console.log('Ignoring repeated portal open attempt:', portalURL);
                       }

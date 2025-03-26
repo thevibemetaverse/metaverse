@@ -1877,11 +1877,33 @@ export function checkPortalEntry(playerAvatar) {
       
       // If player is close enough to portal, consider it an entry
       if (distance < 2) {
-        // Only increment the counter, don't open URL (main.js collision will handle that)
+        // Increment the counter
         handlePortalEntry(portalGroup);
         
-        // Log but don't open URL - let the collision detection in main.js handle URL opening
-        if (object.userData.portalURL !== '#') {
+        // For mobile devices, open URL directly from here as collision detection may not work reliably
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                        (window.innerWidth <= 800 && window.innerHeight <= 900);
+        
+        if (isMobile && object.userData.portalURL !== '#') {
+          // Check if this portal was recently opened
+          if (!window.lastPortalOpenTimes) {
+            window.lastPortalOpenTimes = {};
+          }
+          
+          const portalURL = object.userData.portalURL;
+          const lastOpenTime = window.lastPortalOpenTimes[portalURL] || 0;
+          const now = Date.now();
+          
+          // Only open if it hasn't been opened in the last 5 seconds
+          if (now - lastOpenTime > 5000) {
+            console.log('Mobile: Opening portal URL from entry:', portalURL);
+            window.lastPortalOpenTimes[portalURL] = now;
+            window.open(portalURL, '_blank');
+          } else {
+            console.log('Mobile: Ignoring repeated portal open attempt:', portalURL);
+          }
+        } else {
+          // On desktop, just log - main.js collision detection will handle URL opening
           console.log('Portal entry detected for:', object.userData.portalURL);
         }
       }
