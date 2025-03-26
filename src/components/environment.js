@@ -19,7 +19,7 @@ const PortalForm = ({ onSubmit, onCancel }) => {
         textShadow: '0 0 10px #4a90e2, 0 0 20px #4a90e2',
         animation: 'portal-glow 2s infinite alternate'
       }
-    }, 'Create New Portal'),
+    }, 'Submit Portal Application'),
     React.createElement('form', { 
       id: 'portal-form',
       action: 'https://submit-form.com/OOKKM5IU8',
@@ -51,19 +51,142 @@ const PortalForm = ({ onSubmit, onCancel }) => {
         .then(response => {
           console.log('FormSpark submission successful:', response);
           
-          // Show success message
+          // Use the consolidated success notification
+          showSuccessNotification();
+          
+          onSubmit(formData);
+        })
+        .catch(error => {
+          // Create enhanced success message
           const successMessage = document.createElement('div');
           successMessage.className = 'portal-success-message';
           successMessage.innerHTML = `
-            <div class="success-icon">✓</div>
-            <div class="success-text">Portal request submitted successfully!</div>
+            <div class="success-container">
+              <div class="success-icon">✓</div>
+              <div class="success-text">
+                <h3>Portal Submitted Successfully!</h3>
+                <p>Your portal request has been received and will be reviewed soon.</p>
+              </div>
+            </div>
           `;
           document.body.appendChild(successMessage);
           
-          // Remove success message after 3 seconds
+          // Add CSS styles for the enhanced success message
+          const style = document.createElement('style');
+          style.textContent = `
+            .portal-success-message {
+              position: fixed;
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%);
+              background-color: rgba(0, 128, 0, 0.9);
+              color: white;
+              padding: 20px;
+              border-radius: 10px;
+              box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+              z-index: 10000;
+              text-align: center;
+              animation: portal-success-appear 0.5s ease-out forwards, 
+                         portal-success-glow 2s infinite alternate;
+              max-width: 80%;
+            }
+            
+            @keyframes portal-success-appear {
+              0% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.8);
+              }
+              100% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+              }
+            }
+            
+            @keyframes portal-success-glow {
+              0% {
+                box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+              }
+              100% {
+                box-shadow: 0 0 30px rgba(0, 255, 0, 0.8);
+              }
+            }
+            
+            .success-container {
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              gap: 20px;
+            }
+            
+            .success-icon {
+              font-size: 48px;
+              height: 80px;
+              width: 80px;
+              background-color: rgba(255, 255, 255, 0.2);
+              border-radius: 50%;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: #00ff00;
+              text-shadow: 0 0 10px #00ff00;
+              animation: success-icon-pulse 1.5s infinite alternate;
+            }
+            
+            @keyframes success-icon-pulse {
+              0% {
+                transform: scale(1);
+                text-shadow: 0 0 10px #00ff00;
+              }
+              100% {
+                transform: scale(1.1);
+                text-shadow: 0 0 20px #00ff00;
+              }
+            }
+            
+            .success-text h3 {
+              margin: 0 0 10px 0;
+              font-size: 24px;
+              font-weight: bold;
+            }
+            
+            .success-text p {
+              margin: 0;
+              font-size: 16px;
+              opacity: 0.9;
+            }
+          `;
+          document.head.appendChild(style);
+          
+          // Create confetti effect
+          createConfettiEffect();
+          
+          // Remove success message after 4 seconds
           setTimeout(() => {
-            successMessage.remove();
-          }, 3000);
+            successMessage.style.animation = 'portal-success-disappear 0.5s ease-in forwards';
+            
+            // Add disappear animation
+            const disappearStyle = document.createElement('style');
+            disappearStyle.textContent = `
+              @keyframes portal-success-disappear {
+                0% {
+                  opacity: 1;
+                  transform: translate(-50%, -50%) scale(1);
+                }
+                100% {
+                  opacity: 0;
+                  transform: translate(-50%, -50%) scale(0.8);
+                }
+              }
+            `;
+            document.head.appendChild(disappearStyle);
+            
+            // Remove element after animation completes
+            setTimeout(() => {
+              successMessage.remove();
+              style.remove();
+              disappearStyle.remove();
+            }, 500);
+          }, 4000);
           
           onSubmit(formData);
         })
@@ -1323,19 +1446,136 @@ export function addGlobalPortalClickHandler() {
           showPortalForm((formData) => {
             console.log('Form submitted:', formData);
             
-            // Show success animation
+            // Show enhanced success animation
             const successAnimation = document.createElement('div');
             successAnimation.className = 'portal-success-animation';
             successAnimation.innerHTML = `
-              <div class="success-icon">✓</div>
-              <div class="success-message">Portal request was submitted</div>
+              <div class="success-container">
+                <div class="success-icon">✓</div>
+                <div class="success-text">
+                  <h3>Portal Submitted Successfully!</h3>
+                  <p>Your portal request has been received and will be reviewed soon.</p>
+                </div>
+              </div>
             `;
             document.body.appendChild(successAnimation);
             
-            // Remove the animation after it completes
+            // Add styles for the success animation
+            const successStyle = document.createElement('style');
+            successStyle.textContent = `
+              .portal-success-animation {
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background-color: rgba(0, 128, 0, 0.9);
+                color: white;
+                padding: 20px;
+                border-radius: 10px;
+                box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+                z-index: 10000;
+                text-align: center;
+                animation: portal-success-appear 0.5s ease-out forwards,
+                           portal-success-glow 2s infinite alternate;
+                max-width: 80%;
+              }
+              
+              @keyframes portal-success-appear {
+                0% {
+                  opacity: 0;
+                  transform: translate(-50%, -50%) scale(0.8);
+                }
+                100% {
+                  opacity: 1;
+                  transform: translate(-50%, -50%) scale(1);
+                }
+              }
+              
+              @keyframes portal-success-glow {
+                0% {
+                  box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+                }
+                100% {
+                  box-shadow: 0 0 30px rgba(0, 255, 0, 0.8);
+                }
+              }
+              
+              .success-container {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 20px;
+              }
+              
+              .success-icon {
+                font-size: 48px;
+                height: 80px;
+                width: 80px;
+                background-color: rgba(255, 255, 255, 0.2);
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: #00ff00;
+                text-shadow: 0 0 10px #00ff00;
+                animation: success-icon-pulse 1.5s infinite alternate;
+              }
+              
+              @keyframes success-icon-pulse {
+                0% {
+                  transform: scale(1);
+                  text-shadow: 0 0 10px #00ff00;
+                }
+                100% {
+                  transform: scale(1.1);
+                  text-shadow: 0 0 20px #00ff00;
+                }
+              }
+              
+              .success-text h3 {
+                margin: 0 0 10px 0;
+                font-size: 24px;
+                font-weight: bold;
+              }
+              
+              .success-text p {
+                margin: 0;
+                font-size: 16px;
+                opacity: 0.9;
+              }
+            `;
+            document.head.appendChild(successStyle);
+            
+            // Create confetti effect
+            createConfettiEffect();
+            
+            // Remove the animation after it completes with fade-out effect
             setTimeout(() => {
-              successAnimation.remove();
-            }, 2000);
+              successAnimation.style.animation = 'portal-success-disappear 0.5s ease-in forwards';
+              
+              // Add disappear animation
+              const disappearStyle = document.createElement('style');
+              disappearStyle.textContent = `
+                @keyframes portal-success-disappear {
+                  0% {
+                    opacity: 1;
+                    transform: translate(-50%, -50%) scale(1);
+                  }
+                  100% {
+                    opacity: 0;
+                    transform: translate(-50%, -50%) scale(0.8);
+                  }
+                }
+              `;
+              document.head.appendChild(disappearStyle);
+              
+              // Remove elements after animation completes
+              setTimeout(() => {
+                successAnimation.remove();
+                successStyle.remove();
+                disappearStyle.remove();
+              }, 500);
+            }, 4000);
             
             // Update the portal config
             if (formData.url) {
@@ -1837,6 +2077,223 @@ function createHills(environment) {
     landmarkHill.castShadow = true;
     environment.add(landmarkHill);
   }
+}
+
+// Add new function for confetti effect
+function createConfettiEffect() {
+  const confettiContainer = document.createElement('div');
+  confettiContainer.className = 'confetti-container';
+  document.body.appendChild(confettiContainer);
+  
+  // Confetti styles
+  const confettiStyle = document.createElement('style');
+  confettiStyle.textContent = `
+    .confetti-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 9999;
+    }
+    
+    .confetti {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background-color: #f00;
+      opacity: 0;
+      animation: confetti-fall 4s ease-out forwards;
+    }
+    
+    @keyframes confetti-fall {
+      0% {
+        transform: translateY(-10px) rotate(0deg);
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(100vh) rotate(720deg);
+        opacity: 0;
+      }
+    }
+  `;
+  document.head.appendChild(confettiStyle);
+  
+  // Create confetti pieces
+  const colors = ['#00ff00', '#00cc00', '#99ff99', '#ccffcc', '#ffffff'];
+  const shapes = ['square', 'circle'];
+  
+  for (let i = 0; i < 80; i++) {
+    const confetti = document.createElement('div');
+    confetti.className = 'confetti';
+    
+    // Random position
+    confetti.style.left = Math.random() * 100 + 'vw';
+    confetti.style.top = '0';
+    
+    // Random color
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    confetti.style.backgroundColor = color;
+    
+    // Random shape
+    const shape = shapes[Math.floor(Math.random() * shapes.length)];
+    if (shape === 'circle') {
+      confetti.style.borderRadius = '50%';
+    }
+    
+    // Random size
+    const size = Math.random() * 6 + 4;
+    confetti.style.width = size + 'px';
+    confetti.style.height = size + 'px';
+    
+    // Random animation duration
+    const duration = Math.random() * 2 + 2;
+    confetti.style.animationDuration = duration + 's';
+    
+    // Add to container
+    confettiContainer.appendChild(confetti);
+  }
+  
+  // Remove confetti after animations complete
+  setTimeout(() => {
+    confettiContainer.remove();
+    confettiStyle.remove();
+  }, 5000);
+}
+
+// Add this function near the createConfettiEffect function
+function showSuccessNotification() {
+  // Create enhanced success message
+  const successMessage = document.createElement('div');
+  successMessage.className = 'portal-success-message';
+  successMessage.innerHTML = `
+    <div class="success-container">
+      <div class="success-icon">✓</div>
+      <div class="success-text">
+        <h3>Portal Submitted Successfully!</h3>
+        <p>Your portal request has been received and will be reviewed soon.</p>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(successMessage);
+  
+  // Add CSS styles for the enhanced success message
+  const style = document.createElement('style');
+  style.textContent = `
+    .portal-success-message {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: rgba(0, 128, 0, 0.9);
+      color: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+      z-index: 10000;
+      text-align: center;
+      animation: portal-success-appear 0.5s ease-out forwards, 
+                 portal-success-glow 2s infinite alternate;
+      max-width: 80%;
+    }
+    
+    @keyframes portal-success-appear {
+      0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.8);
+      }
+      100% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+      }
+    }
+    
+    @keyframes portal-success-glow {
+      0% {
+        box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+      }
+      100% {
+        box-shadow: 0 0 30px rgba(0, 255, 0, 0.8);
+      }
+    }
+    
+    .success-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+    }
+    
+    .success-icon {
+      font-size: 48px;
+      height: 80px;
+      width: 80px;
+      background-color: rgba(255, 255, 255, 0.2);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #00ff00;
+      text-shadow: 0 0 10px #00ff00;
+      animation: success-icon-pulse 1.5s infinite alternate;
+    }
+    
+    @keyframes success-icon-pulse {
+      0% {
+        transform: scale(1);
+        text-shadow: 0 0 10px #00ff00;
+      }
+      100% {
+        transform: scale(1.1);
+        text-shadow: 0 0 20px #00ff00;
+      }
+    }
+    
+    .success-text h3 {
+      margin: 0 0 10px 0;
+      font-size: 24px;
+      font-weight: bold;
+    }
+    
+    .success-text p {
+      margin: 0;
+      font-size: 16px;
+      opacity: 0.9;
+    }
+  `;
+  document.head.appendChild(style);
+  
+  // Create confetti effect
+  createConfettiEffect();
+  
+  // Remove success message after 4 seconds
+  setTimeout(() => {
+    successMessage.style.animation = 'portal-success-disappear 0.5s ease-in forwards';
+    
+    // Add disappear animation
+    const disappearStyle = document.createElement('style');
+    disappearStyle.textContent = `
+      @keyframes portal-success-disappear {
+        0% {
+          opacity: 1;
+          transform: translate(-50%, -50%) scale(1);
+        }
+        100% {
+          opacity: 0;
+          transform: translate(-50%, -50%) scale(0.8);
+        }
+      }
+    `;
+    document.head.appendChild(disappearStyle);
+    
+    // Remove element after animation completes
+    setTimeout(() => {
+      successMessage.remove();
+      style.remove();
+      disappearStyle.remove();
+    }, 500);
+  }, 4000);
 }
 
 // Add these new functions for the landmarks
