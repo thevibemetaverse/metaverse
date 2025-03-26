@@ -277,6 +277,41 @@ const portalConfigs = [
     scale: 1.0
   },
   {
+    position: { x: 25, z: -15, y: 0 },  // Second from right (yacht)
+    rotation: 0,
+    imageUrl: '',
+    targetUrl: '#',
+    scale: 1.0
+  },
+  {
+    position: { x: 35, z: -15, y: 0 },  // Second from right (yacht)
+    rotation: 0,
+    imageUrl: '',
+    targetUrl: '#',
+    scale: 1.0
+  },
+  {
+    position: { x: 45, z: -15, y: 0 },  // Second from right (yacht)
+    rotation: 0,
+    imageUrl: '',
+    targetUrl: '#',
+    scale: 1.0
+  },
+  {
+    position: { x: 55, z: -15, y: 0 },  // Second from right (yacht)
+    rotation: 0,
+    imageUrl: '',
+    targetUrl: '#',
+    scale: 1.0
+  },
+  {
+    position: { x: 65, z: -15, y: 0 },  // Second from right (yacht)
+    rotation: 0,
+    imageUrl: '',
+    targetUrl: '#',
+    scale: 1.0
+},
+  {
     position: { x: 35, z: 15, y: 0 },  // Rightmost portal (panda)
     rotation: 0,
     imageUrl: 'assets/images/panda.png',
