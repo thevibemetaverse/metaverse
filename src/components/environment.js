@@ -2688,7 +2688,7 @@ function createLondonPhoneBox(environment, loadingManager) {
       const model = gltf.scene;
       
       // Scale and position the model (adjust scale as needed)
-      model.scale.set(4, 4, 4); // Start with 1:1 scale, adjust if needed
+      model.scale.set(4.5, 3, 4.5); // Start with 1:1 scale, adjust if needed
       model.position.set(0, 0, 0);
       
       // Add shadows
