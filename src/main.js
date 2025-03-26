@@ -812,7 +812,7 @@ try {
             const event = new CustomEvent('portalclick', { detail: { targetObject: intersect.object } });
             document.dispatchEvent(event);
           } else if (intersect.object.userData.portalURL) {
-            // Handle regular portal clicks - but don't open URL
+            // For desktop manually clicked portals, don't open URL (per original request)
             console.log('Portal URL clicked but not opening:', intersect.object.userData.portalURL);
             // window.open(intersect.object.userData.portalURL, '_blank');
           }
@@ -876,6 +876,62 @@ try {
     
     // Create mobile UI
     const mobileUI = createMobileUI();
+    
+    // Add a persistent info button for mobile users to know about portals
+    const mobileInfoButton = document.createElement('button');
+    mobileInfoButton.id = 'mobile-info-button';
+    mobileInfoButton.textContent = 'Portal Help';
+    mobileInfoButton.style.cssText = `
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background-color: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 8px 12px;
+      font-size: 14px;
+      font-weight: bold;
+      border: 1px solid white;
+      border-radius: 5px;
+      z-index: 1000;
+    `;
+    document.body.appendChild(mobileInfoButton);
+    
+    mobileInfoButton.addEventListener('click', () => {
+      const helpMessage = document.createElement('div');
+      helpMessage.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background-color: rgba(0, 0, 0, 0.9);
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+        z-index: 10001;
+        max-width: 80%;
+        text-align: center;
+      `;
+      helpMessage.innerHTML = `
+        <h2 style="margin-top: 0;">Portal Navigation</h2>
+        <p>Move close to any portal image to activate it.</p>
+        <p>When near a portal, a green "Enter Portal" button will appear.</p>
+        <p>Tap the button to navigate to the portal's destination.</p>
+        <button id="close-help" style="
+          background-color: #4CAF50;
+          color: white;
+          padding: 10px 20px;
+          border: none;
+          border-radius: 5px;
+          margin-top: 10px;
+          font-weight: bold;
+        ">Got it!</button>
+      `;
+      document.body.appendChild(helpMessage);
+      
+      document.getElementById('close-help').addEventListener('click', () => {
+        document.body.removeChild(helpMessage);
+      });
+    });
     
     // Optimize renderer for mobile
     optimizeForMobile(renderer);
@@ -1729,35 +1785,90 @@ try {
                           
                           // On mobile, create a button that auto-clicks to bypass popup blockers
                           if (isMobile) {
-                            console.log('Creating clickable button for mobile portal URL');
-                            const clickButton = document.createElement('button');
-                            clickButton.style.position = 'fixed';
-                            clickButton.style.top = '50%';
-                            clickButton.style.left = '50%';
-                            clickButton.style.transform = 'translate(-50%, -50%)';
-                            clickButton.style.zIndex = '10000';
-                            clickButton.style.padding = '20px';
-                            clickButton.style.backgroundColor = '#4CAF50';
-                            clickButton.style.color = 'white';
-                            clickButton.style.border = 'none';
-                            clickButton.style.borderRadius = '10px';
-                            clickButton.style.fontSize = '18px';
-                            clickButton.textContent = 'Continue to Portal';
+                            console.log('Creating clickable direct link for mobile portal URL');
                             
-                            clickButton.addEventListener('click', () => {
-                              window.open(portalURL, '_blank', 'noopener,noreferrer');
-                              document.body.removeChild(clickButton);
-                            });
-                            
-                            document.body.appendChild(clickButton);
-                            
-                            // Auto-click after a brief delay
-                            setTimeout(() => {
-                              clickButton.click();
-                            }, 500);
+                            // Check if a button already exists
+                            if (!document.getElementById('mobile-portal-button')) {
+                              const portalLink = document.createElement('a');
+                              portalLink.id = 'mobile-portal-button';
+                              portalLink.href = portalURL;
+                              portalLink.target = '_blank';
+                              portalLink.rel = 'noopener noreferrer';
+                              portalLink.textContent = 'Enter Portal';
+                              portalLink.style.cssText = `
+                                position: fixed;
+                                bottom: 20%;
+                                left: 50%;
+                                transform: translateX(-50%);
+                                background-color: #4CAF50;
+                                color: white;
+                                padding: 20px 40px;
+                                font-size: 24px;
+                                font-weight: bold;
+                                text-decoration: none;
+                                border-radius: 10px;
+                                box-shadow: 0 0 20px rgba(0, 255, 0, 0.8);
+                                z-index: 10000;
+                                animation: pulse-button 1.5s infinite alternate;
+                                text-align: center;
+                                min-width: 200px;
+                              `;
+                              
+                              // Add pulsing animation
+                              const buttonStyle = document.createElement('style');
+                              buttonStyle.id = 'mobile-portal-button-style';
+                              buttonStyle.textContent = `
+                                @keyframes pulse-button {
+                                  0% {
+                                    transform: translateX(-50%) scale(1);
+                                    box-shadow: 0 0 20px rgba(0, 255, 0, 0.8);
+                                  }
+                                  100% {
+                                    transform: translateX(-50%) scale(1.1);
+                                    box-shadow: 0 0 30px rgba(0, 255, 0, 1);
+                                  }
+                                }
+                              `;
+                              document.head.appendChild(buttonStyle);
+                              document.body.appendChild(portalLink);
+                              
+                              // Remove the link after 15 seconds if not clicked
+                              setTimeout(() => {
+                                if (document.getElementById('mobile-portal-button')) {
+                                  document.body.removeChild(portalLink);
+                                  document.head.removeChild(buttonStyle);
+                                }
+                              }, 15000);
+                            }
                           } else {
-                            // Desktop - open URL directly
-                            window.open(portalURL, '_blank', 'noopener,noreferrer');
+                            // Desktop - direct location change like portal.pieter.com
+                            console.log('Using direct location change for portal URL:', portalURL);
+                            
+                            // Optional: show a brief transition effect
+                            const transition = document.createElement('div');
+                            transition.style.cssText = `
+                              position: fixed;
+                              top: 0;
+                              left: 0;
+                              width: 100%;
+                              height: 100%;
+                              background-color: rgba(0, 0, 0, 0.5);
+                              z-index: 9999;
+                              opacity: 0;
+                              transition: opacity 0.5s ease;
+                              pointer-events: none;
+                            `;
+                            document.body.appendChild(transition);
+                            
+                            // Fade in transition
+                            setTimeout(() => {
+                              transition.style.opacity = '1';
+                            }, 10);
+                            
+                            // Navigate after transition
+                            setTimeout(() => {
+                              window.location.href = portalURL;
+                            }, 500);
                           }
                         } else {
                           console.log('Ignoring repeated portal open attempt:', portalURL);
@@ -1780,35 +1891,90 @@ try {
                         
                         // On mobile, create a button that auto-clicks to bypass popup blockers
                         if (isMobile) {
-                          console.log('Creating clickable button for mobile portal URL');
-                          const clickButton = document.createElement('button');
-                          clickButton.style.position = 'fixed';
-                          clickButton.style.top = '50%';
-                          clickButton.style.left = '50%';
-                          clickButton.style.transform = 'translate(-50%, -50%)';
-                          clickButton.style.zIndex = '10000';
-                          clickButton.style.padding = '20px';
-                          clickButton.style.backgroundColor = '#4CAF50';
-                          clickButton.style.color = 'white';
-                          clickButton.style.border = 'none';
-                          clickButton.style.borderRadius = '10px';
-                          clickButton.style.fontSize = '18px';
-                          clickButton.textContent = 'Continue to Portal';
+                          console.log('Creating clickable direct link for mobile portal URL');
                           
-                          clickButton.addEventListener('click', () => {
-                            window.open(portalURL, '_blank', 'noopener,noreferrer');
-                            document.body.removeChild(clickButton);
-                          });
-                          
-                          document.body.appendChild(clickButton);
-                          
-                          // Auto-click after a brief delay
-                          setTimeout(() => {
-                            clickButton.click();
-                          }, 500);
+                          // Check if a button already exists
+                          if (!document.getElementById('mobile-portal-button')) {
+                            const portalLink = document.createElement('a');
+                            portalLink.id = 'mobile-portal-button';
+                            portalLink.href = portalURL;
+                            portalLink.target = '_blank';
+                            portalLink.rel = 'noopener noreferrer';
+                            portalLink.textContent = 'Enter Portal';
+                            portalLink.style.cssText = `
+                              position: fixed;
+                              bottom: 20%;
+                              left: 50%;
+                              transform: translateX(-50%);
+                              background-color: #4CAF50;
+                              color: white;
+                              padding: 20px 40px;
+                              font-size: 24px;
+                              font-weight: bold;
+                              text-decoration: none;
+                              border-radius: 10px;
+                              box-shadow: 0 0 20px rgba(0, 255, 0, 0.8);
+                              z-index: 10000;
+                              animation: pulse-button 1.5s infinite alternate;
+                              text-align: center;
+                              min-width: 200px;
+                            `;
+                            
+                            // Add pulsing animation
+                            const buttonStyle = document.createElement('style');
+                            buttonStyle.id = 'mobile-portal-button-style';
+                            buttonStyle.textContent = `
+                              @keyframes pulse-button {
+                                0% {
+                                  transform: translateX(-50%) scale(1);
+                                  box-shadow: 0 0 20px rgba(0, 255, 0, 0.8);
+                                }
+                                100% {
+                                  transform: translateX(-50%) scale(1.1);
+                                  box-shadow: 0 0 30px rgba(0, 255, 0, 1);
+                                }
+                              }
+                            `;
+                            document.head.appendChild(buttonStyle);
+                            document.body.appendChild(portalLink);
+                            
+                            // Remove the link after 15 seconds if not clicked
+                            setTimeout(() => {
+                              if (document.getElementById('mobile-portal-button')) {
+                                document.body.removeChild(portalLink);
+                                document.head.removeChild(buttonStyle);
+                              }
+                            }, 15000);
+                          }
                         } else {
-                          // Desktop - open URL directly
-                          window.open(portalURL, '_blank', 'noopener,noreferrer');
+                          // Desktop - direct location change like portal.pieter.com
+                          console.log('Using direct location change for portal URL:', portalURL);
+                          
+                          // Optional: show a brief transition effect
+                          const transition = document.createElement('div');
+                          transition.style.cssText = `
+                            position: fixed;
+                            top: 0;
+                            left: 0;
+                            width: 100%;
+                            height: 100%;
+                            background-color: rgba(0, 0, 0, 0.5);
+                            z-index: 9999;
+                            opacity: 0;
+                            transition: opacity 0.5s ease;
+                            pointer-events: none;
+                          `;
+                          document.body.appendChild(transition);
+                          
+                          // Fade in transition
+                          setTimeout(() => {
+                            transition.style.opacity = '1';
+                          }, 10);
+                          
+                          // Navigate after transition
+                          setTimeout(() => {
+                            window.location.href = portalURL;
+                          }, 500);
                         }
                       } else {
                         console.log('Ignoring repeated portal open attempt:', portalURL);
