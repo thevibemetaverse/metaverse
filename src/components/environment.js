@@ -1587,7 +1587,8 @@ export function addGlobalPortalClickHandler() {
         }, 100);
       } else {
         // Regular portal - open URL
-        window.open(config.targetUrl, '_blank');
+        console.log('Portal URL clicked but not opening:', config.targetUrl);
+        // window.open(config.targetUrl, '_blank');
         
         trackEvent('portal_clicked', {
           portal_url: config.targetUrl,
@@ -1879,9 +1880,10 @@ export function checkPortalEntry(playerAvatar) {
         // Increment the counter
         handlePortalEntry(portalGroup);
         
-        // Open the portal URL
+        // Log portal URL but don't open it
         if (object.userData.portalURL !== '#') {
-          window.open(object.userData.portalURL, '_blank');
+          console.log('Player entered portal but not opening URL:', object.userData.portalURL);
+          // window.open(object.userData.portalURL, '_blank');
         }
       }
     }

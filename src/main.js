@@ -812,8 +812,9 @@ try {
             const event = new CustomEvent('portalclick', { detail: { targetObject: intersect.object } });
             document.dispatchEvent(event);
           } else if (intersect.object.userData.portalURL) {
-            // Handle regular portal clicks
-            window.open(intersect.object.userData.portalURL, '_blank');
+            // Handle regular portal clicks - but don't open URL
+            console.log('Portal URL clicked but not opening:', intersect.object.userData.portalURL);
+            // window.open(intersect.object.userData.portalURL, '_blank');
           }
           break;
         }
@@ -1695,18 +1696,18 @@ try {
                   setTimeout(() => {
                     // Reset the portal jumping flag
                     playerAvatar.userData.isPortalJumping = false;
-                    // Open the URL after animation completes
+                    // Log the URL but don't open it
                     if (object.userData.portalURL) {
-                      console.log('Opening portal URL:', object.userData.portalURL);
-                      window.open(object.userData.portalURL, '_blank', 'noopener,noreferrer');
+                      console.log('Portal collision detected but not opening URL:', object.userData.portalURL);
+                      // window.open(object.userData.portalURL, '_blank', 'noopener,noreferrer');
                     }
                   }, 750);
                 } else {
-                  // If no jump animation, just open the URL immediately
+                  // If no jump animation, just log the URL immediately
                   playerAvatar.userData.isPortalJumping = false;
                   if (object.userData.portalURL) {
-                    console.log('Opening portal URL:', object.userData.portalURL);
-                    window.open(object.userData.portalURL, '_blank', 'noopener,noreferrer');
+                    console.log('Portal collision detected but not opening URL:', object.userData.portalURL);
+                    // window.open(object.userData.portalURL, '_blank', 'noopener,noreferrer');
                   }
                 }
               } catch (error) {
