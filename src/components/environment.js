@@ -200,7 +200,12 @@ let camera = null;
 let billboards = [];
 
 // Add this global variable to track if the portal form is open
-let isPortalFormOpen = false;
+export let isPortalFormOpen = false;
+
+// Make it available globally so other modules can access it
+if (typeof window !== 'undefined') {
+  window.isPortalFormOpen = false;
+}
 
 // Add this function after the imports
 function createBlankTexture() {
@@ -276,6 +281,41 @@ const portalConfigs = [
     targetUrl: addAvatarToPortalUrl(`https://yachtvibes.app/?username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app&portal=true`),
     scale: 1.0
   },
+  {
+    position: { x: 25, z: -15, y: 0 },  // Second from right (yacht)
+    rotation: 0,
+    imageUrl: '',
+    targetUrl: '#',
+    scale: 1.0
+  },
+  {
+    position: { x: 35, z: -15, y: 0 },  // Second from right (yacht)
+    rotation: 0,
+    imageUrl: '',
+    targetUrl: '#',
+    scale: 1.0
+  },
+  {
+    position: { x: 45, z: -15, y: 0 },  // Second from right (yacht)
+    rotation: 0,
+    imageUrl: '',
+    targetUrl: '#',
+    scale: 1.0
+  },
+  {
+    position: { x: 55, z: -15, y: 0 },  // Second from right (yacht)
+    rotation: 0,
+    imageUrl: '',
+    targetUrl: '#',
+    scale: 1.0
+  },
+  {
+    position: { x: 65, z: -15, y: 0 },  // Second from right (yacht)
+    rotation: 0,
+    imageUrl: '',
+    targetUrl: '#',
+    scale: 1.0
+},
   {
     position: { x: 35, z: 15, y: 0 },  // Rightmost portal (panda)
     rotation: 0,
@@ -1546,6 +1586,7 @@ export function showPortalForm(onSubmit) {
   
   // Create portal form container
   const portalFormContainer = document.createElement('div');
+  portalFormContainer.className = 'portal-form-overlay';
   document.body.appendChild(portalFormContainer);
   
   // Create a root for React rendering
@@ -1577,7 +1618,7 @@ export function showPortalForm(onSubmit) {
 
 // Function to check if player is entering a portal
 export function checkPortalEntry(playerAvatar) {
-  if (!playerAvatar || !window.scene) return;
+  if (!playerAvatar || !window.scene || isPortalFormOpen) return;
 
   // Get player position
   const playerPosition = new THREE.Vector3();

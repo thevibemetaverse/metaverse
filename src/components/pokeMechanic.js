@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { isPortalFormOpen } from './environment.js';
 
 // Class to manage the poke mechanic
 export class PokeMechanic {
@@ -27,7 +28,10 @@ export class PokeMechanic {
     // Create leaderboard UI
     this.createLeaderboardUI();
     
-    console.log('PokeMechanic initialized with custom cursor');
+    // Don't start hover animation yet, as there are no objects
+    // this.startHoverAnimation();
+    
+    console.log('PokeMechanic initialized with', this.pokeableObjects.length, 'pokeable objects');
   }
   
   // Initialize event listeners
@@ -212,8 +216,8 @@ export class PokeMechanic {
   
   // Handle click event for poking
   onPokeClick(event) {
-    // If on cooldown, don't process the click
-    if (this.pokeCooldown) return;
+    // If on cooldown or portal form is open, don't process the click
+    if (this.pokeCooldown || isPortalFormOpen) return;
     
     // Calculate mouse position in normalized device coordinates (-1 to +1)
     this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
@@ -1002,6 +1006,9 @@ export class PokeMechanic {
       this.hoverAnimationFrame = null;
     }
     
+    // If no object is hovered, don't start animation
+    if (!this.currentHoverObject) return;
+    
     // Store the start time
     this.hoverStartTime = performance.now();
     
@@ -1021,6 +1028,7 @@ export class PokeMechanic {
   
   // Animate hover effect
   animateHover(currentTime) {
+    // If no object is being hovered, stop animation
     if (!this.currentHoverObject) return;
     
     // Calculate delta time for smooth animation regardless of frame rate
@@ -1035,8 +1043,8 @@ export class PokeMechanic {
     // Create a subtle bobbing effect
     const floatOffset = Math.sin(elapsed * 0.005) * 0.1;
     
-    // Apply the animation
-    if (this.currentHoverObject && this.currentHoverObject.userData.originalPosition) {
+    // Apply the animation only if original position and scale are available
+    if (this.currentHoverObject.userData && this.currentHoverObject.userData.originalPosition) {
       this.currentHoverObject.position.y = this.currentHoverObject.userData.originalPosition.y + floatOffset;
       
       // Create a subtle pulsing effect

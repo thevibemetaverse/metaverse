@@ -462,6 +462,9 @@ function setupVRControllers(session) {
 
 // Controller event handlers
 function onSelectStart(event) {
+  // Don't process VR controller events if portal form is open
+  if (isPortalFormOpen) return;
+  
   const controller = event.target;
   controller.userData.isSelecting = true;
   
@@ -768,6 +771,12 @@ try {
   
   // Add click event listener for the computer
   document.addEventListener('click', function(event) {
+    // Check if we're clicking on the portal form
+    const portalForm = document.getElementById('portal-form');
+    if (portalForm && portalForm.contains(event.target)) {
+      return; // Don't process clicks if clicking on the form itself
+    }
+
     // Calculate mouse position in normalized device coordinates (-1 to +1)
     const mouse = new THREE.Vector2();
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
@@ -780,28 +789,30 @@ try {
     // Find intersected objects
     const intersects = raycaster.intersectObjects(scene.children, true);
     
-    // Check for clickable objects and portals
+    // Check for clickable objects 
     for (const intersect of intersects) {
       if (intersect.object.userData) {
         if (intersect.object.userData.isClickable) {
           console.log('Computer clicked!');
           if (intersect.object.userData.isPortalComputer) {
-            // Open portal form instead of URL
+            // Always allow opening the portal form when clicking the computer desk
             showPortalForm((formData) => {
               console.log('Portal form submitted:', formData);
             });
-          } else if (intersect.object.userData.targetUrl) {
-            // Open URL for other clickable objects
+          } else if (intersect.object.userData.targetUrl && !isPortalFormOpen) {
+            // Only open URLs for other clickable objects if form is not open
             window.open(intersect.object.userData.targetUrl, '_blank');
           }
           break;
-        } else if (intersect.object.userData.isPortal) {
+        } else if (intersect.object.userData.isPortal && !isPortalFormOpen) {
+          // Only handle portal clicks if form is not open
           console.log('Portal clicked!', intersect.object.userData);
           if (intersect.object.userData.isFormPortal) {
             // Trigger the portal form using CustomEvent to pass the target
             const event = new CustomEvent('portalclick', { detail: { targetObject: intersect.object } });
             document.dispatchEvent(event);
           } else if (intersect.object.userData.portalURL) {
+            // Handle regular portal clicks
             window.open(intersect.object.userData.portalURL, '_blank');
           }
           break;
@@ -1721,8 +1732,8 @@ try {
               showPortalForm((formData) => {
                 // Form submitted
               });
-            } else if (object.userData.targetUrl) {
-              // Open URL for other clickable objects
+            } else if (object.userData.targetUrl && !isPortalFormOpen) {
+              // Only open URL for other clickable objects if form is not open
               window.open(object.userData.targetUrl, '_blank');
             }
             
