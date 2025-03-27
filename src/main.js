@@ -5,7 +5,7 @@ import { XRControllerModelFactory } from 'three/examples/jsm/webxr/XRControllerM
 import { io } from 'socket.io-client';
 import { initPostHog, trackPageView } from './utils/posthog.js';
 
-import { createEnvironment, updatePortalMaterials, addGlobalPortalClickHandler, updatePortalClickOverlays, showPortalForm, checkPortalEntry, initializePortalCounters } from './components/environment.js';
+import { createEnvironment, updatePortalMaterials, addGlobalPortalClickHandler, updatePortalClickOverlays, showPortalForm, checkPortalEntry, initializePortalCounters, makePortalImagesVisible } from './components/environment.js';
 import { createAvatar, createSimpleAvatar, createDirectAvatar, createCleanAvatar, createPureAvatar, updateAvatarAnimations } from './components/avatar.js';
 import { setupControls } from './components/controls.js';
 import { setupUI, createEmojiBar, showEmojiReaction } from './components/ui.js';
@@ -386,6 +386,9 @@ document.body.appendChild(renderer.domElement);
 
 // Create environment
 const environment = createEnvironment(scene, camera, loadingManager);
+
+// Call function to ensure portal images are always visible
+makePortalImagesVisible();
 
 // Make scene available globally for portal counters
 window.scene = scene;
@@ -1478,8 +1481,13 @@ try {
     
     // Calculate delta time for smooth animation
     const currentTime = performance.now();
-    const deltaTime = (currentTime - lastTime) / 1000; // Convert to seconds
+    const deltaTime = (currentTime - lastTime) / 1000;
     lastTime = currentTime;
+    
+    // Make sure portal images are always visible (call every few seconds)
+    if (Math.floor(currentTime / 1000) % 5 === 0) { // Call every 5 seconds
+      makePortalImagesVisible();
+    }
     
     // Enforce auto-navigation for desktop by removing any mobile portal buttons
     if (!isMobileDevice()) {

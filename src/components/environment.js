@@ -1195,9 +1195,9 @@ function addPortalImage(portalGroup, imageUrl, loadingManager) {
       opacity: 1.0,
       blending: THREE.NormalBlending,
       side: THREE.DoubleSide,
-      depthWrite: false,
-      depthTest: true,
-      renderOrder: 2
+      depthWrite: false,  // No depth writing to prevent z-fighting
+      depthTest: false,   // No depth testing to ensure visibility
+      renderOrder: 1000   // Very high render order
     });
     
     // Add the material to our global array
@@ -1254,7 +1254,7 @@ function addPortalImage(portalGroup, imageUrl, loadingManager) {
         side: THREE.DoubleSide,
         depthWrite: false,
         depthTest: true,
-        renderOrder: 2
+        renderOrder: 1000
       });
       
       // Add the material to our global array
@@ -1365,7 +1365,7 @@ function addPortalImage(portalGroup, imageUrl, loadingManager) {
             side: THREE.DoubleSide,
             depthWrite: false,
             depthTest: true,
-            renderOrder: 2
+            renderOrder: 1000
           });
           
           portalMaterials.push(imageMaterial);
