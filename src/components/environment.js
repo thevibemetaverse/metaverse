@@ -301,7 +301,12 @@ const portalFragmentShader = `
                       sin(vPosition.y * 0.1 + time * 0.7) * 0.1,
                       sin(vPosition.z * 0.1 + time * 1.3) * 0.1);
     
-    gl_FragColor = vec4(finalColor, texColor.a);
+    // Ensure alpha is properly set
+    float alpha = texColor.a;
+    if (alpha < 0.1) alpha = 0.0;
+    else alpha = max(0.8, alpha); // Make partially transparent pixels more visible
+    
+    gl_FragColor = vec4(finalColor, alpha);
   }
 `;
 
@@ -1114,9 +1119,11 @@ function setFallbackCounters() {
 
 function loadPortalFrame(portalGroup, loadingManager) {
   const gltfLoader = new GLTFLoader(loadingManager);
+  console.log('Attempting to load portal frame model');
   gltfLoader.load(
     '/assets/models/portal_frame.glb',
     function(gltf) {
+      console.log('Portal frame model loaded successfully');
       const model = gltf.scene;
       model.scale.set(0.02, 0.02, 0.02);
       
@@ -1129,10 +1136,38 @@ function loadPortalFrame(portalGroup, loadingManager) {
       
       portalGroup.add(model);
     },
-    null,
+    function(xhr) {
+      console.log('Portal frame loading progress: ' + (xhr.loaded / xhr.total * 100) + '% loaded');
+    },
     function(error) {
-      console.warn('Error loading portal frame model:', error);
-      createBasicPortalFrame(portalGroup);
+      console.warn('Error loading portal frame model with path /assets/models/portal_frame.glb:', error);
+      
+      // Try alternative path
+      console.log('Trying alternative path for portal frame model...');
+      gltfLoader.load(
+        'assets/models/portal_frame.glb',
+        function(gltf) {
+          console.log('Portal frame model loaded successfully with alternative path');
+          const model = gltf.scene;
+          model.scale.set(0.02, 0.02, 0.02);
+          
+          model.traverse(function(node) {
+            if (node.isMesh) {
+              node.castShadow = true;
+              node.receiveShadow = true;
+            }
+          });
+          
+          portalGroup.add(model);
+        },
+        function(xhr) {
+          console.log('Portal frame (alt path) loading progress: ' + (xhr.loaded / xhr.total * 100) + '% loaded');
+        },
+        function(error) {
+          console.warn('Error loading portal frame model with alternative path:', error);
+          createBasicPortalFrame(portalGroup);
+        }
+      );
     }
   );
 }
@@ -1157,10 +1192,12 @@ function addPortalImage(portalGroup, imageUrl, loadingManager) {
       vertexShader: portalVertexShader,
       fragmentShader: portalFragmentShader,
       transparent: true,
+      opacity: 1.0,
+      blending: THREE.NormalBlending,
       side: THREE.DoubleSide,
-      depthWrite: true,
+      depthWrite: false,
       depthTest: true,
-      renderOrder: 1
+      renderOrder: 2
     });
     
     // Add the material to our global array
@@ -1170,27 +1207,31 @@ function addPortalImage(portalGroup, imageUrl, loadingManager) {
     const frontMesh = new THREE.Mesh(imageGeometry, imageMaterial);
     frontMesh.position.z = 0.01;
     frontMesh.position.y = 4;
-    frontMesh.renderOrder = 1;
+    frontMesh.renderOrder = 2;
     
     // Create back plane
     const backMesh = new THREE.Mesh(imageGeometry, imageMaterial);
     backMesh.position.z = -0.01;
     backMesh.position.y = 4;
     backMesh.rotation.y = Math.PI;
-    backMesh.renderOrder = 1;
+    backMesh.renderOrder = 2;
     
     portalGroup.add(frontMesh);
     portalGroup.add(backMesh);
     return;
   }
   
+  // Ensure the path starts with /assets/images
+  const correctedImageUrl = imageUrl.startsWith('/') ? imageUrl : '/' + imageUrl;
+  console.log('Loading image with corrected path:', correctedImageUrl);
+  
   const textureLoader = new THREE.TextureLoader(loadingManager);
   textureLoader.load(
-    imageUrl,
+    correctedImageUrl,
     function(texture) {
-      console.log('Successfully loaded image:', imageUrl);
+      console.log('Successfully loaded image:', correctedImageUrl);
       
-      const isKyzoImage = imageUrl.includes('kyzo.jpeg');
+      const isKyzoImage = correctedImageUrl.includes('kyzo.jpeg');
       const imageGeometry = new THREE.PlaneGeometry(
         4, // width stays the same
         isKyzoImage ? 7 : 6.5  // increased height for levels from 6 to 8
@@ -1208,10 +1249,12 @@ function addPortalImage(portalGroup, imageUrl, loadingManager) {
         vertexShader: portalVertexShader,
         fragmentShader: portalFragmentShader,
         transparent: true,
+        opacity: 1.0,
+        blending: THREE.NormalBlending,
         side: THREE.DoubleSide,
-        depthWrite: true,
+        depthWrite: false,
         depthTest: true,
-        renderOrder: 1
+        renderOrder: 2
       });
       
       // Add the material to our global array
@@ -1220,15 +1263,15 @@ function addPortalImage(portalGroup, imageUrl, loadingManager) {
       // Create front plane
       const frontMesh = new THREE.Mesh(imageGeometry, imageMaterial);
       frontMesh.position.z = 0.01;
-      frontMesh.position.y = isKyzoImage ? 3.5 : 4; // Adjusted Y position for taller levels image
-      frontMesh.renderOrder = 1;
+      frontMesh.position.y = isKyzoImage ? 3.5 : 4;
+      frontMesh.renderOrder = 2;
       
       // Create back plane
       const backMesh = new THREE.Mesh(imageGeometry, imageMaterial);
       backMesh.position.z = -0.01;
-      backMesh.position.y = isKyzoImage ? 3.5 : 4; // Adjusted Y position for taller levels image
-      backMesh.rotation.y = Math.PI; // Rotate 180 degrees to face the opposite direction
-      backMesh.renderOrder = 1;
+      backMesh.position.y = isKyzoImage ? 3.5 : 4;
+      backMesh.rotation.y = Math.PI;
+      backMesh.renderOrder = 2;
       
       console.log('Created portal image meshes:', {
         geometry: imageGeometry.parameters,
@@ -1288,11 +1331,72 @@ function addPortalImage(portalGroup, imageUrl, loadingManager) {
       }
     },
     function(xhr) {
-      console.log(imageUrl + ': ' + (xhr.loaded / xhr.total * 100) + '% loaded');
+      console.log(correctedImageUrl + ': ' + (xhr.loaded / xhr.total * 100) + '% loaded');
     },
     function(error) {
-      console.error('Error loading portal image:', imageUrl, error);
-      createFallbackPortalImage(portalGroup);
+      console.error('Error loading portal image:', correctedImageUrl, error);
+      // Try the original path as a fallback
+      console.log('Trying original path as fallback:', imageUrl);
+      textureLoader.load(
+        imageUrl,
+        function(texture) {
+          console.log('Successfully loaded image using original path:', imageUrl);
+          
+          const isKyzoImage = imageUrl.includes('kyzo.jpeg');
+          const imageGeometry = new THREE.PlaneGeometry(
+            4, // width stays the same
+            isKyzoImage ? 7 : 6.5  // increased height for levels from 6 to 8
+          );
+          
+          // Create custom shader material with more subtle parameters
+          const imageMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+              map: { value: texture },
+              time: { value: 0 },
+              distortionStrength: { value: 0.05 },
+              glowColor: { value: new THREE.Color(0xffffff) },
+              glowIntensity: { value: 0.3 }
+            },
+            vertexShader: portalVertexShader,
+            fragmentShader: portalFragmentShader,
+            transparent: true,
+            opacity: 1.0,
+            blending: THREE.NormalBlending,
+            side: THREE.DoubleSide,
+            depthWrite: false,
+            depthTest: true,
+            renderOrder: 2
+          });
+          
+          portalMaterials.push(imageMaterial);
+          
+          // Create front plane
+          const frontMesh = new THREE.Mesh(imageGeometry, imageMaterial);
+          frontMesh.position.z = 0.01;
+          frontMesh.position.y = isKyzoImage ? 3.5 : 4;
+          frontMesh.renderOrder = 2;
+          
+          // Create back plane
+          const backMesh = new THREE.Mesh(imageGeometry, imageMaterial);
+          backMesh.position.z = -0.01;
+          backMesh.position.y = isKyzoImage ? 3.5 : 4;
+          backMesh.rotation.y = Math.PI;
+          backMesh.renderOrder = 2;
+          
+          portalGroup.add(frontMesh);
+          portalGroup.add(backMesh);
+          
+          // Add counter image above portal
+          addCounterImage(portalGroup);
+        },
+        function(xhr) {
+          console.log(imageUrl + ' (fallback): ' + (xhr.loaded / xhr.total * 100) + '% loaded');
+        },
+        function(error) {
+          console.error('Error loading portal image with fallback path:', imageUrl, error);
+          createFallbackPortalImage(portalGroup);
+        }
+      );
     }
   );
 }
@@ -1837,13 +1941,100 @@ function addCounterImage(portalGroup) {
   // Load the counter image texture
   const textureLoader = new THREE.TextureLoader();
   console.log('Loading counter image texture...');
-  textureLoader.load('/assets/images/counter.png', (texture) => {
-    console.log('Counter image texture loaded successfully');
-    
-    // Create a container group for the counter that will maintain standard orientation
+  textureLoader.load('/assets/images/counter.png', 
+    // Success callback
+    (texture) => {
+      console.log('Counter image texture loaded successfully');
+      
+      // Create a container group for the counter that will maintain standard orientation
+      const counterContainer = new THREE.Group();
+      
+      // Create the counter mesh with the counter image
+      const counterMaterial = new THREE.MeshBasicMaterial({
+        map: texture,
+        transparent: true,
+        side: THREE.DoubleSide
+      });
+      const counterMesh = new THREE.Mesh(counterGeometry, counterMaterial);
+      
+      // Create the number mesh
+      const numberMaterial = new THREE.MeshBasicMaterial({
+        map: numberTexture,
+        transparent: true,
+        side: THREE.DoubleSide
+      });
+      const numberMesh = new THREE.Mesh(counterGeometry, numberMaterial);
+      numberMesh.userData.isCounterNumber = true; // Add flag to identify this mesh
+      
+      // Position counter above portal in local space
+      counterMesh.position.y = 9;
+      numberMesh.position.y = 9;
+      
+      // Check portal's rotation and adjust counter position and rotation accordingly
+      if (Math.abs(portalGroup.rotation.y - Math.PI / 2) < 0.01) {
+        // For portals facing right (90 degrees)
+        counterMesh.position.x = -0.5;
+        counterMesh.rotation.y = -2 * Math.PI;
+        numberMesh.position.x = -0.5;
+        numberMesh.rotation.y = -2 * Math.PI;
+      } else if (Math.abs(portalGroup.rotation.y - Math.PI) < 0.01) {
+        // For portals facing backward (180 degrees)
+        counterMesh.position.z = 0.5;
+        counterMesh.rotation.y = 0;
+        numberMesh.position.z = 0.5;
+        numberMesh.rotation.y = 0;
+      } else {
+        // For portals facing forward (0 degrees)
+        counterMesh.position.z = -0.5;
+        counterMesh.rotation.y = Math.PI;
+        numberMesh.position.z = -0.5;
+        numberMesh.rotation.y = Math.PI;
+      }
+      
+      // Add both meshes to container
+      counterContainer.add(counterMesh);
+      counterContainer.add(numberMesh);
+      
+      // Add container to portal group
+      portalGroup.add(counterContainer);
+      console.log('Counter container added to portal group');
+
+      // Store portal URL in the counter container for reference
+      if (portalGroup.children[0] && portalGroup.children[0].userData) {
+        counterContainer.userData.portalURL = portalGroup.children[0].userData.portalURL;
+        console.log('Stored portal URL in counter container:', counterContainer.userData.portalURL);
+      }
+    },
+    // Progress callback
+    (xhr) => {
+      console.log('Counter texture: ' + (xhr.loaded / xhr.total * 100) + '% loaded');
+    },
+    // Error callback
+    (error) => {
+      console.error('Error loading counter image texture:', error);
+      
+      // Try without leading slash as fallback
+      console.log('Trying fallback path for counter image...');
+      textureLoader.load('assets/images/counter.png', 
+        (texture) => {
+          console.log('Counter image loaded successfully with fallback path');
+          createCounterWithTexture(texture);
+        },
+        null,
+        (error) => {
+          console.error('Error loading counter image with fallback path:', error);
+          // Create a basic counter without texture
+          createBasicCounter();
+        }
+      );
+    }
+  );
+  
+  // Helper function to create counter with provided texture
+  function createCounterWithTexture(texture) {
     const counterContainer = new THREE.Group();
     
-    // Create the counter mesh with the counter image
+    // Create the counter mesh with the provided texture
     const counterMaterial = new THREE.MeshBasicMaterial({
       map: texture,
       transparent: true,
@@ -1858,47 +2049,92 @@ function addCounterImage(portalGroup) {
       side: THREE.DoubleSide
     });
     const numberMesh = new THREE.Mesh(counterGeometry, numberMaterial);
-    numberMesh.userData.isCounterNumber = true; // Add flag to identify this mesh
+    numberMesh.userData.isCounterNumber = true;
     
     // Position counter above portal in local space
     counterMesh.position.y = 9;
     numberMesh.position.y = 9;
     
-    // Check portal's rotation and adjust counter position and rotation accordingly
+    // Adjust positions based on portal rotation
     if (Math.abs(portalGroup.rotation.y - Math.PI / 2) < 0.01) {
-      // For portals facing right (90 degrees)
       counterMesh.position.x = -0.5;
       counterMesh.rotation.y = -2 * Math.PI;
       numberMesh.position.x = -0.5;
       numberMesh.rotation.y = -2 * Math.PI;
     } else if (Math.abs(portalGroup.rotation.y - Math.PI) < 0.01) {
-      // For portals facing backward (180 degrees)
       counterMesh.position.z = 0.5;
       counterMesh.rotation.y = 0;
       numberMesh.position.z = 0.5;
       numberMesh.rotation.y = 0;
     } else {
-      // For portals facing forward (0 degrees)
       counterMesh.position.z = -0.5;
       counterMesh.rotation.y = Math.PI;
       numberMesh.position.z = -0.5;
       numberMesh.rotation.y = Math.PI;
     }
     
-    // Add both meshes to container
     counterContainer.add(counterMesh);
     counterContainer.add(numberMesh);
-    
-    // Add container to portal group
     portalGroup.add(counterContainer);
-    console.log('Counter container added to portal group');
-
-    // Store portal URL in the counter container for reference
+    
     if (portalGroup.children[0] && portalGroup.children[0].userData) {
       counterContainer.userData.portalURL = portalGroup.children[0].userData.portalURL;
-      console.log('Stored portal URL in counter container:', counterContainer.userData.portalURL);
     }
-  });
+  }
+  
+  // Function to create a basic counter without texture
+  function createBasicCounter() {
+    console.log('Creating basic counter without texture');
+    const counterContainer = new THREE.Group();
+    
+    // Create a simple colored background for the counter
+    const backgroundMaterial = new THREE.MeshBasicMaterial({
+      color: 0x2196F3,
+      transparent: true,
+      opacity: 0.7,
+      side: THREE.DoubleSide
+    });
+    const backgroundMesh = new THREE.Mesh(counterGeometry, backgroundMaterial);
+    
+    // Create the number mesh
+    const numberMaterial = new THREE.MeshBasicMaterial({
+      map: numberTexture,
+      transparent: true,
+      side: THREE.DoubleSide
+    });
+    const numberMesh = new THREE.Mesh(counterGeometry, numberMaterial);
+    numberMesh.userData.isCounterNumber = true;
+    
+    // Position meshes
+    backgroundMesh.position.y = 9;
+    numberMesh.position.y = 9;
+    
+    // Adjust based on portal rotation
+    if (Math.abs(portalGroup.rotation.y - Math.PI / 2) < 0.01) {
+      backgroundMesh.position.x = -0.5;
+      backgroundMesh.rotation.y = -2 * Math.PI;
+      numberMesh.position.x = -0.5;
+      numberMesh.rotation.y = -2 * Math.PI;
+    } else if (Math.abs(portalGroup.rotation.y - Math.PI) < 0.01) {
+      backgroundMesh.position.z = 0.5;
+      backgroundMesh.rotation.y = 0;
+      numberMesh.position.z = 0.5;
+      numberMesh.rotation.y = 0;
+    } else {
+      backgroundMesh.position.z = -0.5;
+      backgroundMesh.rotation.y = Math.PI;
+      numberMesh.position.z = -0.5;
+      numberMesh.rotation.y = Math.PI;
+    }
+    
+    counterContainer.add(backgroundMesh);
+    counterContainer.add(numberMesh);
+    portalGroup.add(counterContainer);
+    
+    if (portalGroup.children[0] && portalGroup.children[0].userData) {
+      counterContainer.userData.portalURL = portalGroup.children[0].userData.portalURL;
+    }
+  }
 }
 
 // Function to show the portal form
@@ -2261,6 +2497,9 @@ export function createEnvironment(scene, mainCamera, loadingManager = new THREE.
 
 // Add a global debug property for portal collision boxes
 if (typeof window !== 'undefined' && !Object.getOwnPropertyDescriptor(window, 'debugPortalCollisionBoxes')) {
+  // Initialize debug flag
+  window._debugPortalCollisionBoxes = false;
+  
   Object.defineProperty(window, 'debugPortalCollisionBoxes', {
     get: function() {
       return window._debugPortalCollisionBoxes || false;
@@ -2272,6 +2511,7 @@ if (typeof window !== 'undefined' && !Object.getOwnPropertyDescriptor(window, 'd
         window.scene.traverse((object) => {
           if (object.userData && object.userData.isPortalCollisionBox && object.material) {
             object.material.opacity = value ? 0.3 : 0;
+            object.material.wireframe = value;
             object.material.needsUpdate = true;
           }
         });
@@ -2279,6 +2519,30 @@ if (typeof window !== 'undefined' && !Object.getOwnPropertyDescriptor(window, 'd
       }
     }
   });
+  
+  // Add a convenient function to toggle collision box visibility
+  window.togglePortalCollisionBoxes = function() {
+    const newValue = !window.debugPortalCollisionBoxes;
+    window.debugPortalCollisionBoxes = newValue;
+    console.log('Portal collision boxes visibility toggled to:', newValue);
+    return newValue;
+  };
+  
+  // Add a function to force-enable collision box visibility
+  window.showPortalCollisionBoxes = function() {
+    window.debugPortalCollisionBoxes = true;
+    console.log('Portal collision boxes visibility enabled');
+    return true;
+  };
+  
+  // Add a function to hide collision boxes
+  window.hidePortalCollisionBoxes = function() {
+    window.debugPortalCollisionBoxes = false;
+    console.log('Portal collision boxes visibility disabled');
+    return false;
+  };
+  
+  console.log('Portal collision box debugging functions added. Use window.togglePortalCollisionBoxes() to toggle visibility.');
 }
 
 // Function to create a larger invisible collision box for portals
@@ -2287,23 +2551,32 @@ function createPortalCollisionBox(portal, portalGroup) {
   // This makes it easier to detect when a player walks through the portal
   const collisionBoxGeometry = new THREE.BoxGeometry(8, 12, 6); // Extends 3 units in front and back
   const collisionBoxMaterial = new THREE.MeshBasicMaterial({
+    color: 0xff0000, // Red color for better visibility in debug mode
     transparent: true,
-    opacity: 0, // Completely invisible
-    side: THREE.DoubleSide
+    opacity: 0, // Completely invisible by default
+    side: THREE.DoubleSide,
+    wireframe: false // Set to true in debug mode
   });
   
   const collisionBox = new THREE.Mesh(collisionBoxGeometry, collisionBoxMaterial);
   collisionBox.position.copy(portal.position);
   
-  // Initialize with current global debug state if it exists
-  if (typeof window !== 'undefined' && window._debugPortalCollisionBoxes) {
-    collisionBoxMaterial.opacity = 0.3;
-    collisionBoxMaterial.needsUpdate = true;
-  }
-  
   // Copy portal's userData to collision box
   collisionBox.userData = { ...portal.userData };
   collisionBox.userData.isPortalCollisionBox = true; // Add flag to identify this as a collision box
+  
+  // Initialize with current global debug state if it exists
+  if (typeof window !== 'undefined') {
+    const debugMode = window._debugPortalCollisionBoxes || false;
+    if (debugMode) {
+      collisionBoxMaterial.opacity = 0.3;
+      collisionBoxMaterial.wireframe = true;
+      collisionBoxMaterial.needsUpdate = true;
+      console.log('Portal collision box created with debug visibility ON');
+    } else {
+      console.log('Portal collision box created with debug visibility OFF');
+    }
+  }
   
   // Add collision box to portal group
   portalGroup.add(collisionBox);
@@ -3047,4 +3320,34 @@ function createLondonPhoneBox(environment, loadingManager) {
   }
   
   return placeholder;
+}
+
+// Function to make portal images visible regardless of debug settings
+export function makePortalImagesVisible() {
+  if (window.scene) {
+    window.scene.traverse((object) => {
+      // Check for shader materials that might be portal images
+      if (object.material && object.material.type === 'ShaderMaterial') {
+        // Make sure the material is visible
+        object.material.depthTest = false; 
+        object.material.depthWrite = false;
+        object.material.needsUpdate = true;
+        object.visible = true;
+        
+        // Set very high render order to ensure it's drawn on top
+        object.renderOrder = 1000;
+      }
+    });
+    console.log('Forced portal images to be visible');
+  }
+}
+
+// Call this function on page load to ensure portal images are always visible
+if (typeof window !== 'undefined') {
+  window.makePortalImagesVisible = makePortalImagesVisible;
+  // Add event listener for DOMContentLoaded to ensure scene is available
+  document.addEventListener('DOMContentLoaded', () => {
+    // Wait a bit for the scene to initialize
+    setTimeout(makePortalImagesVisible, 1000);
+  });
 }

@@ -29,6 +29,13 @@ console.log(`Device detected as ${isMobile ? 'mobile' : 'desktop'}`);
 // Check if entering via portal
 const urlParams = new URLSearchParams(window.location.search);
 const isPortalEntrance = urlParams.get('portal') === 'true';
+const debugCollisionBoxes = urlParams.get('debug') === 'true';
+
+// If debug mode is requested via URL parameter, enable collision box visibility
+if (debugCollisionBoxes && typeof window !== 'undefined') {
+  console.log('Debug mode enabled via URL parameter - collision boxes will be visible');
+  window._debugPortalCollisionBoxes = true;
+}
 
 // Create loading screen (only if not entering via portal)
 const loadingScreen = document.createElement('div');
@@ -102,6 +109,9 @@ loadingManager.onProgress = function(url, itemsLoaded, itemsTotal) {
 
 loadingManager.onLoad = function() {
   console.log("All assets loaded successfully");
+  
+  // Initialize debug UI
+  initUI();
   
   // Initialize the portal click handler when everything is loaded
   addGlobalPortalClickHandler();
@@ -2414,4 +2424,45 @@ if (debugPanel) {
       }
     });
   }
+}
+
+// Add event listeners for keyboard shortcuts
+document.addEventListener('keydown', (event) => {
+  // F2 key to toggle collision boxes
+  if (event.key === 'F2') {
+    if (typeof window.togglePortalCollisionBoxes === 'function') {
+      const isVisible = window.togglePortalCollisionBoxes();
+      showNotification(`Portal collision boxes ${isVisible ? 'shown' : 'hidden'}`, 'info');
+      event.preventDefault();
+    }
+  }
+});
+
+function initUI() {
+  // Add debug button for portal collision boxes
+  const debugButton = document.createElement('button');
+  debugButton.id = 'debug-collision-button';
+  debugButton.textContent = 'Toggle Collision Boxes';
+  debugButton.style.cssText = `
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    padding: 8px 12px;
+    background-color: rgba(255, 0, 0, 0.7);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-family: Arial, sans-serif;
+    cursor: pointer;
+    z-index: 1000;
+  `;
+  document.body.appendChild(debugButton);
+  
+  // Add click event listener to toggle collision boxes
+  debugButton.addEventListener('click', () => {
+    if (typeof window.togglePortalCollisionBoxes === 'function') {
+      const isVisible = window.togglePortalCollisionBoxes();
+      showNotification(`Portal collision boxes ${isVisible ? 'shown' : 'hidden'}`, 'info');
+    }
+  });
 }
