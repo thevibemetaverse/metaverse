@@ -115,7 +115,7 @@ export function setupControls(camera, player, domElement, gameState, scene) {
   
   // After a short delay, adjust camera to a higher position for gameplay
   setTimeout(() => {
-    camera.position.set(0, 10, 20); // Much higher and further back for gameplay
+    camera.position.set(0, 13, 25); // Increased height from 10 to 13 and distance from 20 to 25
     orbitControls.target.set(0, 1.5, 0);
     orbitControls.update();
   }, 5000); // 5 seconds after start
@@ -613,18 +613,18 @@ export function setupControls(camera, player, domElement, gameState, scene) {
     
     // Calculate the desired camera position behind the player
     const desiredPosition = new THREE.Vector3(
-      player.position.x + (behindDirection.x * 3),
-      player.position.y + 2,
-      player.position.z + (behindDirection.z * 3)
+      player.position.x + (behindDirection.x * 5),
+      player.position.y + 3, // Lowered from 3 to 2 to position camera lower
+      player.position.z + (behindDirection.z * 5)
     );
     
     // Smoothly interpolate current camera position towards the desired position
     // This creates a smoother following effect
     camera.position.lerp(desiredPosition, 0.1);
     
-    // Update the orbit controls target to be the player
+    // Update the orbit controls target to be slightly above the player for an upward angle
     controls.orbitControls.target.copy(player.position);
-    controls.orbitControls.target.y += 1; // Keep targeting above the player
+    controls.orbitControls.target.y += 1.7; // Reduced from 3.5 to 2.8 to pitch down slightly
   };
   
   // Initialize time for movement calculations
