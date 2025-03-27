@@ -863,9 +863,7 @@ try {
   
   // Setup mobile controls if on a mobile device
   let mobileControls = null;
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
-                   (window.innerWidth <= 800 && window.innerHeight <= 900);
-  
+  // Use the imported isMobileDevice function directly
   if (isMobile) {
     console.log('Setting up mobile controls');
     mobileControls = setupMobileControls(controls);
@@ -1399,7 +1397,7 @@ try {
     
     // Update mobile status on resize
     const wasMobile = gameState.settings.isMobile;
-    const nowMobile = window.innerWidth <= 800;
+    const nowMobile = isMobileDevice(); // Use the function for consistent detection
     
     if (wasMobile !== nowMobile) {
       gameState.settings.isMobile = nowMobile;
@@ -1473,8 +1471,14 @@ try {
     const deltaTime = (currentTime - lastTime) / 1000; // Convert to seconds
     lastTime = currentTime;
     
-    // Enforce auto-navigation for desktop by removing any desktop portal buttons
-    // (Rest of the code remains unchanged)
+    // Enforce auto-navigation for desktop by removing any mobile portal buttons
+    if (!isMobileDevice()) {
+      const mobilePortalButton = document.getElementById('mobile-portal-button');
+      if (mobilePortalButton) {
+        console.log('Removing mobile portal button on desktop to enforce auto-navigation');
+        mobilePortalButton.parentNode.removeChild(mobilePortalButton);
+      }
+    }
     
     // Track when portals were last opened to prevent double-triggering
     if (!window.lastPortalOpenTimes) {
