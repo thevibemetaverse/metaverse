@@ -1859,7 +1859,8 @@ export function showPortalForm(onSubmit) {
 
 // Function to check if player is entering a portal
 export function checkPortalEntry(playerAvatar) {
-  if (!playerAvatar || !window.scene || isPortalFormOpen) return;
+  // Skip if player is already in the process of jumping into a portal
+  if (!playerAvatar || !window.scene || isPortalFormOpen || playerAvatar.userData.isPortalJumping) return;
 
   // Detect if on mobile
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
@@ -1872,6 +1873,25 @@ export function checkPortalEntry(playerAvatar) {
   // Check if mobile entry button already exists
   const existingButton = document.getElementById('mobile-portal-button');
   
+  // For desktop, check if there's a desktop portal button and remove it - we want auto-navigation instead
+  if (!isMobile) {
+    const desktopButton = document.getElementById('desktop-portal-button');
+    if (desktopButton) {
+      console.log('Removing desktop portal button to enforce auto-navigation');
+      desktopButton.parentNode.removeChild(desktopButton);
+    }
+  }
+  
+  // Initialize tracking of entered portals if not already present
+  if (!playerAvatar.userData.enteredPortals) {
+    playerAvatar.userData.enteredPortals = new Set();
+  }
+  
+  // Track portal open times globally to prevent duplicate openings
+  if (!window.lastPortalOpenTimes) {
+    window.lastPortalOpenTimes = {};
+  }
+  
   // Check all portals in the scene
   window.scene.traverse((object) => {
     if (object.userData && object.userData.isPortal && object.userData.portalURL) {
@@ -1883,84 +1903,148 @@ export function checkPortalEntry(playerAvatar) {
       const entryDistance = isMobile ? 4 : 2; // Doubled distance for mobile
       const distance = playerPosition.distanceTo(portalPosition);
       
+      // Store the portal ID for tracking
+      const portalId = object.uuid;
+      
       // If player is close enough to portal, consider it an entry
       if (distance < entryDistance) {
-        // Increment the counter
-        handlePortalEntry(portalGroup);
+        // Only handle portal entry if this is a new portal encounter
+        if (!playerAvatar.userData.enteredPortals.has(portalId)) {
+          console.log('Portal entry detected in checkPortalEntry for portal:', object.userData.portalURL);
+          
+          // Mark this portal as entered to prevent multiple triggers
+          playerAvatar.userData.enteredPortals.add(portalId);
+          playerAvatar.userData.isPortalJumping = true;
+          
+          // Increment the counter
+          handlePortalEntry(portalGroup);
+          
+          // For mobile devices, show a tap button to navigate to the portal
+          if (isMobile && object.userData.portalURL !== '#') {
+            // Check if this portal was recently opened
+            const portalURL = object.userData.portalURL;
+            const lastOpenTime = window.lastPortalOpenTimes[portalURL] || 0;
+            const now = Date.now();
+            
+            // Only show button if it hasn't been opened in the last 5 seconds and button doesn't exist
+            if (now - lastOpenTime > 5000 && !existingButton) {
+              console.log('Mobile: Creating button for portal URL:', portalURL);
+              window.lastPortalOpenTimes[portalURL] = now;
+              
+              // Create a big, visible button for mobile users
+              const portalButton = document.createElement('a');
+              portalButton.id = 'mobile-portal-button';
+              portalButton.href = portalURL;
+              portalButton.target = '_blank';
+              portalButton.rel = 'noopener noreferrer';
+              portalButton.textContent = 'Enter Portal';
+              portalButton.style.cssText = `
+                position: fixed;
+                bottom: 20%;
+                left: 50%;
+                transform: translateX(-50%);
+                background-color: #4CAF50;
+                color: white;
+                padding: 20px 40px;
+                font-size: 24px;
+                font-weight: bold;
+                text-decoration: none;
+                border-radius: 10px;
+                box-shadow: 0 0 20px rgba(0, 255, 0, 0.8);
+                z-index: 10000;
+                animation: pulse-button 1.5s infinite alternate;
+                text-align: center;
+                min-width: 200px;
+              `;
+              
+              // Add pulsing animation
+              const buttonStyle = document.createElement('style');
+              buttonStyle.textContent = `
+                @keyframes pulse-button {
+                  0% {
+                    transform: translateX(-50%) scale(1);
+                    box-shadow: 0 0 20px rgba(0, 255, 0, 0.8);
+                  }
+                  100% {
+                    transform: translateX(-50%) scale(1.1);
+                    box-shadow: 0 0 30px rgba(0, 255, 0, 1);
+                  }
+                }
+              `;
+              document.head.appendChild(buttonStyle);
+              document.body.appendChild(portalButton);
+              
+              // Remove the button after 15 seconds if not clicked
+              setTimeout(() => {
+                if (document.getElementById('mobile-portal-button')) {
+                  document.body.removeChild(portalButton);
+                  document.head.removeChild(buttonStyle);
+                }
+              }, 15000);
+            } else {
+              console.log('Mobile: Ignoring repeated portal open attempt or button already exists');
+              // Reset portal jumping flag if we're not actually jumping
+              playerAvatar.userData.isPortalJumping = false;
+            }
+          } else if (!isMobile && object.userData.portalURL !== '#') {
+            // For desktop, automatically open the portal URL
+            console.log('Desktop portal entry detected - automatically opening:', object.userData.portalURL);
+            
+            // Check if this portal was recently opened to prevent accidental re-entries
+            const portalURL = object.userData.portalURL;
+            const lastOpenTime = window.lastPortalOpenTimes[portalURL] || 0;
+            const now = Date.now();
+            
+            // Only open if it hasn't been opened in the last 5 seconds
+            if (now - lastOpenTime > 5000) {
+              window.lastPortalOpenTimes[portalURL] = now;
+              
+              // Special handling for phone booth (audio chat)
+              if (portalURL.includes('duoduel.roostervibes.farm')) {
+                console.log('Opening audio chat in new tab');
+                window.open(portalURL, '_blank');
+              } else {
+                // Optional: show a brief transition effect
+                const transition = document.createElement('div');
+                transition.style.cssText = `
+                  position: fixed;
+                  top: 0;
+                  left: 0;
+                  width: 100%;
+                  height: 100%;
+                  background-color: rgba(0, 0, 0, 0.5);
+                  z-index: 9999;
+                  opacity: 0;
+                  transition: opacity 0.5s ease;
+                  pointer-events: none;
+                `;
+                document.body.appendChild(transition);
+                
+                // Fade in transition
+                setTimeout(() => {
+                  transition.style.opacity = '1';
+                }, 10);
+                
+                // Navigate after transition
+                setTimeout(() => {
+                  window.location.href = portalURL;
+                }, 500);
+              }
+            } else {
+              console.log('Ignoring repeated portal open attempt:', portalURL);
+              // Reset portal jumping flag if we're not actually jumping
+              playerAvatar.userData.isPortalJumping = false;
+            }
+          }
+        }
+      } else if (playerAvatar.userData.enteredPortals.has(portalId)) {
+        // Player has moved away from this portal - remove from tracking
+        playerAvatar.userData.enteredPortals.delete(portalId);
+        console.log('Player moved away from portal:', object.userData.portalURL);
         
-        // For mobile devices, show a tap button to navigate to the portal
-        if (isMobile && object.userData.portalURL !== '#') {
-          // Check if this portal was recently opened
-          if (!window.lastPortalOpenTimes) {
-            window.lastPortalOpenTimes = {};
-          }
-          
-          const portalURL = object.userData.portalURL;
-          const lastOpenTime = window.lastPortalOpenTimes[portalURL] || 0;
-          const now = Date.now();
-          
-          // Only show button if it hasn't been opened in the last 5 seconds and button doesn't exist
-          if (now - lastOpenTime > 5000 && !existingButton) {
-            console.log('Mobile: Creating button for portal URL:', portalURL);
-            window.lastPortalOpenTimes[portalURL] = now;
-            
-            // Create a big, visible button for mobile users
-            const portalButton = document.createElement('a');
-            portalButton.id = 'mobile-portal-button';
-            portalButton.href = portalURL;
-            portalButton.target = '_blank';
-            portalButton.rel = 'noopener noreferrer';
-            portalButton.textContent = 'Enter Portal';
-            portalButton.style.cssText = `
-              position: fixed;
-              bottom: 20%;
-              left: 50%;
-              transform: translateX(-50%);
-              background-color: #4CAF50;
-              color: white;
-              padding: 20px 40px;
-              font-size: 24px;
-              font-weight: bold;
-              text-decoration: none;
-              border-radius: 10px;
-              box-shadow: 0 0 20px rgba(0, 255, 0, 0.8);
-              z-index: 10000;
-              animation: pulse-button 1.5s infinite alternate;
-              text-align: center;
-              min-width: 200px;
-            `;
-            
-            // Add pulsing animation
-            const buttonStyle = document.createElement('style');
-            buttonStyle.textContent = `
-              @keyframes pulse-button {
-                0% {
-                  transform: translateX(-50%) scale(1);
-                  box-shadow: 0 0 20px rgba(0, 255, 0, 0.8);
-                }
-                100% {
-                  transform: translateX(-50%) scale(1.1);
-                  box-shadow: 0 0 30px rgba(0, 255, 0, 1);
-                }
-              }
-            `;
-            document.head.appendChild(buttonStyle);
-            document.body.appendChild(portalButton);
-            
-            // Remove the button after 15 seconds if not clicked
-            setTimeout(() => {
-              if (document.getElementById('mobile-portal-button')) {
-                document.body.removeChild(portalButton);
-                document.head.removeChild(buttonStyle);
-              }
-            }, 15000);
-          } else {
-            console.log('Mobile: Ignoring repeated portal open attempt or button already exists');
-          }
-        } else if (!isMobile && object.userData.portalURL !== '#') {
-          // On desktop, we can optionally open the URL directly from here
-          // but we'll let main.js collision detection handle it
-          console.log('Desktop portal entry detected for:', object.userData.portalURL);
+        // Reset portal jumping flag if player has left all portals
+        if (playerAvatar.userData.enteredPortals.size === 0) {
+          playerAvatar.userData.isPortalJumping = false;
         }
       }
     }

@@ -1000,6 +1000,9 @@ try {
   // Create NPC manager and initialize NPCs
   const npcManager = new NPCManager(scene, loadingManager);
   
+  // Remove any existing NPCs first (to ensure statues are properly cleaned up)
+  npcManager.removeAll();
+  
   // Create poke mechanic
   const pokeMechanic = new PokeMechanic(scene, camera);
   
@@ -1465,21 +1468,24 @@ try {
     const deltaTime = (currentTime - lastTime) / 1000; // Convert to seconds
     lastTime = currentTime;
     
+    // Enforce auto-navigation for desktop by removing any desktop portal buttons
+    // (Rest of the code remains unchanged)
+    
     // Track when portals were last opened to prevent double-triggering
     if (!window.lastPortalOpenTimes) {
       window.lastPortalOpenTimes = {};
     }
     
-    // Update portal button positions if they exist
-    if (camera && typeof updatePortalClickOverlays === 'function') {
-      updatePortalClickOverlays(camera);
-    }
-    
-    // Update controls
-    controls.update();
-    
-    // Update portal materials
+    // Update portal materials for glow effect
     updatePortalMaterials(deltaTime);
+    
+    // Update overlay positions for clickable portals
+    updatePortalClickOverlays(camera);
+    
+    // Update controls if player is in the scene
+    if (controls && playerAvatar) {
+      controls.update();
+    }
     
     // Animate portal particles if present
     if (window.portalParticles && window.portalParticles.length > 0) {
@@ -1706,305 +1712,16 @@ try {
       }
     });
     
-    // Check for portal collisions
+    // Check for clickable computer collisions only (portal collisions now handled in checkPortalEntry)
     if (playerAvatar) {
       // Update the player's bounding box each frame
       const playerBox = new THREE.Box3().setFromObject(playerAvatar);
       
-      // Traverse the scene to find portal triggers and clickable objects
+      // Traverse the scene to find clickable objects
       scene.traverse((object) => {
-        // Check for portal collisions
+        // Skip portal objects - those are handled by checkPortalEntry
         if (object.userData && object.userData.isPortal) {
-          // Get the portal's bounding box and expand it slightly
-          const portalBox = new THREE.Box3().setFromObject(object);
-          
-          // Increase expansion for mobile devices
-          const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
-                         (window.innerWidth <= 800 && window.innerHeight <= 900);
-          const expansionFactor = isMobile ? 3.0 : 2.0; // Larger expansion for mobile
-          portalBox.expandByScalar(expansionFactor);
-          
-          // Store the portal ID for tracking
-          const portalId = object.uuid;
-          
-          // Check if the player's bounding box intersects with the portal's bounding box
-          if (playerBox.intersectsBox(portalBox) && !playerAvatar.userData.isPortalJumping) {
-            console.log('Portal collision detected!', isMobile ? '(mobile)' : '(desktop)');
-            
-            // Check if this is a new portal collision
-            if (!playerAvatar.userData.lastPortalCollision || 
-                playerAvatar.userData.lastPortalCollision !== portalId) {
-              
-              // Set flag to prevent multiple triggers and track which portal
-              playerAvatar.userData.isPortalJumping = true;
-              playerAvatar.userData.lastPortalCollision = portalId;
-              
-              // First try to increment the portal counter, but don't wait for it
-              (async () => {
-                try {
-                  // Determine server URL based on environment
-                  const isLocalDevelopment = window.location.hostname === 'localhost' || 
-                                           window.location.hostname === '127.0.0.1';
-                  const serverUrl = isLocalDevelopment
-                    ? 'http://localhost:3000'
-                    : 'https://metaverse-production-821f.up.railway.app';
-                  
-                  // Fire and forget the counter increment
-                  fetch(`${serverUrl}/portal-counter`, {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      'Accept': 'application/json'
-                    },
-                    body: JSON.stringify({
-                      portalURL: object.userData.portalURL
-                    })
-                  }).catch(error => {
-                    console.error('Failed to increment portal counter:', error);
-                  });
-                  
-                  // Don't wait for the counter increment, proceed with portal entry
-                  if (playerAvatar.jump && !playerAvatar.userData.isJumping) {
-                    playerAvatar.jump();
-                    
-                    // Wait for the jump animation to complete before opening the URL
-                    setTimeout(() => {
-                      // Reset the portal jumping flag
-                      playerAvatar.userData.isPortalJumping = false;
-                      // Open the URL after animation completes
-                      if (object.userData.portalURL) {
-                        // Check if this portal was recently opened
-                        const portalURL = object.userData.portalURL;
-                        const lastOpenTime = window.lastPortalOpenTimes[portalURL] || 0;
-                        const now = Date.now();
-                        
-                        // Increase debounce time to 5 seconds to be even safer
-                        if (now - lastOpenTime > 5000) {
-                          console.log('Opening portal URL from collision:', portalURL);
-                          window.lastPortalOpenTimes[portalURL] = now;
-                          
-                          // On mobile, create a button that auto-clicks to bypass popup blockers
-                          if (isMobile) {
-                            console.log('Creating clickable direct link for mobile portal URL');
-                            
-                            // Check if a button already exists
-                            if (!document.getElementById('mobile-portal-button')) {
-                              const portalLink = document.createElement('a');
-                              portalLink.id = 'mobile-portal-button';
-                              portalLink.href = portalURL;
-                              portalLink.target = '_blank';
-                              portalLink.rel = 'noopener noreferrer';
-                              portalLink.textContent = 'Enter Portal';
-                              portalLink.style.cssText = `
-                                position: fixed;
-                                bottom: 20%;
-                                left: 50%;
-                                transform: translateX(-50%);
-                                background-color: #4CAF50;
-                                color: white;
-                                padding: 20px 40px;
-                                font-size: 24px;
-                                font-weight: bold;
-                                text-decoration: none;
-                                border-radius: 10px;
-                                box-shadow: 0 0 20px rgba(0, 255, 0, 0.8);
-                                z-index: 10000;
-                                animation: pulse-button 1.5s infinite alternate;
-                                text-align: center;
-                                min-width: 200px;
-                              `;
-                              
-                              // Add pulsing animation
-                              const buttonStyle = document.createElement('style');
-                              buttonStyle.id = 'mobile-portal-button-style';
-                              buttonStyle.textContent = `
-                                @keyframes pulse-button {
-                                  0% {
-                                    transform: translateX(-50%) scale(1);
-                                    box-shadow: 0 0 20px rgba(0, 255, 0, 0.8);
-                                  }
-                                  100% {
-                                    transform: translateX(-50%) scale(1.1);
-                                    box-shadow: 0 0 30px rgba(0, 255, 0, 1);
-                                  }
-                                }
-                              `;
-                              document.head.appendChild(buttonStyle);
-                              document.body.appendChild(portalLink);
-                              
-                              // Remove the link after 15 seconds if not clicked
-                              setTimeout(() => {
-                                if (document.getElementById('mobile-portal-button')) {
-                                  document.body.removeChild(portalLink);
-                                  document.head.removeChild(buttonStyle);
-                                }
-                              }, 15000);
-                            }
-                          } else {
-                            // Desktop - direct location change like portal.pieter.com
-                            console.log('Using direct location change for portal URL:', portalURL);
-                            
-                            // Special handling for phone booth (audio chat)
-                            if (portalURL.includes('duoduel.roostervibes.farm')) {
-                              console.log('Opening audio chat in new tab');
-                              window.open(portalURL, '_blank');
-                            } else {
-                              // Optional: show a brief transition effect
-                              const transition = document.createElement('div');
-                              transition.style.cssText = `
-                                position: fixed;
-                                top: 0;
-                                left: 0;
-                                width: 100%;
-                                height: 100%;
-                                background-color: rgba(0, 0, 0, 0.5);
-                                z-index: 9999;
-                                opacity: 0;
-                                transition: opacity 0.5s ease;
-                                pointer-events: none;
-                              `;
-                              document.body.appendChild(transition);
-                              
-                              // Fade in transition
-                              setTimeout(() => {
-                                transition.style.opacity = '1';
-                              }, 10);
-                              
-                              // Navigate after transition
-                              setTimeout(() => {
-                                window.location.href = portalURL;
-                              }, 500);
-                            }
-                          }
-                        } else {
-                          console.log('Ignoring repeated portal open attempt:', portalURL);
-                        }
-                      }
-                    }, 750);
-                  } else {
-                    // If no jump animation, just open the URL immediately
-                    playerAvatar.userData.isPortalJumping = false;
-                    if (object.userData.portalURL) {
-                      // Check if this portal was recently opened
-                      const portalURL = object.userData.portalURL;
-                      const lastOpenTime = window.lastPortalOpenTimes[portalURL] || 0;
-                      const now = Date.now();
-                      
-                      // Increase debounce time to 5 seconds to be even safer
-                      if (now - lastOpenTime > 5000) {
-                        console.log('Opening portal URL from collision:', portalURL);
-                        window.lastPortalOpenTimes[portalURL] = now;
-                        
-                        // On mobile, create a button that auto-clicks to bypass popup blockers
-                        if (isMobile) {
-                          console.log('Creating clickable direct link for mobile portal URL');
-                          
-                          // Check if a button already exists
-                          if (!document.getElementById('mobile-portal-button')) {
-                            const portalLink = document.createElement('a');
-                            portalLink.id = 'mobile-portal-button';
-                            portalLink.href = portalURL;
-                            portalLink.target = '_blank';
-                            portalLink.rel = 'noopener noreferrer';
-                            portalLink.textContent = 'Enter Portal';
-                            portalLink.style.cssText = `
-                              position: fixed;
-                              bottom: 20%;
-                              left: 50%;
-                              transform: translateX(-50%);
-                              background-color: #4CAF50;
-                              color: white;
-                              padding: 20px 40px;
-                              font-size: 24px;
-                              font-weight: bold;
-                              text-decoration: none;
-                              border-radius: 10px;
-                              box-shadow: 0 0 20px rgba(0, 255, 0, 0.8);
-                              z-index: 10000;
-                              animation: pulse-button 1.5s infinite alternate;
-                              text-align: center;
-                              min-width: 200px;
-                            `;
-                            
-                            // Add pulsing animation
-                            const buttonStyle = document.createElement('style');
-                            buttonStyle.id = 'mobile-portal-button-style';
-                            buttonStyle.textContent = `
-                              @keyframes pulse-button {
-                                0% {
-                                  transform: translateX(-50%) scale(1);
-                                  box-shadow: 0 0 20px rgba(0, 255, 0, 0.8);
-                                }
-                                100% {
-                                  transform: translateX(-50%) scale(1.1);
-                                  box-shadow: 0 0 30px rgba(0, 255, 0, 1);
-                                }
-                              }
-                            `;
-                            document.head.appendChild(buttonStyle);
-                            document.body.appendChild(portalLink);
-                            
-                            // Remove the link after 15 seconds if not clicked
-                            setTimeout(() => {
-                              if (document.getElementById('mobile-portal-button')) {
-                                document.body.removeChild(portalLink);
-                                document.head.removeChild(buttonStyle);
-                              }
-                            }, 15000);
-                          }
-                        } else {
-                          // Desktop - direct location change like portal.pieter.com
-                          console.log('Using direct location change for portal URL:', portalURL);
-                          
-                          // Special handling for phone booth (audio chat)
-                          if (portalURL.includes('duoduel.roostervibes.farm')) {
-                            console.log('Opening audio chat in new tab');
-                            window.open(portalURL, '_blank');
-                          } else {
-                            // Optional: show a brief transition effect
-                            const transition = document.createElement('div');
-                            transition.style.cssText = `
-                              position: fixed;
-                              top: 0;
-                              left: 0;
-                              width: 100%;
-                              height: 100%;
-                              background-color: rgba(0, 0, 0, 0.5);
-                              z-index: 9999;
-                              opacity: 0;
-                              transition: opacity 0.5s ease;
-                              pointer-events: none;
-                            `;
-                            document.body.appendChild(transition);
-                            
-                            // Fade in transition
-                            setTimeout(() => {
-                              transition.style.opacity = '1';
-                            }, 10);
-                            
-                            // Navigate after transition
-                            setTimeout(() => {
-                              window.location.href = portalURL;
-                            }, 500);
-                          }
-                        }
-                      } else {
-                        console.log('Ignoring repeated portal open attempt:', portalURL);
-                      }
-                    }
-                  }
-                } catch (error) {
-                  console.error('Error during portal entry:', error);
-                  playerAvatar.userData.isPortalJumping = false;
-                }
-              })();
-            }
-          } else if (playerAvatar.userData.lastPortalCollision === portalId && !playerBox.intersectsBox(portalBox)) {
-            // Player has left a portal we were tracking
-            console.log('Player left portal area');
-            delete playerAvatar.userData.lastPortalCollision;
-            playerAvatar.userData.isPortalJumping = false;
-          }
+          return;
         }
         
         // Check for clickable computer

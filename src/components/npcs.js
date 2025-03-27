@@ -323,7 +323,7 @@ export class NPCManager {
   // Initialize NPCs for multiplayer
   initializeForMultiplayer() {
     if (this.socket && this.isNPCHost) {
-      // Create NPCs locally first
+      // Create NPCs locally first (this will use our modified initialize() method that doesn't spawn giant NPCs)
       this.initialize();
       
       // Then send to server
@@ -340,9 +340,9 @@ export class NPCManager {
       this.spawnNPC();
     }
     
-    // Spawn 2 giant Zuckerberg NPCs
-    this.spawnGiantZuckerberg(50, 50); // Position at x=50, z=50
-    this.spawnGiantZuckerberg(-50, -50); // Position at x=-50, z=-50
+    // Spawn giant Zuckerberg NPCs - commented out to remove statues
+    // this.spawnGiantZuckerberg(50, 50); // Position at x=50, z=50
+    // this.spawnGiantZuckerberg(-50, -50); // Position at x=-50, z=-50
   }
 
   // Spawn a single NPC using metaverse-explorer.glb
@@ -839,10 +839,12 @@ export class NPCManager {
     }
   }
 
-  // Remove all NPCs
+  // Remove all NPCs from the scene
   removeAll() {
     // Remove regular NPCs
-    this.npcs.forEach(npc => {
+    for (let i = 0; i < this.npcs.length; i++) {
+      const npc = this.npcs[i];
+      
       // Remove any existing name labels from the DOM
       if (npc.model && npc.model.userData && npc.model.userData.nameLabel) {
         try {
@@ -851,12 +853,32 @@ export class NPCManager {
           console.log('Error removing name label:', e);
         }
       }
+      
+      // Remove from scene
       this.scene.remove(npc.model);
-    });
+      
+      // Dispose resources
+      if (npc.model) {
+        npc.model.traverse((node) => {
+          if (node.geometry) node.geometry.dispose();
+          if (node.material) {
+            if (Array.isArray(node.material)) {
+              node.material.forEach(material => material.dispose());
+            } else {
+              node.material.dispose();
+            }
+          }
+        });
+      }
+    }
+    
+    // Clear the regular NPCs array
     this.npcs = [];
     
     // Remove giant NPCs
-    this.giantNPCs.forEach(giant => {
+    for (let i = 0; i < this.giantNPCs.length; i++) {
+      const giant = this.giantNPCs[i];
+      
       // Remove any existing name labels from the DOM
       if (giant.model && giant.model.userData && giant.model.userData.nameLabel) {
         try {
@@ -865,8 +887,26 @@ export class NPCManager {
           console.log('Error removing name label:', e);
         }
       }
+      
+      // Remove from scene
       this.scene.remove(giant.model);
-    });
+      
+      // Dispose resources
+      if (giant.model) {
+        giant.model.traverse((node) => {
+          if (node.geometry) node.geometry.dispose();
+          if (node.material) {
+            if (Array.isArray(node.material)) {
+              node.material.forEach(material => material.dispose());
+            } else {
+              node.material.dispose();
+            }
+          }
+        });
+      }
+    }
+    
+    // Clear the giant NPCs array
     this.giantNPCs = [];
     
     // Clean up any orphaned name labels
@@ -878,5 +918,7 @@ export class NPCManager {
         console.log('Error removing orphaned name label:', e);
       }
     });
+    
+    console.log('All NPCs removed from scene');
   }
 } 
