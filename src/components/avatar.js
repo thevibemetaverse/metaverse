@@ -1365,7 +1365,6 @@ export function createPureAvatar(scene, username, loadingManager = avatarLoading
           
           if (isMoving && walkAction) {
             // If we should be moving, play the run animation
-            console.log('Setting avatar to RUNNING state');
             
             // Stop all other animations first
             Object.values(this.userData.animationActions).forEach(action => {
@@ -1400,7 +1399,6 @@ export function createPureAvatar(scene, username, loadingManager = avatarLoading
             }
           } else if (!isMoving) {
             // If we should be idle
-            console.log('Setting avatar to IDLE state');
             
             // First stop the running animation if it's playing
             if (walkAction && walkAction.isRunning()) {
@@ -1461,7 +1459,6 @@ export function createPureAvatar(scene, username, loadingManager = avatarLoading
               }
             } else {
               // If no idle animation exists, just stop all animations
-              console.log('No idle animation found - stopping all animations');
               Object.values(this.userData.animationActions).forEach(action => {
                 action.stop();
               });
@@ -1474,8 +1471,6 @@ export function createPureAvatar(scene, username, loadingManager = avatarLoading
         avatarGroup.forceIdlePose = function() {
           if (this.userData.customIdlePose && this.userData.armBones) {
             const { leftArm, rightArm, leftForeArm, rightForeArm } = this.userData.armBones;
-            
-            console.log('Forcing idle pose with arms by side');
             
             // Reset all arm rotations first
             if (leftArm) leftArm.rotation.set(0, 0, 0);
