@@ -186,6 +186,9 @@ const gameState = {
   }
 };
 
+// Flag to track if portal counters have been initialized
+window.portalCountersInitialized = false;
+
 // Global variables for God Mode
 let godModeEnabled = false;
 let godCamera = null;
@@ -750,7 +753,7 @@ try {
   const controls = setupControls(camera, playerAvatar, renderer.domElement, gameState, scene);
   
   // Initialize portal counters after environment and player are set up
-  if (typeof initializePortalCounters === 'function') {
+  if (typeof initializePortalCounters === 'function' && !window.portalCountersInitialized) {
     console.log('PORTAL: Calling initializePortalCounters...');
     console.log('PORTAL: Global scene status:', {
       exists: !!window.scene,
@@ -762,10 +765,11 @@ try {
       id: window.socket ? window.socket.id : null
     });
     
+    window.portalCountersInitialized = true;
     initializePortalCounters().catch(error => {
       console.error('PORTAL: Error initializing portal counters:', error);
     });
-  } else {
+  } else if (!window.portalCountersInitialized) {
     console.error('PORTAL: initializePortalCounters function not found');
   }
   
@@ -1188,7 +1192,7 @@ try {
       });
 
       // Initialize portal counters after socket connection is established
-      if (typeof initializePortalCounters === 'function') {
+      if (typeof initializePortalCounters === 'function' && !window.portalCountersInitialized) {
         console.log('PORTAL: Calling initializePortalCounters...');
         console.log('PORTAL: Global scene status:', {
           exists: !!window.scene,
@@ -1200,10 +1204,11 @@ try {
           id: window.socket ? window.socket.id : null
         });
         
+        window.portalCountersInitialized = true;
         initializePortalCounters().catch(error => {
           console.error('PORTAL: Error initializing portal counters:', error);
         });
-      } else {
+      } else if (!window.portalCountersInitialized) {
         console.error('PORTAL: initializePortalCounters function not found');
       }
     });
