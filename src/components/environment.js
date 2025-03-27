@@ -1131,6 +1131,8 @@ function loadPortalFrame(portalGroup, loadingManager) {
         if (node.isMesh) {
           node.castShadow = true;
           node.receiveShadow = true;
+          // Set portal frame render order - HIGHER than portal images
+          node.renderOrder = 7000;
         }
       });
       
@@ -1155,6 +1157,8 @@ function loadPortalFrame(portalGroup, loadingManager) {
             if (node.isMesh) {
               node.castShadow = true;
               node.receiveShadow = true;
+              // Set portal frame render order - HIGHER than portal images
+              node.renderOrder = 7000;
             }
           });
           
@@ -1207,14 +1211,14 @@ function addPortalImage(portalGroup, imageUrl, loadingManager) {
     const frontMesh = new THREE.Mesh(imageGeometry, imageMaterial);
     frontMesh.position.z = 0.01;
     frontMesh.position.y = 4;
-    frontMesh.renderOrder = 2;
+    frontMesh.renderOrder = 1000;
     
     // Create back plane
     const backMesh = new THREE.Mesh(imageGeometry, imageMaterial);
     backMesh.position.z = -0.01;
     backMesh.position.y = 4;
     backMesh.rotation.y = Math.PI;
-    backMesh.renderOrder = 2;
+    backMesh.renderOrder = 1000;
     
     portalGroup.add(frontMesh);
     portalGroup.add(backMesh);
@@ -1264,14 +1268,14 @@ function addPortalImage(portalGroup, imageUrl, loadingManager) {
       const frontMesh = new THREE.Mesh(imageGeometry, imageMaterial);
       frontMesh.position.z = 0.01;
       frontMesh.position.y = isKyzoImage ? 3.5 : 4;
-      frontMesh.renderOrder = 2;
+      frontMesh.renderOrder = 1000;
       
       // Create back plane
       const backMesh = new THREE.Mesh(imageGeometry, imageMaterial);
       backMesh.position.z = -0.01;
       backMesh.position.y = isKyzoImage ? 3.5 : 4;
       backMesh.rotation.y = Math.PI;
-      backMesh.renderOrder = 2;
+      backMesh.renderOrder = 1000;
       
       console.log('Created portal image meshes:', {
         geometry: imageGeometry.parameters,
@@ -1374,14 +1378,14 @@ function addPortalImage(portalGroup, imageUrl, loadingManager) {
           const frontMesh = new THREE.Mesh(imageGeometry, imageMaterial);
           frontMesh.position.z = 0.01;
           frontMesh.position.y = isKyzoImage ? 3.5 : 4;
-          frontMesh.renderOrder = 2;
+          frontMesh.renderOrder = 1000;
           
           // Create back plane
           const backMesh = new THREE.Mesh(imageGeometry, imageMaterial);
           backMesh.position.z = -0.01;
           backMesh.position.y = isKyzoImage ? 3.5 : 4;
           backMesh.rotation.y = Math.PI;
-          backMesh.renderOrder = 2;
+          backMesh.renderOrder = 1000;
           
           portalGroup.add(frontMesh);
           portalGroup.add(backMesh);
@@ -1413,6 +1417,8 @@ function createFallbackPortalImage(portalGroup) {
   const mesh = new THREE.Mesh(geometry, material);
   mesh.position.z = -0.001;
   mesh.position.y = 0.07;
+  // Set lowest render order for the fallback image
+  mesh.renderOrder = 1000;
   
   portalGroup.add(mesh);
 }
@@ -1427,6 +1433,8 @@ function createBasicPortalFrame(portalGroup) {
   
   const frame = new THREE.Mesh(frameGeometry, frameMaterial);
   frame.position.y = 0.075;
+  // Set portal frame render order - HIGHER than portal images
+  frame.renderOrder = 7000;
   portalGroup.add(frame);
 }
 
@@ -1970,6 +1978,10 @@ function addCounterImage(portalGroup) {
       counterMesh.position.y = 9;
       numberMesh.position.y = 9;
       
+      // Set highest render order for the counter (name)
+      counterMesh.renderOrder = 3000;
+      numberMesh.renderOrder = 3000;
+      
       // Check portal's rotation and adjust counter position and rotation accordingly
       if (Math.abs(portalGroup.rotation.y - Math.PI / 2) < 0.01) {
         // For portals facing right (90 degrees)
@@ -2055,6 +2067,10 @@ function addCounterImage(portalGroup) {
     counterMesh.position.y = 9;
     numberMesh.position.y = 9;
     
+    // Set highest render order for the counter
+    counterMesh.renderOrder = 3000;
+    numberMesh.renderOrder = 3000;
+    
     // Adjust positions based on portal rotation
     if (Math.abs(portalGroup.rotation.y - Math.PI / 2) < 0.01) {
       counterMesh.position.x = -0.5;
@@ -2108,6 +2124,10 @@ function addCounterImage(portalGroup) {
     // Position meshes
     backgroundMesh.position.y = 9;
     numberMesh.position.y = 9;
+    
+    // Set highest render order for the counter
+    backgroundMesh.renderOrder = 3000;
+    numberMesh.renderOrder = 3000;
     
     // Adjust based on portal rotation
     if (Math.abs(portalGroup.rotation.y - Math.PI / 2) < 0.01) {
@@ -3326,19 +3346,48 @@ function createLondonPhoneBox(environment, loadingManager) {
 export function makePortalImagesVisible() {
   if (window.scene) {
     window.scene.traverse((object) => {
+      // Check for username labels and set highest render order
+      if (object.userData && object.userData.isUsernameLabel) {
+        object.renderOrder = 25000; // Even higher than avatar body
+      }
+      
+      // Check for avatar meshes - ensure they're on top of portals
+      else if (object.parent && object.parent.userData && object.parent.userData.isAvatar && object.isMesh) {
+        object.renderOrder = 20000;
+      }
+      
       // Check for shader materials that might be portal images
-      if (object.material && object.material.type === 'ShaderMaterial') {
+      else if (object.material && object.material.type === 'ShaderMaterial') {
         // Make sure the material is visible
         object.material.depthTest = false; 
         object.material.depthWrite = false;
         object.material.needsUpdate = true;
         object.visible = true;
         
-        // Set very high render order to ensure it's drawn on top
+        // Set render order for portal images (LOWEST priority)
         object.renderOrder = 1000;
       }
+      
+      // Check for counter elements (which should render on top of everything except avatars)
+      else if (object.userData && object.userData.isCounterNumber) {
+        object.renderOrder = 15000; // Below avatars, above frames
+      }
+      
+      // Look for counter container/background 
+      else if (object.parent && object.parent.parent && object.position.y >= 8) {
+        // This is likely a counter component
+        object.renderOrder = 15000; // Below avatars, above frames
+      }
+      
+      // Look for portal frame meshes (which should render ABOVE portal images)
+      else if (object.parent && object.parent.userData && object.parent.userData.portalURL && 
+          object.isMesh && object.material && 
+          (object.material.type === 'MeshStandardMaterial' || object.material.type === 'MeshBasicMaterial')) {
+        // This is likely a portal frame
+        object.renderOrder = 7000;  // Higher than images (1000) but lower than counters (9000)
+      }
     });
-    console.log('Forced portal images to be visible');
+    console.log('Applied final render order: usernames (25000) > avatars (20000) > counters (15000) > frames (7000) > images (1000)');
   }
 }
 
