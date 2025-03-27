@@ -943,7 +943,7 @@ try {
   
   // After a short delay, adjust camera to a higher position for gameplay
   setTimeout(() => {
-    camera.position.set(0, 10, 20); // Much higher and further back for gameplay
+    camera.position.set(0, 13, 25); // Increased height from 10 to 13 and distance from 20 to 25
     camera.lookAt(0, 1.5, 0);
   }, 5000); // 5 seconds after start
   
