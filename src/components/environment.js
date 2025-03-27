@@ -2702,10 +2702,11 @@ function createLondonPhoneBox(environment, loadingManager) {
       // Add the model to the placeholder
       placeholder.add(model);
       
-      // Add collision detection
-      placeholder.userData.isObstacle = true;
+      // Add collision detection and portal URL
+      placeholder.userData.isPortal = true;
+      placeholder.userData.portalURL = 'https://duoduel.roostervibes.farm/?target=_blank';
       
-      console.log('London phone box model loaded successfully');
+      console.log('London phone box model loaded successfully with audio chat portal');
     },
     function(xhr) {
       // Loading progress
@@ -2782,8 +2783,9 @@ function createLondonPhoneBox(environment, loadingManager) {
     // Add the basic phone box to the placeholder
     placeholder.add(phoneBoxGroup);
     
-    // Add collision detection
-    placeholder.userData.isObstacle = true;
+    // Add collision detection and portal URL
+    placeholder.userData.isPortal = true;
+    placeholder.userData.portalURL = 'https://duoduel.roostervibes.farm/?target=_blank';
   }
   
   return placeholder;

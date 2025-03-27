@@ -1844,31 +1844,37 @@ try {
                             // Desktop - direct location change like portal.pieter.com
                             console.log('Using direct location change for portal URL:', portalURL);
                             
-                            // Optional: show a brief transition effect
-                            const transition = document.createElement('div');
-                            transition.style.cssText = `
-                              position: fixed;
-                              top: 0;
-                              left: 0;
-                              width: 100%;
-                              height: 100%;
-                              background-color: rgba(0, 0, 0, 0.5);
-                              z-index: 9999;
-                              opacity: 0;
-                              transition: opacity 0.5s ease;
-                              pointer-events: none;
-                            `;
-                            document.body.appendChild(transition);
-                            
-                            // Fade in transition
-                            setTimeout(() => {
-                              transition.style.opacity = '1';
-                            }, 10);
-                            
-                            // Navigate after transition
-                            setTimeout(() => {
-                              window.location.href = portalURL;
-                            }, 500);
+                            // Special handling for phone booth (audio chat)
+                            if (portalURL.includes('duoduel.roostervibes.farm')) {
+                              console.log('Opening audio chat in new tab');
+                              window.open(portalURL, '_blank');
+                            } else {
+                              // Optional: show a brief transition effect
+                              const transition = document.createElement('div');
+                              transition.style.cssText = `
+                                position: fixed;
+                                top: 0;
+                                left: 0;
+                                width: 100%;
+                                height: 100%;
+                                background-color: rgba(0, 0, 0, 0.5);
+                                z-index: 9999;
+                                opacity: 0;
+                                transition: opacity 0.5s ease;
+                                pointer-events: none;
+                              `;
+                              document.body.appendChild(transition);
+                              
+                              // Fade in transition
+                              setTimeout(() => {
+                                transition.style.opacity = '1';
+                              }, 10);
+                              
+                              // Navigate after transition
+                              setTimeout(() => {
+                                window.location.href = portalURL;
+                              }, 500);
+                            }
                           }
                         } else {
                           console.log('Ignoring repeated portal open attempt:', portalURL);
@@ -1950,31 +1956,37 @@ try {
                           // Desktop - direct location change like portal.pieter.com
                           console.log('Using direct location change for portal URL:', portalURL);
                           
-                          // Optional: show a brief transition effect
-                          const transition = document.createElement('div');
-                          transition.style.cssText = `
-                            position: fixed;
-                            top: 0;
-                            left: 0;
-                            width: 100%;
-                            height: 100%;
-                            background-color: rgba(0, 0, 0, 0.5);
-                            z-index: 9999;
-                            opacity: 0;
-                            transition: opacity 0.5s ease;
-                            pointer-events: none;
-                          `;
-                          document.body.appendChild(transition);
-                          
-                          // Fade in transition
-                          setTimeout(() => {
-                            transition.style.opacity = '1';
-                          }, 10);
-                          
-                          // Navigate after transition
-                          setTimeout(() => {
-                            window.location.href = portalURL;
-                          }, 500);
+                          // Special handling for phone booth (audio chat)
+                          if (portalURL.includes('duoduel.roostervibes.farm')) {
+                            console.log('Opening audio chat in new tab');
+                            window.open(portalURL, '_blank');
+                          } else {
+                            // Optional: show a brief transition effect
+                            const transition = document.createElement('div');
+                            transition.style.cssText = `
+                              position: fixed;
+                              top: 0;
+                              left: 0;
+                              width: 100%;
+                              height: 100%;
+                              background-color: rgba(0, 0, 0, 0.5);
+                              z-index: 9999;
+                              opacity: 0;
+                              transition: opacity 0.5s ease;
+                              pointer-events: none;
+                            `;
+                            document.body.appendChild(transition);
+                            
+                            // Fade in transition
+                            setTimeout(() => {
+                              transition.style.opacity = '1';
+                            }, 10);
+                            
+                            // Navigate after transition
+                            setTimeout(() => {
+                              window.location.href = portalURL;
+                            }, 500);
+                          }
                         }
                       } else {
                         console.log('Ignoring repeated portal open attempt:', portalURL);
