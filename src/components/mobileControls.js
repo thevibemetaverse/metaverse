@@ -370,8 +370,18 @@ export function setupMobileControls(controls) {
  * @returns {boolean} - True if the device is mobile
  */
 export function isMobileDevice() {
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
-         (window.innerWidth <= 800 && window.innerHeight <= 900);
+  // Check for mobile user agents
+  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  
+  // Check if this is a Mac desktop - many Mac desktops have screen dimensions that would trigger mobile detection
+  const isMacDesktop = /Macintosh|MacIntel/i.test(navigator.platform) && !('ontouchend' in document);
+  
+  // Check for small screens (potential mobile)
+  const isSmallScreen = window.innerWidth <= 800 && window.innerHeight <= 900;
+  
+  // Consider a device mobile if it has a mobile user agent OR
+  // it has a small screen AND is not a Mac desktop
+  return isMobileUA || (isSmallScreen && !isMacDesktop);
 }
 
 /**

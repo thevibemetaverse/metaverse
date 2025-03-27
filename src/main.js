@@ -5,7 +5,7 @@ import { XRControllerModelFactory } from 'three/examples/jsm/webxr/XRControllerM
 import { io } from 'socket.io-client';
 import { initPostHog, trackPageView } from './utils/posthog.js';
 
-import { createEnvironment, updatePortalMaterials, addGlobalPortalClickHandler, updatePortalClickOverlays, showPortalForm, checkPortalEntry, initializePortalCounters } from './components/environment.js';
+import { createEnvironment, updatePortalMaterials, addGlobalPortalClickHandler, updatePortalClickOverlays, showPortalForm, checkPortalEntry, initializePortalCounters, makePortalImagesVisible } from './components/environment.js';
 import { createAvatar, createSimpleAvatar, createDirectAvatar, createCleanAvatar, createPureAvatar, updateAvatarAnimations } from './components/avatar.js';
 import { setupControls } from './components/controls.js';
 import { setupUI, createEmojiBar, showEmojiReaction } from './components/ui.js';
@@ -29,6 +29,13 @@ console.log(`Device detected as ${isMobile ? 'mobile' : 'desktop'}`);
 // Check if entering via portal
 const urlParams = new URLSearchParams(window.location.search);
 const isPortalEntrance = urlParams.get('portal') === 'true';
+const debugCollisionBoxes = urlParams.get('debug') === 'true';
+
+// If debug mode is requested via URL parameter, enable collision box visibility
+if (debugCollisionBoxes && typeof window !== 'undefined') {
+  console.log('Debug mode enabled via URL parameter - collision boxes will be visible');
+  window._debugPortalCollisionBoxes = true;
+}
 
 // Create loading screen (only if not entering via portal)
 const loadingScreen = document.createElement('div');
@@ -102,6 +109,9 @@ loadingManager.onProgress = function(url, itemsLoaded, itemsTotal) {
 
 loadingManager.onLoad = function() {
   console.log("All assets loaded successfully");
+  
+  // Initialize debug UI
+  initUI();
   
   // Initialize the portal click handler when everything is loaded
   addGlobalPortalClickHandler();
@@ -376,6 +386,9 @@ document.body.appendChild(renderer.domElement);
 
 // Create environment
 const environment = createEnvironment(scene, camera, loadingManager);
+
+// Call function to ensure portal images are always visible
+makePortalImagesVisible();
 
 // Make scene available globally for portal counters
 window.scene = scene;
@@ -863,9 +876,7 @@ try {
   
   // Setup mobile controls if on a mobile device
   let mobileControls = null;
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
-                   (window.innerWidth <= 800 && window.innerHeight <= 900);
-  
+  // Use the imported isMobileDevice function directly
   if (isMobile) {
     console.log('Setting up mobile controls');
     mobileControls = setupMobileControls(controls);
@@ -1399,7 +1410,7 @@ try {
     
     // Update mobile status on resize
     const wasMobile = gameState.settings.isMobile;
-    const nowMobile = window.innerWidth <= 800;
+    const nowMobile = isMobileDevice(); // Use the function for consistent detection
     
     if (wasMobile !== nowMobile) {
       gameState.settings.isMobile = nowMobile;
@@ -1470,11 +1481,22 @@ try {
     
     // Calculate delta time for smooth animation
     const currentTime = performance.now();
-    const deltaTime = (currentTime - lastTime) / 1000; // Convert to seconds
+    const deltaTime = (currentTime - lastTime) / 1000;
     lastTime = currentTime;
     
-    // Enforce auto-navigation for desktop by removing any desktop portal buttons
-    // (Rest of the code remains unchanged)
+    // Make sure portal images are always visible (call every few seconds)
+    if (Math.floor(currentTime / 1000) % 5 === 0) { // Call every 5 seconds
+      makePortalImagesVisible();
+    }
+    
+    // Enforce auto-navigation for desktop by removing any mobile portal buttons
+    if (!isMobileDevice()) {
+      const mobilePortalButton = document.getElementById('mobile-portal-button');
+      if (mobilePortalButton) {
+        console.log('Removing mobile portal button on desktop to enforce auto-navigation');
+        mobilePortalButton.parentNode.removeChild(mobilePortalButton);
+      }
+    }
     
     // Track when portals were last opened to prevent double-triggering
     if (!window.lastPortalOpenTimes) {
@@ -2410,4 +2432,45 @@ if (debugPanel) {
       }
     });
   }
+}
+
+// Add event listeners for keyboard shortcuts
+document.addEventListener('keydown', (event) => {
+  // F2 key to toggle collision boxes
+  if (event.key === 'F2') {
+    if (typeof window.togglePortalCollisionBoxes === 'function') {
+      const isVisible = window.togglePortalCollisionBoxes();
+      showNotification(`Portal collision boxes ${isVisible ? 'shown' : 'hidden'}`, 'info');
+      event.preventDefault();
+    }
+  }
+});
+
+function initUI() {
+  // Add debug button for portal collision boxes
+  const debugButton = document.createElement('button');
+  debugButton.id = 'debug-collision-button';
+  debugButton.textContent = 'Toggle Collision Boxes';
+  debugButton.style.cssText = `
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    padding: 8px 12px;
+    background-color: rgba(255, 0, 0, 0.7);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-family: Arial, sans-serif;
+    cursor: pointer;
+    z-index: 1000;
+  `;
+  document.body.appendChild(debugButton);
+  
+  // Add click event listener to toggle collision boxes
+  debugButton.addEventListener('click', () => {
+    if (typeof window.togglePortalCollisionBoxes === 'function') {
+      const isVisible = window.togglePortalCollisionBoxes();
+      showNotification(`Portal collision boxes ${isVisible ? 'shown' : 'hidden'}`, 'info');
+    }
+  });
 }

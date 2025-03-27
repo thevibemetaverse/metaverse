@@ -209,6 +209,9 @@ function setupModel(model, avatarGroup) {
       // Add shadows
       node.castShadow = true;
       node.receiveShadow = true;
+      
+      // Set extremely high render order to ensure avatar is on top of everything
+      node.renderOrder = 20000;
     }
   });
   
@@ -373,6 +376,7 @@ function createBasicAvatar(avatarGroup) {
   const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 });
   const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
   body.position.y = 1;
+  body.renderOrder = 20000;
   avatarGroup.add(body);
   
   // Create the avatar head
@@ -380,6 +384,7 @@ function createBasicAvatar(avatarGroup) {
   const headMaterial = new THREE.MeshStandardMaterial({ color: 0xFFCC99 });
   const head = new THREE.Mesh(headGeometry, headMaterial);
   head.position.y = 2.4;
+  head.renderOrder = 20000;
   avatarGroup.add(head);
   
   // Create the avatar arms
@@ -390,12 +395,14 @@ function createBasicAvatar(avatarGroup) {
   const leftArm = new THREE.Mesh(armGeometry, armMaterial);
   leftArm.position.set(-0.7, 1.2, 0);
   leftArm.rotation.z = Math.PI / 2;
+  leftArm.renderOrder = 20000;
   avatarGroup.add(leftArm);
   
   // Right arm
   const rightArm = new THREE.Mesh(armGeometry, armMaterial);
   rightArm.position.set(0.7, 1.2, 0);
   rightArm.rotation.z = -Math.PI / 2;
+  rightArm.renderOrder = 20000;
   avatarGroup.add(rightArm);
   
   // Create the avatar legs
@@ -405,11 +412,13 @@ function createBasicAvatar(avatarGroup) {
   // Left leg
   const leftLeg = new THREE.Mesh(legGeometry, legMaterial);
   leftLeg.position.set(-0.3, 0, 0);
+  leftLeg.renderOrder = 20000;
   avatarGroup.add(leftLeg);
   
   // Right leg
   const rightLeg = new THREE.Mesh(legGeometry, legMaterial);
   rightLeg.position.set(0.3, 0, 0);
+  rightLeg.renderOrder = 20000;
   avatarGroup.add(rightLeg);
   
   // Add buttons to the shirt
@@ -420,6 +429,7 @@ function createBasicAvatar(avatarGroup) {
     const button = new THREE.Mesh(buttonGeometry, buttonMaterial);
     button.position.set(0, 1 + i * 0.3, 0.51);
     button.rotation.x = Math.PI / 2;
+    button.renderOrder = 20000;
     avatarGroup.add(button);
   }
   
@@ -428,6 +438,7 @@ function createBasicAvatar(avatarGroup) {
     if (object.isMesh) {
       object.castShadow = true;
       object.receiveShadow = true;
+      object.renderOrder = 20000;
     }
   });
 }
@@ -463,6 +474,9 @@ function createUsernameLabel(avatarGroup, username) {
   
   // Mark this as a username label
   sprite.userData.isUsernameLabel = true;
+  
+  // Set the highest possible render order to ensure it's on top of everything
+  sprite.renderOrder = 10000;
   
   // Add the sprite to the avatar group
   avatarGroup.add(sprite);
@@ -543,6 +557,9 @@ export function createSimpleAvatar(scene, username, loadingManager = avatarLoadi
             if (node.isMesh) {
               node.castShadow = true;
               node.receiveShadow = true;
+              
+              // Set extreme render order to ensure the avatar is always on top
+              node.renderOrder = 20000;
               
               // Check for any helper objects or strange geometry and remove them
               if (node.name.includes('helper') || node.name.includes('debug') || 
@@ -729,6 +746,9 @@ export function createDirectAvatar(scene, username, loadingManager = avatarLoadi
         if (node.isMesh) {
           node.castShadow = true;
           node.receiveShadow = true;
+          
+          // Set extremely high render order to ensure the avatar is on top of everything
+          node.renderOrder = 20000;
         }
       });
       
@@ -872,6 +892,15 @@ export function createCleanAvatar(scene, username, loadingManager = avatarLoadin
       
       // Rotate to face forward
       model.rotation.y = Math.PI;
+      
+      // Ensure avatar has highest render order
+      model.traverse((node) => {
+        if (node.isMesh) {
+          node.castShadow = true;
+          node.receiveShadow = true;
+          node.renderOrder = 20000;
+        }
+      });
       
       // Add the model to the avatar group
       avatarGroup.add(model);
@@ -1035,6 +1064,24 @@ export function createPureAvatar(scene, username, loadingManager = avatarLoading
       
       // Rotate to face forward
       model.rotation.y = Math.PI;
+      
+      // Set high render order for all meshes in the avatar
+      model.traverse(function(node) {
+        if (node.isMesh) {
+          // Set shadows
+          node.castShadow = true;
+          node.receiveShadow = true;
+          
+          // Set extremely high render order to ensure the avatar is on top of everything
+          node.renderOrder = 20000;
+          
+          // Disable depth test and enable transparency if needed
+          if (node.material) {
+            node.material.depthTest = true;  // Still test for depth within avatar
+            node.material.needsUpdate = true;
+          }
+        }
+      });
       
       // Add the model to the avatar group
       avatarGroup.add(model);
