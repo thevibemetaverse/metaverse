@@ -399,8 +399,8 @@ const portalConfigs = [
   {
     position: { x: 15, z: 15, y: 0 },  // Center portal (darefail)
     rotation: 0,
-    imageUrl: 'assets/images/darefail.png',
-    targetUrl: addAvatarToPortalUrl(`https://ai.darefail.com/flappy/arms/?username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app&portal=true`),
+    imageUrl: 'assets/images/vibe-sail.png',
+    targetUrl: addAvatarToPortalUrl(`http://vibesail.com/?username=${getUsernameFromUrl()}&ref=https://metaverse-delta.vercel.app&portal=true`),
     scale: 1.0
   },
   {
