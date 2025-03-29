@@ -12,8 +12,13 @@ export default class CharacterControls {
         this.moveLeft = false;
         this.moveRight = false;
         
+        // Rotation state
+        this.rotateLeft = false;
+        this.rotateRight = false;
+        
         // Character speed
         this.moveSpeed = 5;
+        this.rotateSpeed = 3; // Speed of rotation in radians per second
         
         // Force desktop controls for testing
         this.isMobile = false;
@@ -45,7 +50,7 @@ export default class CharacterControls {
             console.log('Key pressed:', event.code);
             
             // Prevent default behavior for movement keys
-            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(event.code)) {
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE'].includes(event.code)) {
                 event.preventDefault();
             }
             
@@ -72,6 +77,16 @@ export default class CharacterControls {
                 case 'KeyD':
                     this.moveRight = true;
                     console.log('Move right activated');
+                    break;
+
+                case 'KeyQ':
+                    this.rotateLeft = true;
+                    console.log('Rotate left activated');
+                    break;
+
+                case 'KeyE':
+                    this.rotateRight = true;
+                    console.log('Rotate right activated');
                     break;
             }
         }, false);
@@ -103,6 +118,16 @@ export default class CharacterControls {
                 case 'KeyD':
                     this.moveRight = false;
                     console.log('Move right deactivated');
+                    break;
+
+                case 'KeyQ':
+                    this.rotateLeft = false;
+                    console.log('Rotate left deactivated');
+                    break;
+
+                case 'KeyE':
+                    this.rotateRight = false;
+                    console.log('Rotate right deactivated');
                     break;
             }
         }, false);
@@ -220,61 +245,52 @@ export default class CharacterControls {
             return;
         }
         
-        // Movement direction vector
-        const moveDirection = new THREE.Vector3(0, 0, 0);
+        // Handle rotation first
+        if (this.rotateLeft) {
+            this.character.rotation.y += this.rotateSpeed * deltaTime;
+        }
+        if (this.rotateRight) {
+            this.character.rotation.y -= this.rotateSpeed * deltaTime;
+        }
         
-        // Get camera direction for movement relative to view
-        const cameraDirection = new THREE.Vector3();
-        this.camera.getWorldDirection(cameraDirection);
-        cameraDirection.y = 0; // Keep movement on xz plane
-        cameraDirection.normalize();
+        // Get character's forward and right vectors based on its current rotation
+        const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), this.character.rotation.y);
+        const right = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), this.character.rotation.y);
         
-        // Get right vector (perpendicular to camera direction)
-        const rightVector = new THREE.Vector3(-cameraDirection.z, 0, cameraDirection.x);
+        // Calculate movement in character's local space
+        const moveAmount = this.moveSpeed * deltaTime;
         
-        // Apply movement inputs
+        // Apply movement relative to character's orientation (local coordinates)
         if (this.moveForward) {
-            moveDirection.add(cameraDirection);
+            this.character.position.x += forward.x * moveAmount;
+            this.character.position.z += forward.z * moveAmount;
         }
         if (this.moveBackward) {
-            moveDirection.sub(cameraDirection);
+            this.character.position.x -= forward.x * moveAmount;
+            this.character.position.z -= forward.z * moveAmount;
         }
         if (this.moveLeft) {
-            moveDirection.sub(rightVector);
+            this.character.position.x -= right.x * moveAmount;
+            this.character.position.z -= right.z * moveAmount;
         }
         if (this.moveRight) {
-            moveDirection.add(rightVector);
+            this.character.position.x += right.x * moveAmount;
+            this.character.position.z += right.z * moveAmount;
         }
         
-        // Normalize and scale by speed
-        if (moveDirection.length() > 0) {
-            moveDirection.normalize().multiplyScalar(this.moveSpeed * deltaTime);
-            this.character.position.add(moveDirection);
-            
-            // Rotate character to face movement direction
-            this.character.lookAt(
-                this.character.position.x + moveDirection.x,
-                this.character.position.y,
-                this.character.position.z + moveDirection.z
-            );
-            
-            console.log('Character position:', this.character.position);
-            console.log('Movement flags:', {
-                forward: this.moveForward,
-                backward: this.moveBackward,
-                left: this.moveLeft,
-                right: this.moveRight
-            });
-            
-            // Play walk animation
-            if (this.character.userData && this.character.userData.animationController) {
-                this.character.userData.animationController.playAnimation('walk');
-            }
-        } else {
-            // Play idle animation when not moving
-            if (this.character.userData && this.character.userData.animationController) {
-                this.character.userData.animationController.playAnimation('idle');
-            }
+        console.log('Character position:', this.character.position);
+        console.log('Movement flags:', {
+            forward: this.moveForward,
+            backward: this.moveBackward,
+            left: this.moveLeft,
+            right: this.moveRight,
+            rotateLeft: this.rotateLeft,
+            rotateRight: this.rotateRight
+        });
+        
+        // Play walk animation
+        if (this.character.userData && this.character.userData.animationController) {
+            this.character.userData.animationController.playAnimation('walk');
         }
     }
 

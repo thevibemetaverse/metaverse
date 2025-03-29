@@ -1,248 +1,98 @@
 import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 /**
- * MetaverseCamera - A GTA-style camera system for the VibeMetaverse
- * Handles player following with smooth transitions and always stays behind the player
+ * GTA-style following camera for VibeMetaverse
+ * Always positions behind the player character
  */
-export class MetaverseCamera {
-  constructor(camera, player, domElement) {
-    // Store references
-    this.camera = camera;
-    this.player = player;
-    this.domElement = domElement;
-    
-    // Camera settings
-    this.distance = 5;        // Distance behind player
-    this.height = 2;          // Height above player
-    this.lookAtHeight = 1.5;  // Height to look at (above player base)
-    
-    // Smoothing values
-    this.positionLerpFactor = 0.15;  // How quickly camera follows player (0-1)
-    this.rotationLerpFactor = 0.15;  // How quickly camera follows player rotation (0-1)
-    
-    // Track last known position and movement
-    this.lastPlayerPosition = this.player ? this.player.position.clone() : new THREE.Vector3();
-    this.currentDirection = new THREE.Vector3(0, 0, 1);
-    this.isMoving = false;
-    this.movementTimeout = null;
-    
-    // Set up OrbitControls with restricted movement
-    this.setupOrbitControls();
-    
-    // Set initial camera position
-    this.updateCameraPosition(true); // true = immediate, no smoothing
-  }
-  
-  /**
-   * Set up OrbitControls with restricted movement for GTA-style camera
-   */
-  setupOrbitControls() {
-    this.orbitControls = new OrbitControls(this.camera, this.domElement);
-    
-    // Configure the controls for GTA-style camera
-    this.orbitControls.enableDamping = true;
-    this.orbitControls.dampingFactor = 0.2;
-    this.orbitControls.screenSpacePanning = false;
-    
-    // Disable orbit controls when moving
-    this.orbitControls.enabled = false;
-    
-    // Set target to player position plus lookAtHeight
-    this.updateOrbitTarget();
-  }
-  
-  /**
-   * Update the orbit controls target to focus on player
-   */
-  updateOrbitTarget() {
-    if (!this.player) return;
-    
-    this.orbitControls.target.copy(this.player.position);
-    this.orbitControls.target.y += this.lookAtHeight;
-  }
-  
-  /**
-   * Get player's forward direction based on their rotation
-   */
-  getPlayerForwardDirection() {
-    const forward = new THREE.Vector3(0, 0, 1);
-    forward.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.player.rotation.y);
-    return forward;
-  }
-  
-  /**
-   * Calculate movement direction based on player's position change
-   */
-  updateMovementDirection() {
-    if (!this.player) return;
-    
-    const currentPosition = this.player.position;
-    const movement = new THREE.Vector3();
-    movement.subVectors(currentPosition, this.lastPlayerPosition);
-    
-    // Check if player is moving
-    const isMovingNow = movement.length() > 0.001;
-    
-    if (isMovingNow) {
-      // Clear any existing timeout
-      if (this.movementTimeout) {
-        clearTimeout(this.movementTimeout);
-      }
-      this.isMoving = true;
-      
-      // Update direction based on movement
-      movement.y = 0; // Keep direction horizontal
-      movement.normalize();
-      this.currentDirection.lerp(movement, 0.2); // Smooth direction change
-      this.currentDirection.normalize();
-      
-      // Set timeout to handle when player stops moving
-      this.movementTimeout = setTimeout(() => {
-        this.isMoving = false;
-        // Force camera to return behind player immediately when movement stops
-        this.currentDirection.copy(this.getPlayerForwardDirection());
-      }, 100);
-    } else if (!this.isMoving) {
-      // When not moving, immediately snap to player's forward direction
-      this.currentDirection.copy(this.getPlayerForwardDirection());
-    }
-    
-    // Update last known position
-    this.lastPlayerPosition.copy(currentPosition);
-  }
-  
-  /**
-   * Calculate the position behind the player based on movement direction
-   */
-  calculateIdealPosition() {
-    // Calculate the camera position behind the player
-    const cameraPosition = new THREE.Vector3(
-      this.player.position.x - (this.currentDirection.x * this.distance),
-      this.player.position.y + this.height,
-      this.player.position.z - (this.currentDirection.z * this.distance)
+export class FollowCamera {
+  constructor(player) {
+    // Create the camera
+    this.camera = new THREE.PerspectiveCamera(
+      75,                                          // Field of view
+      window.innerWidth / window.innerHeight,      // Aspect ratio
+      0.1,                                         // Near clipping plane
+      1000                                         // Far clipping plane
     );
     
-    return cameraPosition;
-  }
-  
-  /**
-   * Update camera position to follow player
-   * @param {boolean} immediate - If true, teleport camera; if false, smooth lerp
-   */
-  updateCameraPosition(immediate = false) {
-    // Update movement direction
-    this.updateMovementDirection();
+    // Store reference to player
+    this.player = player;
     
-    const idealPosition = this.calculateIdealPosition();
+    // Camera settings
+    this.distance = 8;        // Distance behind player
+    this.height = 3;          // Height above player
+    this.lookHeight = 1;      // Height above player to look at (eyes level)
+    this.smoothFactor = 0.1;  // Smoothing factor for camera movement (0-1)
+    
+    // Initialize camera position
+    this.updatePosition(true); // Force immediate position
+  }
+
+  /**
+   * Update camera position to follow behind player
+   * @param {boolean} immediate - If true, camera moves instantly without smoothing
+   */
+  updatePosition(immediate = false) {
+    // Calculate the direction vector behind the player based on player's rotation
+    const behindVector = new THREE.Vector3(0, 0, -1).applyAxisAngle(
+      new THREE.Vector3(0, 1, 0),
+      this.player.rotation.y
+    );
+    
+    // Calculate desired camera position behind player
+    const targetPosition = new THREE.Vector3(
+      this.player.position.x + (behindVector.x * this.distance),
+      this.player.position.y + this.height,
+      this.player.position.z + (behindVector.z * this.distance)
+    );
     
     if (immediate) {
-      // Immediately set camera position
-      this.camera.position.copy(idealPosition);
+      // Set camera position immediately
+      this.camera.position.copy(targetPosition);
     } else {
-      // Smoothly move camera towards ideal position
-      this.camera.position.lerp(idealPosition, this.positionLerpFactor);
+      // Smoothly move camera towards target position
+      this.camera.position.lerp(targetPosition, this.smoothFactor);
     }
     
-    // Always look at the player's upper body
-    const lookAtPosition = new THREE.Vector3(
+    // Calculate the point to look at (slightly above player position)
+    const lookAtPoint = new THREE.Vector3(
       this.player.position.x,
-      this.player.position.y + this.lookAtHeight,
+      this.player.position.y + this.lookHeight,
       this.player.position.z
     );
     
-    this.camera.lookAt(lookAtPosition);
+    // Make camera look at the player
+    this.camera.lookAt(lookAtPoint);
   }
-  
+
   /**
-   * Set the camera distance from player
-   * @param {number} distance - New distance from player
+   * Update the camera - call this every frame
    */
-  setDistance(distance) {
-    this.distance = Math.max(3, Math.min(10, distance));
-    this.updateCameraPosition();
+  update() {
+    this.updatePosition();
   }
-  
+
   /**
-   * Set the camera height above player
-   * @param {number} height - New height above player
+   * Handle window resize
    */
-  setHeight(height) {
-    this.height = Math.max(1, Math.min(5, height));
-    this.updateCameraPosition();
+  resize() {
+    this.camera.aspect = window.innerWidth / window.innerHeight;
+    this.camera.updateProjectionMatrix();
   }
-  
+
   /**
-   * Adjust the current camera distance
-   * @param {number} amount - Amount to adjust distance by
+   * Adjust camera distance and height
+   * @param {number} heightChange - Amount to change height by
+   * @param {number} distanceChange - Amount to change distance by
    */
-  adjustDistance(amount) {
-    this.setDistance(this.distance + amount);
+  adjust(heightChange, distanceChange) {
+    this.height = Math.max(1, Math.min(10, this.height + heightChange));
+    this.distance = Math.max(3, Math.min(20, this.distance + distanceChange));
   }
-  
+
   /**
-   * Adjust the current camera height
-   * @param {number} amount - Amount to adjust height by
+   * Get the camera instance
    */
-  adjustHeight(amount) {
-    this.setHeight(this.height + amount);
+  getCamera() {
+    return this.camera;
   }
-  
-  /**
-   * Update method to call in animation loop
-   * @param {number} delta - Time in seconds since last frame
-   */
-  update(delta) {
-    if (!this.player) return;
-    
-    // Update camera position with smoothing
-    this.updateCameraPosition(false);
-  }
-  
-  /**
-   * Handles keyboard input for camera adjustments
-   * @param {KeyboardEvent} event - The keyboard event
-   */
-  handleKeyDown(event) {
-    switch (event.code) {
-      // Camera adjustments
-      case 'KeyR': // Move camera higher
-        this.adjustHeight(0.5);
-        break;
-      case 'KeyF': // Move camera lower
-        this.adjustHeight(-0.5);
-        break;
-      case 'KeyZ': // Zoom camera in
-        this.adjustDistance(-0.5);
-        break;
-      case 'KeyX': // Zoom camera out
-        this.adjustDistance(0.5);
-        break;
-    }
-  }
-  
-  /**
-   * Setup keyboard event listeners for camera controls
-   */
-  setupKeyboardControls() {
-    document.addEventListener('keydown', (event) => this.handleKeyDown(event));
-  }
-  
-  /**
-   * Reset camera to default position behind player
-   */
-  resetPosition() {
-    this.distance = 5;
-    this.height = 2;
-    this.updateCameraPosition(true);
-  }
-  
-  /**
-   * Cleanup method to remove event listeners and dispose of resources
-   */
-  dispose() {
-    if (this.orbitControls) {
-      this.orbitControls.dispose();
-    }
-  }
-}
+} 

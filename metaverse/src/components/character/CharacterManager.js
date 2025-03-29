@@ -3,9 +3,8 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import CharacterControls from './CharacterControls';
 
 export default class CharacterManager {
-    constructor(scene, camera, domElement) {
+    constructor(scene, domElement) {
         this.scene = scene;
-        this.camera = camera;
         this.domElement = domElement;
         this.loader = new GLTFLoader();
         this.defaultCharacterUrl = './assets/models/metaverse-explorer.glb';
@@ -14,6 +13,7 @@ export default class CharacterManager {
         this.animations = {};
         this.username = 'Guest';
         this.characterControls = null;
+        this.camera = null;
     }
 
     async initialize() {
@@ -26,11 +26,14 @@ export default class CharacterManager {
         // Create username label
         this.createUsernameLabel();
         
-        // Initialize character controls
-        this.characterControls = new CharacterControls(this.character, this.camera, this.domElement);
-        
         // Return the character for further use
         return this.character;
+    }
+
+    setCamera(camera) {
+        this.camera = camera;
+        // Initialize character controls with the camera
+        this.characterControls = new CharacterControls(this.character, this.camera, this.domElement);
     }
 
     parseUrlParameters() {

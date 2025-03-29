@@ -4,18 +4,34 @@ import CharacterManager from './components/character/CharacterManager';
 import Sky from './components/environment/sky';
 import Ground from './components/environment/ground';
 import HillsGenerator from './components/environment/hills';
-import { MetaverseCamera } from './components/character/camera';
+import { FollowCamera } from './components/character/camera';
 import { createEnvironmentElements } from './components/environment/environmentelements.js';
 
 // Scene setup
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
+
+// Add lighting
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+scene.add(ambientLight);
+
+const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+directionalLight.position.set(5, 5, 5);
+directionalLight.castShadow = true;
+directionalLight.shadow.mapSize.width = 2048;
+directionalLight.shadow.mapSize.height = 2048;
+directionalLight.shadow.camera.near = 0.5;
+directionalLight.shadow.camera.far = 500;
+directionalLight.shadow.camera.left = -100;
+directionalLight.shadow.camera.right = 100;
+directionalLight.shadow.camera.top = 100;
+directionalLight.shadow.camera.bottom = -100;
+scene.add(directionalLight);
 
 // Initialize environment
 const sky = new Sky();
@@ -46,17 +62,19 @@ createEnvironmentElements(scene).then(environment => {
 });
 
 // Initialize character manager
-const characterManager = new CharacterManager(scene, camera, renderer.domElement);
+const characterManager = new CharacterManager(scene, renderer.domElement);
 let character;
-let metaverseCamera;
+let followCamera;
 
 // Initialize character and start animation loop
 characterManager.initialize().then((loadedCharacter) => {
     character = loadedCharacter;
     
-    // Initialize MetaverseCamera
-    metaverseCamera = new MetaverseCamera(camera, character, renderer.domElement);
-    metaverseCamera.setupKeyboardControls();
+    // Initialize FollowCamera
+    followCamera = new FollowCamera(character);
+    
+    // Set the camera in character manager
+    characterManager.setCamera(followCamera.getCamera());
     
     animate();
 }).catch(error => {
@@ -73,16 +91,17 @@ function animate() {
     characterManager.update(deltaTime);
     
     // Update camera
-    if (metaverseCamera) {
-        metaverseCamera.update(deltaTime);
+    if (followCamera) {
+        followCamera.update();
     }
     
-    renderer.render(scene, camera);
+    renderer.render(scene, followCamera.getCamera());
 }
 
 // Handle window resize
 window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
+    if (followCamera) {
+        followCamera.resize();
+    }
     renderer.setSize(window.innerWidth, window.innerHeight);
 });
