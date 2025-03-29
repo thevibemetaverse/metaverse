@@ -331,6 +331,9 @@ export default class CharacterManager {
             this.characterMixer.update(0);
         }
         
+        // Reset transition state to allow immediate transition
+        this.transitionInProgress = false;
+        
         // Use transitionToState to handle the animation correctly
         this.transitionToState(nextState);
     }
@@ -711,9 +714,13 @@ export default class CharacterManager {
             if (currentUpdateState.canTransition) {
                 if (currentUpdateState.isMoving && currentUpdateState.currentState !== AnimationState.RUNNING) {
                     console.log('[Manager] Update - Detected movement, attempting transition to RUNNING state');
+                    // Reset transition state to allow immediate transition
+                    this.transitionInProgress = false;
                     this.transitionToState(AnimationState.RUNNING);
                 } else if (!currentUpdateState.isMoving && currentUpdateState.currentState === AnimationState.RUNNING) {
                     console.log('[Manager] Update - Detected stop, attempting transition to IDLE state');
+                    // Reset transition state to allow immediate transition
+                    this.transitionInProgress = false;
                     this.transitionToState(AnimationState.IDLE);
                 }
             }
