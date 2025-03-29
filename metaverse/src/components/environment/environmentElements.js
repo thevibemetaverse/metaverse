@@ -61,6 +61,17 @@ async function createEnvironmentElements(scene) {
   scene.add(environment);
 
   try {
+    // Load BBQ Sauce
+    console.log('About to load BBQ Sauce...');
+    const bbqSauce = await loadGLTFModel(
+      '/assets/models/sweet_baby_rays_bbq_sauce.glb',
+      new THREE.Vector3(0, 10, -20),
+      new THREE.Vector3(5, 5, 5),
+      new THREE.Euler(0, 0, 0)
+    );
+    console.log('BBQ Sauce loaded:', bbqSauce);
+    if (bbqSauce) environment.add(bbqSauce);
+
     // Load Office Computer
     console.log('About to load Office Computer...');
     const officeComputer = await loadGLTFModel(
