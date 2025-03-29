@@ -201,6 +201,7 @@ export default class CharacterManager {
     }
     
     handleRunningTransition() {
+        console.log('[Manager] === Starting Running Transition ===');
         // Try to find the running animation
         const runAnimName = Object.keys(this.animations).find(name => 
             name.toLowerCase().includes('run') || 
@@ -210,24 +211,37 @@ export default class CharacterManager {
         
         console.log(`[Manager] Handling Running Transition - trying animation: ${runAnimName}`);
         console.log('[Manager] Available animations:', Object.keys(this.animations));
+        console.log('[Manager] Current animations state:', Object.entries(this.animations).map(([name, action]) => ({
+            name,
+            isRunning: action.isRunning(),
+            weight: action.getEffectiveWeight(),
+            enabled: action.enabled,
+            time: action.time
+        })));
+        
+        // First, stop and reset all animations
+        Object.values(this.animations).forEach(action => {
+            action.stop();
+            action.setEffectiveWeight(0);
+            action.enabled = false;
+            action.reset();
+        });
+
+        // Force update the mixer to ensure all animations are stopped
+        if (this.characterMixer) {
+            this.characterMixer.stopAllAction();
+            this.characterMixer.update(0);
+        }
         
         const runAction = this.animations[runAnimName];
         if (runAction) {
-            // Stop all other animations first
-            Object.values(this.animations).forEach(action => {
-                if (action !== runAction) {
-                    action.stop();
-                    action.setEffectiveWeight(0);
-                }
-            });
-            
             console.log('[Manager] Setting up running animation:', {
                 timeScale: runAction.getEffectiveTimeScale(),
                 weight: runAction.getEffectiveWeight(),
                 isPlaying: runAction.isRunning()
             });
             
-            // Smoothly transition to running
+            // Setup running animation
             runAction.reset();
             runAction.time = 0;
             runAction.setEffectiveTimeScale(1.0);
@@ -236,43 +250,43 @@ export default class CharacterManager {
             runAction.enabled = true;
             runAction.play();
             
+            // Force update the mixer again after starting the running animation
+            if (this.characterMixer) {
+                this.characterMixer.update(0);
+            }
+            
             console.log('[Manager] Running animation started');
+            console.log('[Manager] Final animations state:', Object.entries(this.animations).map(([name, action]) => ({
+                name,
+                isRunning: action.isRunning(),
+                weight: action.getEffectiveWeight(),
+                enabled: action.enabled,
+                time: action.time
+            })));
         } else {
             console.warn(`[Manager] No running animation found. Available animations:`, Object.keys(this.animations));
         }
+        console.log('[Manager] === Running Transition Complete ===');
     }
     
     handleIdleTransition() {
         console.log('[Manager] === Starting Idle Transition ===');
-        console.log('[Manager] Current animations state:', Object.entries(this.animations).map(([name, action]) => ({
-            name,
-            isRunning: action.isRunning(),
-            weight: action.getEffectiveWeight(),
-            enabled: action.enabled,
-            time: action.time
-        })));
-
-        // Stop all animations
-        Object.entries(this.animations).forEach(([name, action]) => {
-            console.log(`[Manager] Stopping animation: ${name}`);
-            action.stop();
-            action.setEffectiveWeight(0);
-            action.enabled = false;
-        });
-
-        // Force update the mixer to ensure the transition takes effect
+        
+        // Stop and cleanup all animations
         if (this.characterMixer) {
-            console.log('[Manager] Updating animation mixer');
+            this.characterMixer.stopAllAction();
             this.characterMixer.update(0);
+            
+            // Disable all animations but keep them stored
+            Object.values(this.animations).forEach(action => {
+                action.stop();
+                action.setEffectiveWeight(0);
+                action.enabled = false;
+                action.reset();
+            });
         }
-
-        console.log('[Manager] Final animations state:', Object.entries(this.animations).map(([name, action]) => ({
-            name,
-            isRunning: action.isRunning(),
-            weight: action.getEffectiveWeight(),
-            enabled: action.enabled,
-            time: action.time
-        })));
+        
+        console.log('[Manager] Disabled all animations for idle state');
         console.log('[Manager] === Idle Transition Complete ===');
     }
     
@@ -378,35 +392,33 @@ export default class CharacterManager {
     }
     
     setupAnimations(gltf) {
-        // Clear existing animations
+        // Clear existing animations and mixer
+        if (this.characterMixer) {
+            this.characterMixer.stopAllAction();
+            this.characterMixer.uncacheRoot(this.character);
+        }
         this.animations = {};
         
         // Setup new animations if available
         if (gltf.animations && gltf.animations.length) {
             console.log('[Manager] Found animations:', gltf.animations.map(anim => anim.name));
+            
+            // Create new mixer
             this.characterMixer = new THREE.AnimationMixer(this.character);
             
-            // Store animations by name
+            // Always store animations but keep them disabled by default
             gltf.animations.forEach(animation => {
                 const action = this.characterMixer.clipAction(animation);
-                // Store the original animation name
                 this.animations[animation.name] = action;
                 console.log(`[Manager] Stored animation: ${animation.name}`);
+                
+                // Stop and reset the animation immediately
+                action.stop();
+                action.setEffectiveWeight(0);
+                action.enabled = false;
+                action.reset();
             });
-
-            // Start idle animation ONLY for the default model initially
-            if (this.character.userData.modelPath === this.modelPaths.default) {
-                // Find the first animation for idle (assuming it's the default idle animation)
-                const firstAnimName = Object.keys(this.animations)[0];
-                if (firstAnimName) {
-                    console.log(`[Manager] Playing initial idle animation: ${firstAnimName}`);
-                    const idleAction = this.animations[firstAnimName];
-                    idleAction.loop = THREE.LoopRepeat;
-                    idleAction.play();
-                } else {
-                    console.warn('[Manager] No animations found for initial idle state');
-                }
-            }
+            console.log('[Manager] Stored and disabled all animations by default');
         } else {
             console.warn('[Manager] No animations found in model:', gltf.userData?.modelPath);
             this.characterMixer = null;
@@ -671,6 +683,9 @@ export default class CharacterManager {
                         const isStillMoving = this.characterControls && this.characterControls.isMoving();
                         const returnState = isStillMoving ? AnimationState.RUNNING : AnimationState.IDLE;
                         console.log(`[Manager] Jump finished. Returning to default model. Next state determined by movement: ${returnState}`);
+                        
+                        // Reset transition state to allow immediate transition
+                        this.transitionInProgress = false;
                         
                         // Return to appropriate state using the specific method
                         this.returnToDefaultModel(returnState); // Will handle transition
