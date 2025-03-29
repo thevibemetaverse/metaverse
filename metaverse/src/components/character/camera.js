@@ -100,12 +100,12 @@ export class MetaverseCamera {
       // Set timeout to handle when player stops moving
       this.movementTimeout = setTimeout(() => {
         this.isMoving = false;
-      }, 100); // Adjust this value to change how quickly camera returns behind player
+        // Force camera to return behind player immediately when movement stops
+        this.currentDirection.copy(this.getPlayerForwardDirection());
+      }, 100);
     } else if (!this.isMoving) {
-      // When not moving, smoothly rotate towards player's forward direction
-      const targetDirection = this.getPlayerForwardDirection();
-      this.currentDirection.lerp(targetDirection, 0.1); // Smooth rotation back
-      this.currentDirection.normalize();
+      // When not moving, immediately snap to player's forward direction
+      this.currentDirection.copy(this.getPlayerForwardDirection());
     }
     
     // Update last known position
