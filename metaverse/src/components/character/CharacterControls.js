@@ -22,100 +22,83 @@ export default class CharacterControls {
         
         // Force desktop controls for testing
         this.isMobile = false;
-        this.setupControls();
+
+        // Bind event handlers to preserve 'this' context
+        this.handleKeyDown = this.handleKeyDown.bind(this);
+        this.handleKeyUp = this.handleKeyUp.bind(this);
     }
     
-    setupControls() {
-        if (this.isMobile) {
-            this.setupMobileControls();
-        } else {
-            this.setupKeyboardControls();
+    handleKeyDown(event) {
+        // Prevent default behavior for movement keys
+        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE'].includes(event.code)) {
+            event.preventDefault();
+        }
+        
+        console.log('[Controls] Keydown:', event.code);
+        
+        switch (event.code) {
+            case 'ArrowUp':
+            case 'KeyW':
+                this.moveForward = true;
+                console.log('[Controls] Forward movement started');
+                break;
+                
+            case 'ArrowLeft':
+            case 'KeyQ': // Added Q for rotation
+                this.rotateLeft = true;
+                break;
+                
+            case 'ArrowDown':
+            case 'KeyS':
+                this.moveBackward = true;
+                break;
+                
+            case 'ArrowRight':
+            case 'KeyE': // Added E for rotation
+                this.rotateRight = true;
+                break;
+
+            case 'KeyA':
+                this.moveLeft = true;
+                break;
+
+            case 'KeyD':
+                this.moveRight = true;
+                break;
         }
     }
     
-    setupKeyboardControls() {
-        // Keyboard down event
-        window.addEventListener('keydown', (event) => {
-            // Prevent default behavior for movement keys
-            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE'].includes(event.code)) {
-                event.preventDefault();
-            }
-            
-            switch (event.code) {
-                case 'ArrowUp':
-                case 'KeyW':
-                    this.moveForward = true;
-                    break;
-                    
-                case 'ArrowLeft':
-                    this.rotateLeft = true;
-                    break;
-                    
-                case 'ArrowDown':
-                case 'KeyS':
-                    this.moveBackward = true;
-                    break;
-                    
-                case 'ArrowRight':
-                    this.rotateRight = true;
-                    break;
+    handleKeyUp(event) {
+        console.log('[Controls] Keyup:', event.code);
+        switch (event.code) {
+            case 'ArrowUp':
+            case 'KeyW':
+                this.moveForward = false;
+                break;
+                
+            case 'ArrowLeft':
+            case 'KeyQ': // Added Q for rotation
+                this.rotateLeft = false;
+                break;
+                
+            case 'ArrowDown':
+            case 'KeyS':
+                this.moveBackward = false;
+                break;
+                
+            case 'ArrowRight':
+            case 'KeyE': // Added E for rotation
+                this.rotateRight = false;
+                break;
 
-                case 'KeyA':
-                    this.moveLeft = true;
-                    break;
+            case 'KeyA':
+                this.moveLeft = false;
+                break;
 
-                case 'KeyD':
-                    this.moveRight = true;
-                    break;
-
-                case 'KeyQ':
-                    this.rotateLeft = true;
-                    break;
-
-                case 'KeyE':
-                    this.rotateRight = true;
-                    break;
-            }
-        }, false);
-        
-        // Keyboard up event
-        window.addEventListener('keyup', (event) => {
-            switch (event.code) {
-                case 'ArrowUp':
-                case 'KeyW':
-                    this.moveForward = false;
-                    break;
-                    
-                case 'ArrowLeft':
-                    this.rotateLeft = false;
-                    break;
-                    
-                case 'ArrowDown':
-                case 'KeyS':
-                    this.moveBackward = false;
-                    break;
-                    
-                case 'ArrowRight':
-                    this.rotateRight = false;
-                    break;
-
-                case 'KeyA':
-                    this.moveLeft = false;
-                    break;
-
-                case 'KeyD':
-                    this.moveRight = false;
-                    break;
-
-                case 'KeyQ':
-                    this.rotateLeft = false;
-                    break;
-
-                case 'KeyE':
-                    this.rotateRight = false;
-                    break;
-            }
-        }, false);
+            case 'KeyD':
+                this.moveRight = false;
+                break;
+        }
     }
     
     setupMobileControls() {
@@ -124,12 +107,20 @@ export default class CharacterControls {
         
         // Set up touch events
         this.joystickActive = false;
-        this.joystickContainer.addEventListener('touchstart', (e) => this.handleJoystickStart(e));
-        this.domElement.addEventListener('touchmove', (e) => this.handleJoystickMove(e));
-        this.domElement.addEventListener('touchend', (e) => this.handleJoystickEnd(e));
+        // Ensure domElement is valid before adding listeners
+        if (this.domElement && this.joystickContainer) {
+            this.joystickContainer.addEventListener('touchstart', (e) => this.handleJoystickStart(e));
+            this.domElement.addEventListener('touchmove', (e) => this.handleJoystickMove(e));
+            this.domElement.addEventListener('touchend', (e) => this.handleJoystickEnd(e));
+        } else {
+            console.error('[Controls] Cannot setup mobile controls: domElement or joystickContainer missing.');
+        }
     }
     
     createVirtualJoystick() {
+        // Prevent creating multiple joysticks if called again
+        if (document.getElementById('joystick-container')) return;
+
         // Create joystick container
         const joystickSize = 100;
         
@@ -143,7 +134,8 @@ export default class CharacterControls {
         joystickContainer.style.borderRadius = '50%';
         joystickContainer.style.background = 'rgba(255, 255, 255, 0.3)';
         joystickContainer.style.border = '2px solid rgba(255, 255, 255, 0.5)';
-        joystickContainer.style.touchAction = 'none';
+        joystickContainer.style.touchAction = 'none'; // Prevent page scroll
+        joystickContainer.style.zIndex = '10'; // Ensure it's above other elements
         
         // Create joystick thumb
         const joystickThumb = document.createElement('div');
@@ -159,7 +151,8 @@ export default class CharacterControls {
         joystickThumb.style.background = 'rgba(255, 255, 255, 0.7)';
         
         joystickContainer.appendChild(joystickThumb);
-        document.body.appendChild(joystickContainer);
+        // Append to specific domElement if provided, otherwise body
+        (this.domElement || document.body).appendChild(joystickContainer);
         
         this.joystickContainer = joystickContainer;
         this.joystickThumb = joystickThumb;
@@ -167,12 +160,16 @@ export default class CharacterControls {
     }
     
     handleJoystickStart(event) {
+        // Prevent default touch behavior like scrolling
+        event.preventDefault(); 
         this.joystickActive = true;
         this.handleJoystickMove(event);
     }
     
     handleJoystickMove(event) {
         if (!this.joystickActive) return;
+        // Prevent default touch behavior
+        event.preventDefault();
         
         const touch = event.touches[0];
         const rect = this.joystickContainer.getBoundingClientRect();
@@ -203,15 +200,17 @@ export default class CharacterControls {
         const normalizedY = offsetY / maxDistance;
         
         // Set movement flags based on joystick position
-        this.moveForward = normalizedY < -0.3;
-        this.moveBackward = normalizedY > 0.3;
-        this.moveLeft = normalizedX < -0.3;
-        this.moveRight = normalizedX > 0.3;
-        
-        event.preventDefault();
+        // Adjust threshold for better sensitivity
+        const threshold = 0.2;
+        this.moveForward = normalizedY < -threshold;
+        this.moveBackward = normalizedY > threshold;
+        this.moveLeft = normalizedX < -threshold;
+        this.moveRight = normalizedX > threshold;
     }
     
-    handleJoystickEnd() {
+    handleJoystickEnd(event) {
+        // Prevent default touch behavior
+        event.preventDefault();
         this.joystickActive = false;
         this.joystickThumb.style.transform = 'translate(0px, 0px)';
         
@@ -221,7 +220,7 @@ export default class CharacterControls {
         this.moveLeft = false;
         this.moveRight = false;
     }
-    
+
     update(deltaTime) {
         // Calculate movement direction based on character's rotation
         const moveAngle = this.character.rotation.y;
@@ -229,20 +228,29 @@ export default class CharacterControls {
         const rightVector = new THREE.Vector3(Math.sin(moveAngle + Math.PI/2), 0, Math.cos(moveAngle + Math.PI/2));
 
         // Update character position based on movement flags
+        let moveDirection = new THREE.Vector3();
         if (this.moveForward) {
-            this.character.position.add(forwardVector.multiplyScalar(this.moveSpeed * deltaTime));
+            moveDirection.add(forwardVector);
         }
         if (this.moveBackward) {
-            this.character.position.add(forwardVector.multiplyScalar(-this.moveSpeed * deltaTime));
+            moveDirection.sub(forwardVector);
         }
         if (this.moveLeft) {
-            this.character.position.add(rightVector.multiplyScalar(-this.moveSpeed * deltaTime));
+            // Assuming A/D keys or left/right joystick controls strafing
+            moveDirection.sub(rightVector);
         }
         if (this.moveRight) {
-            this.character.position.add(rightVector.multiplyScalar(this.moveSpeed * deltaTime));
+            // Assuming A/D keys or left/right joystick controls strafing
+            moveDirection.add(rightVector);
+        }
+
+        // Normalize diagonal movement
+        if (moveDirection.length() > 0) {
+            moveDirection.normalize();
+            this.character.position.add(moveDirection.multiplyScalar(this.moveSpeed * deltaTime));
         }
         
-        // Update character rotation
+        // Update character rotation based on Q/E keys or separate input
         if (this.rotateLeft) {
             this.character.rotation.y += this.rotateSpeed * deltaTime;
         }
@@ -252,6 +260,16 @@ export default class CharacterControls {
     }
     
     isMoving() {
-        return this.moveForward || this.moveBackward || this.moveLeft || this.moveRight || this.rotateLeft || this.rotateRight;
+        const isMovingState = this.moveForward || this.moveBackward || this.moveLeft || this.moveRight;
+        /* // Reduce console spam
+        const movementState = {
+            forward: this.moveForward,
+            backward: this.moveBackward,
+            left: this.moveLeft,
+            right: this.moveRight
+        };
+        console.log('[Controls] isMoving check:', isMovingState, movementState);
+        */
+        return isMovingState;
     }
 } 
