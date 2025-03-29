@@ -81,6 +81,13 @@ export class PortalManager {
             console.log('[PortalManager] Scene children count after adding portal:', this.scene.children.length);
             
             this.portals.push(portal);
+            
+            // Update texture after a short delay to ensure the portal is fully loaded
+            setTimeout(() => {
+                console.log(`[PortalManager] Updating texture for portal ${portalConfig.portalId}`);
+                portal.updateTexture('Material.002', '/assets/images/thevibemetaverse.png');
+            }, 100);
+            
             console.log('[PortalManager] Portal added successfully. Total portals:', this.portals.length);
             return portal;
         } catch (error) {
@@ -317,6 +324,10 @@ export class PortalManager {
         const promises = defaultPortals.map(config => this.addPortal(config));
         const results = await Promise.all(promises);
         const successfulPortals = results.filter(Boolean).length;
+        
+        // Update textures for all portals
+        this.updateAllPortalTextures('Material.002', '/assets/images/thevibemetaverse.png');
+        
         console.log('[PortalManager] Portal initialization complete:', {
             totalPortals: defaultPortals.length,
             successfulPortals,
@@ -463,5 +474,12 @@ export class PortalManager {
         
         // Remove all portals
         this.removeAllPortals();
+    }
+
+    updateAllPortalTextures(materialName, texturePath) {
+        console.log(`[PortalManager] Updating textures for all portals to: ${texturePath}`);
+        this.portals.forEach(portal => {
+            portal.updateTexture(materialName, texturePath);
+        });
     }
 } 

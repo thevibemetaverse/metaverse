@@ -110,4 +110,53 @@ export class Portal {
         // Update effects
         this.effects.forEach(effect => effect.update(deltaTime));
     }
+
+    updateTexture(materialName, texturePath) {
+        if (!this.mesh) {
+            console.warn(`[Portal] Cannot update texture for ${this.portalId}: mesh not loaded`);
+            return;
+        }
+
+        console.log(`[Portal] Starting texture update for ${this.portalId}:`, {
+            materialName,
+            texturePath,
+            meshChildren: this.mesh.children.length
+        });
+
+        const textureLoader = new THREE.TextureLoader();
+        textureLoader.load(
+            texturePath,
+            (texture) => {
+                console.log(`[Portal] Texture loaded successfully for ${this.portalId}`);
+                let materialFound = false;
+                
+                this.mesh.traverse((child) => {
+                    if (child.isMesh) {
+                        console.log(`[Portal] Checking mesh ${child.name} in ${this.portalId}:`, {
+                            materialName: child.material?.name,
+                            hasMaterial: !!child.material,
+                            materialType: child.material?.type
+                        });
+                        
+                        if (child.material && child.material.name === materialName) {
+                            console.log(`[Portal] Found matching material ${materialName} in ${this.portalId}`);
+                            child.material.map = texture;
+                            child.material.needsUpdate = true;
+                            materialFound = true;
+                        }
+                    }
+                });
+
+                if (!materialFound) {
+                    console.warn(`[Portal] No material named "${materialName}" found in portal ${this.portalId}`);
+                }
+            },
+            (progress) => {
+                console.log(`[Portal] Loading texture for ${this.portalId}: ${(progress.loaded / progress.total * 100)}%`);
+            },
+            (error) => {
+                console.error(`[Portal] Error loading texture for ${this.portalId}:`, error);
+            }
+        );
+    }
 } 
