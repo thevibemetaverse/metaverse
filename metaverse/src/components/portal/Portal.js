@@ -127,7 +127,11 @@ export class Portal {
         textureLoader.load(
             texturePath,
             (texture) => {
-                console.log(`[Portal] Texture loaded successfully for ${this.portalId}`);
+                console.log(`[Portal] Texture loaded successfully for ${this.portalId}:`, {
+                    imageWidth: texture.image.width,
+                    imageHeight: texture.image.height,
+                    textureType: texture.type
+                });
                 let materialFound = false;
                 
                 this.mesh.traverse((child) => {
@@ -135,7 +139,8 @@ export class Portal {
                         console.log(`[Portal] Checking mesh ${child.name} in ${this.portalId}:`, {
                             materialName: child.material?.name,
                             hasMaterial: !!child.material,
-                            materialType: child.material?.type
+                            materialType: child.material?.type,
+                            currentMap: child.material?.map ? 'has map' : 'no map'
                         });
                         
                         if (child.material && child.material.name === materialName) {
@@ -143,6 +148,7 @@ export class Portal {
                             child.material.map = texture;
                             child.material.needsUpdate = true;
                             materialFound = true;
+                            console.log(`[Portal] Applied texture to material ${materialName} in ${this.portalId}`);
                         }
                     }
                 });

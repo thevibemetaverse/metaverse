@@ -85,7 +85,8 @@ export class PortalManager {
             // Update texture after a short delay to ensure the portal is fully loaded
             setTimeout(() => {
                 console.log(`[PortalManager] Updating texture for portal ${portalConfig.portalId}`);
-                portal.updateTexture('Material.002', '/assets/images/thevibemetaverse.png');
+                const portalImageUrl = `https://thevibemetaverse.vercel.app/assets/images/${portalConfig.portalId}.png`;
+                portal.updateTexture('Material.002', portalImageUrl);
             }, 100);
             
             console.log('[PortalManager] Portal added successfully. Total portals:', this.portals.length);
@@ -107,7 +108,7 @@ export class PortalManager {
                 position: new THREE.Vector3(-17.5, 0, 25),  // -67.5 + 50 = -17.5
                 rotation: new THREE.Euler(0, 0, 0),
                 destination: "https://thevibemetaverse.vercel.app/api/portal/thevibemetaverse",
-                portalId: "portal-1",
+                portalId: "auto-boss",
                 title: "Portal 1",
                 description: "First portal in the row",
                 modelPath: '/assets/models/portal/portal-new.gltf'
@@ -477,9 +478,10 @@ export class PortalManager {
     }
 
     updateAllPortalTextures(materialName, texturePath) {
-        console.log(`[PortalManager] Updating textures for all portals to: ${texturePath}`);
+        console.log(`[PortalManager] Updating textures for all portals`);
         this.portals.forEach(portal => {
-            portal.updateTexture(materialName, texturePath);
+            const portalImageUrl = `https://thevibemetaverse.vercel.app/assets/images/${portal.portalId}.png`;
+            portal.updateTexture(materialName, portalImageUrl);
         });
     }
 } 
