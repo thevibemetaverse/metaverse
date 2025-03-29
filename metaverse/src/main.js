@@ -4,6 +4,7 @@ import CharacterManager from './components/character/CharacterManager';
 import Sky from './components/environment/sky';
 import Ground from './components/environment/ground';
 import HillsGenerator from './components/environment/hills';
+import { MetaverseCamera } from './components/character/camera';
 
 // Scene setup
 const scene = new THREE.Scene();
@@ -36,17 +37,19 @@ const hills = new HillsGenerator({
 });
 scene.add(hills.init());
 
-// Camera setup
-camera.position.set(0, 5, 10);
-
 // Initialize character manager
 const characterManager = new CharacterManager(scene, camera, renderer.domElement);
 let character;
+let metaverseCamera;
 
 // Initialize character and start animation loop
 characterManager.initialize().then((loadedCharacter) => {
     character = loadedCharacter;
-    camera.lookAt(character.position);
+    
+    // Initialize MetaverseCamera
+    metaverseCamera = new MetaverseCamera(camera, character, renderer.domElement);
+    metaverseCamera.setupKeyboardControls();
+    
     animate();
 }).catch(error => {
     console.error('Failed to initialize character:', error);
@@ -60,6 +63,11 @@ function animate() {
     
     // Update character manager
     characterManager.update(deltaTime);
+    
+    // Update camera
+    if (metaverseCamera) {
+        metaverseCamera.update(deltaTime);
+    }
     
     renderer.render(scene, camera);
 }

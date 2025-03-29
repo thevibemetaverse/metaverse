@@ -276,13 +276,9 @@ export default class CharacterControls {
                 this.character.userData.animationController.playAnimation('idle');
             }
         }
-        
-        // Update camera to follow character
-        if (this.camera) {
-            const cameraOffset = new THREE.Vector3(0, 3, -5); // Behind and above character
-            const targetPosition = this.character.position.clone().add(cameraOffset);
-            this.camera.position.lerp(targetPosition, 0.1);
-            this.camera.lookAt(this.character.position);
-        }
+    }
+
+    isMoving() {
+        return this.moveForward || this.moveBackward || this.moveLeft || this.moveRight;
     }
 } 
