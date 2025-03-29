@@ -318,6 +318,19 @@ export default class CharacterManager {
         
         // Set next animation state (currentState will be updated by transitionToState)
         console.log(`[Manager] Default model loaded, transitioning to: ${nextState}`);
+        
+        // Stop all animations first
+        Object.values(this.animations).forEach(action => {
+            action.stop();
+            action.setEffectiveWeight(0);
+            action.enabled = false;
+        });
+        
+        // Force update the mixer to ensure the transition takes effect
+        if (this.characterMixer) {
+            this.characterMixer.update(0);
+        }
+        
         // Use transitionToState to handle the animation correctly
         this.transitionToState(nextState);
     }
