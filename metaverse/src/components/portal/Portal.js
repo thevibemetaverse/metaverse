@@ -4,7 +4,7 @@ export class Portal {
     constructor({
         position = new THREE.Vector3(0, 0, 0),
         rotation = new THREE.Euler(0, 0, 0),
-        scale = new THREE.Vector3(1, 1, 1),
+        scale = new THREE.Vector3(2.5, 2.5, 2.5),
         destination = "https://example.com",
         portalId = "portal-default",
         title = "Default Portal",
@@ -64,7 +64,6 @@ export class Portal {
                         });
                     }
                     
-                    this.setupEffects();
                     console.log(`[Portal] Portal setup complete for: ${this.portalId}`);
                     resolve(this.mesh);
                 },
@@ -76,37 +75,6 @@ export class Portal {
                     reject(error);
                 }
             );
-        });
-    }
-    
-    setupEffects() {
-        // Add a glowing effect to the portal
-        this.mesh.traverse((child) => {
-            if (child.isMesh) {
-                // Create a glowing material
-                const glowMaterial = new THREE.MeshStandardMaterial({
-                    color: 0x00ffff,
-                    emissive: 0x00ffff,
-                    emissiveIntensity: 0.5,
-                    transparent: true,
-                    opacity: 0.8
-                });
-                
-                // Add the glow material to the mesh
-                child.material = glowMaterial;
-                
-                // Add a pulsing effect
-                const pulseEffect = {
-                    intensity: 0.5,
-                    speed: 2,
-                    update: (deltaTime) => {
-                        const pulse = Math.sin(Date.now() * 0.001 * pulseEffect.speed) * 0.5 + 0.5;
-                        child.material.emissiveIntensity = pulseEffect.intensity * pulse;
-                    }
-                };
-                
-                this.effects.push(pulseEffect);
-            }
         });
     }
     

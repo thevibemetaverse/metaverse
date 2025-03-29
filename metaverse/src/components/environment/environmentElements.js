@@ -65,7 +65,7 @@ async function createEnvironmentElements(scene) {
     console.log('About to load BBQ Sauce...');
     const bbqSauce = await loadGLTFModel(
       '/assets/models/sweet_baby_rays_bbq_sauce.glb',
-      new THREE.Vector3(0, 10, -20),
+      new THREE.Vector3(15, 10, -40),
       new THREE.Vector3(5, 5, 5),
       new THREE.Euler(0, 0, 0)
     );
