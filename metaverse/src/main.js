@@ -72,9 +72,10 @@ characterManager.initialize().then((loadedCharacter) => {
     
     // Initialize FollowCamera
     followCamera = new FollowCamera(character);
+    const camera = followCamera.getCamera();
     
     // Set the camera in character manager
-    characterManager.setCamera(followCamera.getCamera());
+    characterManager.setCamera(camera);
     
     animate();
 }).catch(error => {

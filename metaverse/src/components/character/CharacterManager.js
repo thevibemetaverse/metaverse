@@ -2,24 +2,43 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import CharacterControls from './CharacterControls';
 
+// Animation states enum for better code readability
+const AnimationState = {
+    IDLE: 'idle',
+    RUNNING: 'running',
+    JUMPING: 'jumping'
+};
+
 export default class CharacterManager {
     constructor(scene, domElement) {
         this.scene = scene;
         this.domElement = domElement;
         this.loader = new GLTFLoader();
-        this.defaultCharacterUrl = './assets/models/metaverse-explorer.glb';
-        this.jumpCharacterUrl = './assets/models/metaverse-jump.glb';
+        
+        // Model paths
+        this.modelPaths = {
+            default: './assets/models/metaverse-explorer.glb',
+            jump: './assets/models/metaverse-jump.glb'
+        };
+        
+        // Character properties
         this.character = null;
         this.characterMixer = null;
-        this.animations = {};
         this.username = 'Guest';
         this.characterControls = null;
         this.camera = null;
-        this.isJumpModel = false;
+        
+        // Animation properties
+        this.animations = {};
+        this.currentState = AnimationState.IDLE;
+        this.previousState = AnimationState.IDLE;
+        this.transitionInProgress = false;
+        this.transitionTimeout = null;
         
         // Bind methods
         this.handleKeyPress = this.handleKeyPress.bind(this);
-        this.swapCharacterModel = this.swapCharacterModel.bind(this);
+        this.handleKeyUp = this.handleKeyUp.bind(this);
+        this.transitionToState = this.transitionToState.bind(this);
     }
 
     async initialize() {
@@ -32,67 +51,263 @@ export default class CharacterManager {
         // Create username label
         this.createUsernameLabel();
         
-        // Add keyboard event listener
+        // Add keyboard event listeners
         window.addEventListener('keydown', this.handleKeyPress);
+        window.addEventListener('keyup', this.handleKeyUp);
         
         // Return the character for further use
         return this.character;
     }
 
     handleKeyPress(event) {
-        if (event.code === 'Space') {
-            this.swapCharacterModel();
+        // Jump on space bar press if not already jumping
+        if (event.code === 'Space' && this.currentState !== AnimationState.JUMPING) {
+            console.log('Space pressed - attempting to jump');
+            this.transitionToState(AnimationState.JUMPING);
         }
     }
+    
+    handleKeyUp(event) {
+        // We could handle additional key up events here if needed
+    }
 
-    async swapCharacterModel() {
+    async transitionToState(newState) {
+        // Skip if we're already in this state or transitioning
+        if (newState === this.currentState || this.transitionInProgress) {
+            console.log(`Skipping transition - already in ${newState} or transition in progress`);
+            return;
+        }
+        
+        // Store previous state for potential return
+        this.previousState = this.currentState;
+        this.currentState = newState;
+        this.transitionInProgress = true;
+        
+        // Clear any existing transition timeout
+        if (this.transitionTimeout) {
+            clearTimeout(this.transitionTimeout);
+            this.transitionTimeout = null;
+        }
+        
+        console.log(`Transitioning from ${this.previousState} to ${newState}`);
+        
+        // Handle different state transitions
+        switch (newState) {
+            case AnimationState.JUMPING:
+                await this.handleJumpTransition();
+                break;
+                
+            case AnimationState.RUNNING:
+                this.handleRunningTransition();
+                break;
+                
+            case AnimationState.IDLE:
+                this.handleIdleTransition();
+                break;
+        }
+    }
+    
+    async handleJumpTransition() {
+        console.log('Starting jump transition');
+        
+        // Store camera state before model swap
+        const cameraState = this.preserveCameraState();
+        
+        // Store current position and rotation before model swap
+        const currentPosition = this.character.position.clone();
+        const currentRotation = this.character.rotation.clone();
+        
+        // Clean up old character
+        this.scene.remove(this.character);
+        
+        // Load jump model
+        console.log('Loading jump model:', this.modelPaths.jump);
+        const gltf = await this.loadModel(this.modelPaths.jump);
+        this.setupNewCharacter(gltf, currentPosition, currentRotation);
+        
+        // Restore camera state after model swap
+        this.restoreCameraState(cameraState);
+        
+        // Setup jump animation
+        if (this.animations['mixamo.com']) {
+            console.log('Setting up jump animation');
+            const jumpAction = this.animations['mixamo.com'];
+            jumpAction.reset();
+            jumpAction.setEffectiveTimeScale(1.2); // Slightly faster jump
+            jumpAction.setEffectiveWeight(1);
+            jumpAction.loop = THREE.LoopOnce;
+            jumpAction.clampWhenFinished = true;
+            jumpAction.play();
+            
+            // Duration in ms based on animation length + buffer
+            const jumpDuration = (jumpAction.getClip().duration * 1000) + 200;
+            console.log('Jump duration:', jumpDuration, 'ms');
+            
+            // Set timeout to return to previous state
+            this.transitionTimeout = setTimeout(async () => {
+                console.log('Jump animation complete, returning to previous state');
+                // Store camera state before returning to default model
+                const finalCameraState = this.preserveCameraState();
+                
+                // Determine which state to return to based on movement
+                const returnState = this.characterControls && this.characterControls.isMoving() 
+                    ? AnimationState.RUNNING 
+                    : AnimationState.IDLE;
+                
+                console.log('Returning to state:', returnState);
+                
+                // Reset flags
+                this.transitionInProgress = false;
+                
+                // Return to previous state
+                await this.returnToDefaultModel(returnState);
+                
+                // Restore camera state after returning to default model
+                this.restoreCameraState(finalCameraState);
+            }, jumpDuration);
+        } else {
+            console.warn('No jump animation found in model');
+            // Reset state if no animation found
+            this.transitionInProgress = false;
+            this.currentState = this.previousState;
+        }
+    }
+    
+    handleRunningTransition() {
+        if (this.animations['mixamo.com']) {
+            const runAction = this.animations['mixamo.com'];
+            
+            // Smoothly transition to running
+            runAction.reset();
+            runAction.setEffectiveTimeScale(1.0);
+            runAction.setEffectiveWeight(1);
+            runAction.loop = THREE.LoopRepeat;
+            runAction.play();
+        }
+        
+        this.transitionInProgress = false;
+    }
+    
+    handleIdleTransition() {
+        if (this.animations['mixamo.com']) {
+            // For idle, we stop the animation and reset to initial pose
+            const idleAction = this.animations['mixamo.com'];
+            idleAction.setEffectiveWeight(0);
+            idleAction.stop();
+            
+            // Reset to first frame
+            this.characterMixer.setTime(0);
+        }
+        
+        this.transitionInProgress = false;
+    }
+    
+    async returnToDefaultModel(nextState) {
+        // Store camera state before model swap
+        const cameraState = this.preserveCameraState();
+        
         // Store current position and rotation
         const currentPosition = this.character.position.clone();
         const currentRotation = this.character.rotation.clone();
         
-        // Remove current character from scene
+        // Remove current character
         this.scene.remove(this.character);
         
-        // Toggle model type
-        this.isJumpModel = !this.isJumpModel;
+        // Load default model
+        const gltf = await this.loadModel(this.modelPaths.default);
+        this.setupNewCharacter(gltf, currentPosition, currentRotation);
         
-        // Load new model
-        const modelUrl = this.isJumpModel ? this.jumpCharacterUrl : this.defaultCharacterUrl;
-        const gltf = await this.loadModel(modelUrl);
+        // Restore camera state after model swap
+        this.restoreCameraState(cameraState);
         
-        // Set up the new character
+        // Set next animation state
+        this.currentState = nextState;
+        
+        // Apply the appropriate animation
+        if (nextState === AnimationState.RUNNING) {
+            this.handleRunningTransition();
+        } else {
+            this.handleIdleTransition();
+        }
+    }
+    
+    setupNewCharacter(gltf, position, rotation) {
+        // Set up the character
         this.character = gltf.scene;
         this.character.name = 'playerCharacter';
-        this.character.position.copy(currentPosition);
-        this.character.rotation.copy(currentRotation);
+        
+        // Apply position and rotation
+        this.character.position.copy(position);
+        this.character.rotation.copy(rotation);
         
         // Setup animations
-        if (gltf.animations && gltf.animations.length) {
-            this.characterMixer = new THREE.AnimationMixer(this.character);
-            
-            // Store animations by name
-            gltf.animations.forEach(animation => {
-                this.animations[animation.name] = this.characterMixer.clipAction(animation);
-            });
-            
-            // Play appropriate animation based on model type
-            if (this.isJumpModel && this.animations['jump']) {
-                this.animations['jump'].play();
-            } else if (!this.isJumpModel && this.animations['idle']) {
-                this.animations['idle'].play();
-            }
-        }
+        this.setupAnimations(gltf);
         
         // Add character to scene
         this.scene.add(this.character);
         
-        // Update character controls with new model
-        if (this.characterControls) {
-            this.characterControls.setCharacter(this.character);
-        }
+        // Update character controls
+        this.updateCharacterControls();
+        
+        // Update camera's reference to the character if it exists
+        this.updateCameraReference();
         
         // Recreate username label
         this.createUsernameLabel();
+    }
+    
+    setupAnimations(gltf) {
+        // Clear existing animations
+        this.animations = {};
+        
+        // Setup new animations if available
+        if (gltf.animations && gltf.animations.length) {
+            console.log('Found animations:', gltf.animations.map(anim => anim.name));
+            this.characterMixer = new THREE.AnimationMixer(this.character);
+            
+            // Store animations by name
+            gltf.animations.forEach(animation => {
+                const action = this.characterMixer.clipAction(animation);
+                action.setEffectiveTimeScale(1.0);
+                action.setEffectiveWeight(0);
+                this.animations[animation.name] = action;
+            });
+        } else {
+            console.warn('No animations found in model');
+            this.characterMixer = null;
+        }
+    }
+    
+    updateCharacterControls() {
+        if (this.camera) {
+            // Store the relative offset between camera and character
+            const cameraOffset = new THREE.Vector3().subVectors(
+                this.camera.position,
+                this.character.position
+            );
+            
+            // Store camera orientation
+            const cameraDirection = new THREE.Vector3();
+            this.camera.getWorldDirection(cameraDirection);
+            
+            // Create new controls
+            this.characterControls = new CharacterControls(this.character, this.camera, this.domElement);
+            
+            // Restore camera relative position and orientation
+            this.camera.position.copy(this.character.position).add(cameraOffset);
+            
+            // Calculate a look-at point that maintains the same viewing angle
+            const lookAtPoint = new THREE.Vector3()
+                .copy(this.character.position)
+                .add(cameraDirection.multiplyScalar(10)); // Look 10 units ahead in the same direction
+            
+            this.camera.lookAt(lookAtPoint);
+            
+            // Ensure the controls are properly initialized with the restored camera state
+            if (this.characterControls.initialize) {
+                this.characterControls.initialize();
+            }
+        }
     }
 
     setCamera(camera) {
@@ -114,7 +329,7 @@ export default class CharacterManager {
     async loadCharacterModel() {
         try {
             // Determine which model to load
-            const modelUrl = this.avatarUrl || this.defaultCharacterUrl;
+            const modelUrl = this.avatarUrl || this.modelPaths.default;
             console.log('Loading model from:', modelUrl);
             
             // Load the model
@@ -128,34 +343,7 @@ export default class CharacterManager {
             this.character.scale.set(1, 1, 1);
             
             // Setup animations if available
-            if (gltf.animations && gltf.animations.length) {
-                console.log('Found animations in model:', gltf.animations.length);
-                console.log('Animation details:');
-                gltf.animations.forEach((animation, index) => {
-                    console.log(`Animation ${index + 1}:`, {
-                        name: animation.name,
-                        duration: animation.duration,
-                        tracks: animation.tracks.length,
-                        tracks: animation.tracks.map(track => track.name)
-                    });
-                });
-                
-                this.characterMixer = new THREE.AnimationMixer(this.character);
-                
-                // Store animations by name
-                gltf.animations.forEach(animation => {
-                    this.animations[animation.name] = this.characterMixer.clipAction(animation);
-                });
-                
-                console.log('Stored animation names:', Object.keys(this.animations));
-                
-                // Play idle animation by default
-                if (this.animations['idle']) {
-                    this.animations['idle'].play();
-                }
-            } else {
-                console.log('No animations found in the model');
-            }
+            this.setupAnimations(gltf);
             
             // Add character to scene
             this.scene.add(this.character);
@@ -247,53 +435,127 @@ export default class CharacterManager {
         // Update character animations
         if (this.characterMixer) {
             this.characterMixer.update(deltaTime);
+            
+            // Check for jump animation completion
+            if (this.currentState === AnimationState.JUMPING) {
+                const jumpAction = this.animations['mixamo.com'];
+                if (jumpAction && jumpAction.time >= jumpAction.getClip().duration) {
+                    // Animation complete - transition is handled by timeout in handleJumpTransition
+                }
+            }
         }
         
         // Update character controls
         if (this.characterControls) {
             this.characterControls.update(deltaTime);
             
-            // Check if character is moving
+            // Handle movement state changes
             const isMoving = this.characterControls.isMoving();
             
-            // Get the appropriate animation based on model type
-            const animation = this.isJumpModel ? 
-                this.animations['jump'] : 
-                this.animations['mixamo.com'];
-            
-            if (animation) {
-                if (isMoving) {
-                    // Play animation at normal speed when moving
-                    if (!animation.isRunning()) {
-                        animation.timeScale = 1.0;
-                        animation.play();
-                    }
-                } else {
-                    // When idle, stop the animation and reset to initial pose
-                    animation.stop();
-                    this.characterMixer.setTime(0);
+            // Transition between idle and running based on movement
+            if (!this.transitionInProgress && this.currentState !== AnimationState.JUMPING) {
+                if (isMoving && this.currentState !== AnimationState.RUNNING) {
+                    this.transitionToState(AnimationState.RUNNING);
+                } else if (!isMoving && this.currentState !== AnimationState.IDLE) {
+                    this.transitionToState(AnimationState.IDLE);
                 }
-                
-                // Ensure animation loops
-                animation.loop = THREE.LoopRepeat;
             }
         }
     }
 
+    // Method to manually play a specific animation
     playAnimation(name) {
-        // Stop current animations
+        if (!this.animations[name]) {
+            console.log(`Animation not found: ${name}`);
+            return false;
+        }
+        
+        // Stop all current animations
         for (const anim in this.animations) {
             this.animations[anim].stop();
         }
         
-        // Play requested animation if it exists
-        if (this.animations[name]) {
-            console.log(`Playing animation: ${name}`);
-            this.animations[name].play();
-            return true;
-        }
+        // Play requested animation
+        console.log(`Playing animation: ${name}`);
+        const action = this.animations[name];
+        action.reset();
+        action.setEffectiveTimeScale(1.0);
+        action.setEffectiveWeight(1);
+        action.loop = THREE.LoopRepeat;
+        action.play();
         
-        console.log(`Animation not found: ${name}`);
-        return false;
+        return true;
+    }
+    
+    // Clean up method to remove event listeners
+    dispose() {
+        window.removeEventListener('keydown', this.handleKeyPress);
+        window.removeEventListener('keyup', this.handleKeyUp);
+        
+        if (this.transitionTimeout) {
+            clearTimeout(this.transitionTimeout);
+        }
+    }
+
+    // Add a method to handle camera state preservation during model swaps
+    preserveCameraState() {
+        if (this.camera && this.character) {
+            const state = {
+                offset: new THREE.Vector3().subVectors(
+                    this.camera.position,
+                    this.character.position
+                ),
+                direction: new THREE.Vector3().copy(
+                    this.camera.getWorldDirection(new THREE.Vector3())
+                )
+            };
+            
+            // Only try to get controls state if the method exists
+            if (this.characterControls && typeof this.characterControls.getState === 'function') {
+                try {
+                    state.controls = this.characterControls.getState();
+                } catch (error) {
+                    console.warn('Failed to get character controls state:', error);
+                    state.controls = null;
+                }
+            } else {
+                state.controls = null;
+            }
+            
+            return state;
+        }
+        return null;
+    }
+    
+    // Add a method to restore camera state after model swaps
+    restoreCameraState(state) {
+        if (this.camera && this.character && state) {
+            // Restore camera position relative to character
+            this.camera.position.copy(this.character.position).add(state.offset);
+            
+            // Restore camera orientation
+            const lookAtPoint = new THREE.Vector3()
+                .copy(this.character.position)
+                .add(state.direction.multiplyScalar(10));
+            this.camera.lookAt(lookAtPoint);
+            
+            // Only try to restore controls state if the method exists
+            if (state.controls && 
+                this.characterControls && 
+                typeof this.characterControls.setState === 'function') {
+                try {
+                    this.characterControls.setState(state.controls);
+                } catch (error) {
+                    console.warn('Failed to restore character controls state:', error);
+                }
+            }
+        }
+    }
+
+    updateCameraReference() {
+        // If we have a camera and it's a FollowCamera instance
+        if (this.camera && this.camera.userData && this.camera.userData.followCamera) {
+            this.camera.userData.followCamera.player = this.character;
+        }
     }
 } 

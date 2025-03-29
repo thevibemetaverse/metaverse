@@ -17,6 +17,9 @@ export class FollowCamera {
     // Store reference to player
     this.player = player;
     
+    // Store reference to this FollowCamera instance in camera's userData
+    this.camera.userData.followCamera = this;
+    
     // Camera settings
     this.distance = 8;        // Distance behind player
     this.height = 3;          // Height above player
