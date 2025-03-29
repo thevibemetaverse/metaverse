@@ -188,15 +188,26 @@ export default class CharacterManager {
         if (this.characterControls) {
             this.characterControls.update(deltaTime);
             
-            // Check if character is moving and update animation accordingly
+            // Check if character is moving
             const isMoving = this.characterControls.isMoving();
+            
+            // Get the animation
+            const animation = this.animations["mixamo.com"];
+            
             if (isMoving) {
-                // Play the mixamo.com animation when moving
-                this.playAnimation('mixamo.com');
+                // Play animation at normal speed when moving
+                if (!animation.isRunning()) {
+                    animation.timeScale = 1.0;
+                    animation.play();
+                }
             } else {
-                // Play the mixamo.com animation when idle
-                this.playAnimation('mixamo.com');
+                // When idle, stop the animation and reset to initial pose
+                animation.stop();
+                this.characterMixer.setTime(0);
             }
+            
+            // Ensure animation loops
+            animation.loop = THREE.LoopRepeat;
         }
     }
 
