@@ -23,18 +23,9 @@ export default class CharacterControls {
         // Force desktop controls for testing
         this.isMobile = false;
         this.setupControls();
-        
-        // Log initialization
-        console.log('CharacterControls initialized with:', {
-            character: !!this.character,
-            camera: !!this.camera,
-            domElement: !!this.domElement,
-            isMobile: this.isMobile
-        });
     }
     
     setupControls() {
-        console.log('Setting up controls for device type:', this.isMobile ? 'mobile' : 'desktop');
         if (this.isMobile) {
             this.setupMobileControls();
         } else {
@@ -43,12 +34,8 @@ export default class CharacterControls {
     }
     
     setupKeyboardControls() {
-        console.log('Setting up keyboard controls...');
-        
         // Keyboard down event
         window.addEventListener('keydown', (event) => {
-            console.log('Key pressed:', event.code);
-            
             // Prevent default behavior for movement keys
             if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE'].includes(event.code)) {
                 event.preventDefault();
@@ -58,97 +45,77 @@ export default class CharacterControls {
                 case 'ArrowUp':
                 case 'KeyW':
                     this.moveForward = true;
-                    console.log('Move forward activated');
                     break;
                     
                 case 'ArrowLeft':
                     this.rotateLeft = true;
-                    console.log('Rotate left activated');
                     break;
                     
                 case 'ArrowDown':
                 case 'KeyS':
                     this.moveBackward = true;
-                    console.log('Move backward activated');
                     break;
                     
                 case 'ArrowRight':
                     this.rotateRight = true;
-                    console.log('Rotate right activated');
                     break;
 
                 case 'KeyA':
                     this.moveLeft = true;
-                    console.log('Move left activated');
                     break;
 
                 case 'KeyD':
                     this.moveRight = true;
-                    console.log('Move right activated');
                     break;
 
                 case 'KeyQ':
                     this.rotateLeft = true;
-                    console.log('Rotate left activated');
                     break;
 
                 case 'KeyE':
                     this.rotateRight = true;
-                    console.log('Rotate right activated');
                     break;
             }
         }, false);
         
         // Keyboard up event
         window.addEventListener('keyup', (event) => {
-            console.log('Key released:', event.code);
-            
             switch (event.code) {
                 case 'ArrowUp':
                 case 'KeyW':
                     this.moveForward = false;
-                    console.log('Move forward deactivated');
                     break;
                     
                 case 'ArrowLeft':
                     this.rotateLeft = false;
-                    console.log('Rotate left deactivated');
                     break;
                     
                 case 'ArrowDown':
                 case 'KeyS':
                     this.moveBackward = false;
-                    console.log('Move backward deactivated');
                     break;
                     
                 case 'ArrowRight':
                     this.rotateRight = false;
-                    console.log('Rotate right deactivated');
                     break;
 
                 case 'KeyA':
                     this.moveLeft = false;
-                    console.log('Move left deactivated');
                     break;
 
                 case 'KeyD':
                     this.moveRight = false;
-                    console.log('Move right deactivated');
                     break;
 
                 case 'KeyQ':
                     this.rotateLeft = false;
-                    console.log('Rotate left deactivated');
                     break;
 
                 case 'KeyE':
                     this.rotateRight = false;
-                    console.log('Rotate right deactivated');
                     break;
             }
         }, false);
-        
-        console.log('Keyboard controls setup complete');
     }
     
     setupMobileControls() {
@@ -256,61 +223,30 @@ export default class CharacterControls {
     }
     
     update(deltaTime) {
-        if (!this.character) {
-            console.warn('Character controls update: character is null');
-            return;
+        // Update character position based on movement flags
+        if (this.moveForward) {
+            this.character.position.z -= this.moveSpeed * deltaTime;
+        }
+        if (this.moveBackward) {
+            this.character.position.z += this.moveSpeed * deltaTime;
+        }
+        if (this.moveLeft) {
+            this.character.position.x -= this.moveSpeed * deltaTime;
+        }
+        if (this.moveRight) {
+            this.character.position.x += this.moveSpeed * deltaTime;
         }
         
-        // Handle rotation first
+        // Update character rotation
         if (this.rotateLeft) {
             this.character.rotation.y += this.rotateSpeed * deltaTime;
         }
         if (this.rotateRight) {
             this.character.rotation.y -= this.rotateSpeed * deltaTime;
         }
-        
-        // Get character's forward and right vectors based on its current rotation
-        const forward = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), this.character.rotation.y);
-        const right = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), this.character.rotation.y);
-        
-        // Calculate movement in character's local space
-        const moveAmount = this.moveSpeed * deltaTime;
-        
-        // Apply movement relative to character's orientation (local coordinates)
-        if (this.moveForward) {
-            this.character.position.x += forward.x * moveAmount;
-            this.character.position.z += forward.z * moveAmount;
-        }
-        if (this.moveBackward) {
-            this.character.position.x -= forward.x * moveAmount;
-            this.character.position.z -= forward.z * moveAmount;
-        }
-        if (this.moveLeft) {
-            this.character.position.x += right.x * moveAmount;
-            this.character.position.z += right.z * moveAmount;
-        }
-        if (this.moveRight) {
-            this.character.position.x -= right.x * moveAmount;
-            this.character.position.z -= right.z * moveAmount;
-        }
-        
-        console.log('Character position:', this.character.position);
-        console.log('Movement flags:', {
-            forward: this.moveForward,
-            backward: this.moveBackward,
-            left: this.moveLeft,
-            right: this.moveRight,
-            rotateLeft: this.rotateLeft,
-            rotateRight: this.rotateRight
-        });
-        
-        // Play walk animation
-        if (this.character.userData && this.character.userData.animationController) {
-            this.character.userData.animationController.playAnimation('walk');
-        }
     }
-
+    
     isMoving() {
-        return this.moveForward || this.moveBackward || this.moveLeft || this.moveRight;
+        return this.moveForward || this.moveBackward || this.moveLeft || this.moveRight || this.rotateLeft || this.rotateRight;
     }
 } 

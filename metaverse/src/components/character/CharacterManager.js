@@ -8,12 +8,18 @@ export default class CharacterManager {
         this.domElement = domElement;
         this.loader = new GLTFLoader();
         this.defaultCharacterUrl = './assets/models/metaverse-explorer.glb';
+        this.jumpCharacterUrl = './assets/models/metaverse-jump.glb';
         this.character = null;
         this.characterMixer = null;
         this.animations = {};
         this.username = 'Guest';
         this.characterControls = null;
         this.camera = null;
+        this.isJumpModel = false;
+        
+        // Bind methods
+        this.handleKeyPress = this.handleKeyPress.bind(this);
+        this.swapCharacterModel = this.swapCharacterModel.bind(this);
     }
 
     async initialize() {
@@ -26,8 +32,67 @@ export default class CharacterManager {
         // Create username label
         this.createUsernameLabel();
         
+        // Add keyboard event listener
+        window.addEventListener('keydown', this.handleKeyPress);
+        
         // Return the character for further use
         return this.character;
+    }
+
+    handleKeyPress(event) {
+        if (event.code === 'Space') {
+            this.swapCharacterModel();
+        }
+    }
+
+    async swapCharacterModel() {
+        // Store current position and rotation
+        const currentPosition = this.character.position.clone();
+        const currentRotation = this.character.rotation.clone();
+        
+        // Remove current character from scene
+        this.scene.remove(this.character);
+        
+        // Toggle model type
+        this.isJumpModel = !this.isJumpModel;
+        
+        // Load new model
+        const modelUrl = this.isJumpModel ? this.jumpCharacterUrl : this.defaultCharacterUrl;
+        const gltf = await this.loadModel(modelUrl);
+        
+        // Set up the new character
+        this.character = gltf.scene;
+        this.character.name = 'playerCharacter';
+        this.character.position.copy(currentPosition);
+        this.character.rotation.copy(currentRotation);
+        
+        // Setup animations
+        if (gltf.animations && gltf.animations.length) {
+            this.characterMixer = new THREE.AnimationMixer(this.character);
+            
+            // Store animations by name
+            gltf.animations.forEach(animation => {
+                this.animations[animation.name] = this.characterMixer.clipAction(animation);
+            });
+            
+            // Play appropriate animation based on model type
+            if (this.isJumpModel && this.animations['jump']) {
+                this.animations['jump'].play();
+            } else if (!this.isJumpModel && this.animations['idle']) {
+                this.animations['idle'].play();
+            }
+        }
+        
+        // Add character to scene
+        this.scene.add(this.character);
+        
+        // Update character controls with new model
+        if (this.characterControls) {
+            this.characterControls.setCharacter(this.character);
+        }
+        
+        // Recreate username label
+        this.createUsernameLabel();
     }
 
     setCamera(camera) {
@@ -191,23 +256,27 @@ export default class CharacterManager {
             // Check if character is moving
             const isMoving = this.characterControls.isMoving();
             
-            // Get the animation
-            const animation = this.animations["mixamo.com"];
+            // Get the appropriate animation based on model type
+            const animation = this.isJumpModel ? 
+                this.animations['jump'] : 
+                this.animations['mixamo.com'];
             
-            if (isMoving) {
-                // Play animation at normal speed when moving
-                if (!animation.isRunning()) {
-                    animation.timeScale = 1.0;
-                    animation.play();
+            if (animation) {
+                if (isMoving) {
+                    // Play animation at normal speed when moving
+                    if (!animation.isRunning()) {
+                        animation.timeScale = 1.0;
+                        animation.play();
+                    }
+                } else {
+                    // When idle, stop the animation and reset to initial pose
+                    animation.stop();
+                    this.characterMixer.setTime(0);
                 }
-            } else {
-                // When idle, stop the animation and reset to initial pose
-                animation.stop();
-                this.characterMixer.setTime(0);
+                
+                // Ensure animation loops
+                animation.loop = THREE.LoopRepeat;
             }
-            
-            // Ensure animation loops
-            animation.loop = THREE.LoopRepeat;
         }
     }
 
