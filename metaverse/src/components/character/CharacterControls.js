@@ -223,18 +223,23 @@ export default class CharacterControls {
     }
     
     update(deltaTime) {
+        // Calculate movement direction based on character's rotation
+        const moveAngle = this.character.rotation.y;
+        const forwardVector = new THREE.Vector3(Math.sin(moveAngle), 0, Math.cos(moveAngle));
+        const rightVector = new THREE.Vector3(Math.sin(moveAngle + Math.PI/2), 0, Math.cos(moveAngle + Math.PI/2));
+
         // Update character position based on movement flags
         if (this.moveForward) {
-            this.character.position.z -= this.moveSpeed * deltaTime;
+            this.character.position.add(forwardVector.multiplyScalar(this.moveSpeed * deltaTime));
         }
         if (this.moveBackward) {
-            this.character.position.z += this.moveSpeed * deltaTime;
+            this.character.position.add(forwardVector.multiplyScalar(-this.moveSpeed * deltaTime));
         }
         if (this.moveLeft) {
-            this.character.position.x -= this.moveSpeed * deltaTime;
+            this.character.position.add(rightVector.multiplyScalar(-this.moveSpeed * deltaTime));
         }
         if (this.moveRight) {
-            this.character.position.x += this.moveSpeed * deltaTime;
+            this.character.position.add(rightVector.multiplyScalar(this.moveSpeed * deltaTime));
         }
         
         // Update character rotation
