@@ -3,86 +3,32 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader.js';
-import { trackEvent } from './utils/posthog.js';
-import { isMobileDevice } from './mobileControls.js';
-import { PortalModel } from './portalModel.js';
-
-// Global variables and setup
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-const loadingManager = new THREE.LoadingManager();
 
 // Model loaders
+const loadingManager = new THREE.LoadingManager();
 const gltfLoader = new GLTFLoader(loadingManager);
 const objLoader = new OBJLoader(loadingManager);
 const mtlLoader = new MTLLoader(loadingManager);
 
-// Initialize function
-function init() {
-  // Setup renderer
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.shadowMap.enabled = true;
-  document.body.appendChild(renderer.domElement);
-  
-  // Setup camera
-  camera.position.set(0, 5, 10);
-  scene.add(camera);
-  
-  // Add basic lighting
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-  scene.add(ambientLight);
-  
-  const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-  directionalLight.position.set(20, 30, 10);
-  directionalLight.castShadow = true;
-  scene.add(directionalLight);
-  
-  // Create ground
-  const groundGeometry = new THREE.PlaneGeometry(200, 200);
-  const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x4CAF50 });
-  const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-  ground.rotation.x = -Math.PI / 2;
-  ground.receiveShadow = true;
-  scene.add(ground);
-  
-  // Create environment elements with loading feedback
-  try {
-    createEnvironmentElements(scene, loadingManager);
-    
-    // Add loading manager handlers
-    loadingManager.onProgress = function(url, itemsLoaded, itemsTotal) {
-      console.log(`Loading environment elements: ${(itemsLoaded / itemsTotal * 100)}% loaded`);
-    };
-
-    loadingManager.onError = function(url) {
-      console.error('Error loading environment element:', url);
-    };
-
-    loadingManager.onLoad = function() {
-      console.log('All environment elements loaded successfully');
-    };
-  } catch (error) {
-    console.error('Failed to create environment elements:', error);
-  }
-  
-  // Create other elements from your existing code
-  createHills(scene);
-  createPortals(scene, loadingManager);
-  
-  // Start animation loop
-  animate();
-}
-
 // Function to load GLTF models
 async function loadGLTFModel(url, position = new THREE.Vector3(0, 0, 0), scale = new THREE.Vector3(1, 1, 1), rotation = new THREE.Euler(0, 0, 0)) {
   try {
+    console.log(`Starting to load model: ${url}`);
     const gltf = await new Promise((resolve, reject) => {
       gltfLoader.load(
         url,
-        (gltf) => resolve(gltf),
-        (xhr) => console.log(`Loading model: ${(xhr.loaded / xhr.total) * 100}% loaded`),
-        (error) => reject(error)
+        (gltf) => {
+          console.log(`Successfully loaded model: ${url}`);
+          console.log('Model position:', position);
+          console.log('Model scale:', scale);
+          console.log('Model rotation:', rotation);
+          resolve(gltf);
+        },
+        (xhr) => console.log(`Loading model ${url}: ${(xhr.loaded / xhr.total) * 100}% loaded`),
+        (error) => {
+          console.error(`Error loading model ${url}:`, error);
+          reject(error);
+        }
       );
     });
 
@@ -96,6 +42,7 @@ async function loadGLTFModel(url, position = new THREE.Vector3(0, 0, 0), scale =
       if (child.isMesh) {
         child.castShadow = true;
         child.receiveShadow = true;
+        console.log(`Mesh ${child.name} added to model`);
       }
     });
 
@@ -106,78 +53,52 @@ async function loadGLTFModel(url, position = new THREE.Vector3(0, 0, 0), scale =
   }
 }
 
-// Function to load OBJ models with materials
-async function loadOBJModel(objUrl, mtlUrl, position = new THREE.Vector3(0, 0, 0), scale = new THREE.Vector3(1, 1, 1), rotation = new THREE.Euler(0, 0, 0)) {
-  try {
-    // Load materials first if MTL URL is provided
-    if (mtlUrl) {
-      const materials = await new Promise((resolve, reject) => {
-        mtlLoader.load(
-          mtlUrl,
-          (materials) => resolve(materials),
-          undefined,
-          (error) => reject(error)
-        );
-      });
-      materials.preload();
-      objLoader.setMaterials(materials);
-    }
-
-    // Load the OBJ model
-    const model = await new Promise((resolve, reject) => {
-      objLoader.load(
-        objUrl,
-        (object) => resolve(object),
-        (xhr) => console.log(`Loading model: ${(xhr.loaded / xhr.total) * 100}% loaded`),
-        (error) => reject(error)
-      );
-    });
-
-    model.position.copy(position);
-    model.scale.copy(scale);
-    model.rotation.copy(rotation);
-
-    // Enable shadows
-    model.traverse((child) => {
-      if (child.isMesh) {
-        child.castShadow = true;
-        child.receiveShadow = true;
-      }
-    });
-
-    return model;
-  } catch (error) {
-    console.error('Error loading OBJ model:', error);
-    return null;
-  }
-}
-
 // Function to create environment elements
-async function createEnvironmentElements(scene, loadingManager) {
-  // Example: Load a portal model
-  const portalModel = await loadGLTFModel(
-    './assets/models/new-portal/portal-new.gltf',
-    new THREE.Vector3(0, 0, -10),
-    new THREE.Vector3(1, 1, 1),
-    new THREE.Euler(0, 0, 0)
-  );
+async function createEnvironmentElements(scene) {
+  console.log('createEnvironmentElements called');
+  // Create a group to hold all environment objects
+  const environment = new THREE.Group();
+  scene.add(environment);
 
-  if (portalModel) {
-    scene.add(portalModel);
+  try {
+    // Load Office Computer
+    console.log('About to load Office Computer...');
+    const officeComputer = await loadGLTFModel(
+      '/assets/models/office_computer.glb',
+      new THREE.Vector3(-25, 0, 15),
+      new THREE.Vector3(0.04, 0.04, 0.04),
+      new THREE.Euler(0, Math.PI + Math.PI / 7, 0)
+    );
+    console.log('Office Computer loaded:', officeComputer);
+    if (officeComputer) environment.add(officeComputer);
+
+    // Load Eiffel Tower
+    console.log('About to load Eiffel Tower...');
+    const eiffelTower = await loadGLTFModel(
+      '/assets/models/eiffel_tower.glb',
+      new THREE.Vector3(65, 0, -70),
+      new THREE.Vector3(5, 6, 5),
+      new THREE.Euler(0, 0, 0)
+    );
+    console.log('Eiffel Tower loaded:', eiffelTower);
+    if (eiffelTower) environment.add(eiffelTower);
+
+    // Load Sagrada Familia
+    console.log('About to load Sagrada Familia...');
+    const sagradaFamilia = await loadGLTFModel(
+      '/assets/models/sagrada_familia_2.glb',
+      new THREE.Vector3(75, 0, -90),
+      new THREE.Vector3(0.25, 0.25, 0.25),
+      new THREE.Euler(0, Math.PI / 6, 0)
+    );
+    console.log('Sagrada Familia loaded:', sagradaFamilia);
+    if (sagradaFamilia) environment.add(sagradaFamilia);
+  } catch (error) {
+    console.error('Error in createEnvironmentElements:', error);
   }
 
-  // Add more model loading here as needed
+  return environment;
 }
 
-// Animation loop
-function animate() {
-  requestAnimationFrame(animate);
-  
-  // Update animations and controls
-  
-  // Render the scene
-  renderer.render(scene, camera);
-}
-
-// Start the application when page loads
-window.addEventListener('DOMContentLoaded', init);
+// Export the function to be used in main.js
+export { createEnvironmentElements };

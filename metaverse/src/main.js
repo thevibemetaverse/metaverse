@@ -5,6 +5,7 @@ import Sky from './components/environment/sky';
 import Ground from './components/environment/ground';
 import HillsGenerator from './components/environment/hills';
 import { MetaverseCamera } from './components/character/camera';
+import { createEnvironmentElements } from './components/environment/environmentelements.js';
 
 // Scene setup
 const scene = new THREE.Scene();
@@ -36,6 +37,13 @@ const hills = new HillsGenerator({
     colors: [0x8AE68A, 0x9EEE9E, 0xB0F7B0]
 });
 scene.add(hills.init());
+
+// Add environment elements
+createEnvironmentElements(scene).then(environment => {
+    console.log('Environment elements created:', environment);
+}).catch(error => {
+    console.error('Error creating environment elements:', error);
+});
 
 // Initialize character manager
 const characterManager = new CharacterManager(scene, camera, renderer.domElement);
