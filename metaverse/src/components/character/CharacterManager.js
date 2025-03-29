@@ -27,6 +27,16 @@ export default class CharacterManager {
         this.username = 'Guest';
         this.characterControls = null;
         this.camera = null;
+        this.portalManager = null;
+        this.playerState = {};
+        
+        // Portal collision properties
+        this.lastPortalCheck = 0;
+        this.portalCheckInterval = 100;
+        this.lastPortalCollision = null;
+        this.portalCheckEnabled = false; // Add flag to track if checks are enabled
+        
+        console.log('[CharacterManager] Initialized with scene and domElement');
         
         // Animation properties
         this.animations = {};
@@ -646,6 +656,50 @@ export default class CharacterManager {
         if (this.characterControls) {
             this.characterControls.update(deltaTime);
             
+            // Check portal collision if portal manager exists and checks are enabled
+            if (this.portalCheckEnabled && this.portalManager && this.character) {
+                const currentTime = Date.now();
+                if (currentTime - this.lastPortalCheck >= this.portalCheckInterval) {
+                    this.lastPortalCheck = currentTime;
+                    
+                    const playerPosition = this.character.position;
+                    console.log('[CharacterManager] Portal check cycle:', {
+                        time: currentTime,
+                        playerPosition: playerPosition.toArray(),
+                        hasPortalManager: !!this.portalManager,
+                        portalCount: this.portalManager.portals.length
+                    });
+                    
+                    const portal = this.portalManager.checkCollision(playerPosition);
+                    
+                    if (portal) {
+                        // Only trigger if it's a new portal collision
+                        if (this.lastPortalCollision !== portal.portalId) {
+                            console.log('[CharacterManager] New portal collision detected:', portal.portalId);
+                            this.lastPortalCollision = portal.portalId;
+                            
+                            // Get the destination URL from the portal
+                            const destinationURL = portal.prepareDestinationURL(this.playerState);
+                            console.log('[CharacterManager] Redirecting to:', destinationURL);
+                            
+                            // Add a small delay before redirecting to ensure smooth transition
+                            setTimeout(() => {
+                                window.location.href = destinationURL;
+                            }, 500);
+                        }
+                    } else {
+                        // Reset last portal collision if no collision detected
+                        this.lastPortalCollision = null;
+                    }
+                }
+            } else if (!this.portalCheckEnabled) {
+                console.log('[CharacterManager] Portal checks disabled. State:', {
+                    hasPortalManager: !!this.portalManager,
+                    hasCharacter: !!this.character,
+                    portalCheckEnabled: this.portalCheckEnabled
+                });
+            }
+            
             // Check if currently moving based on controls state
             const isMoving = this.characterControls.isMoving();
             
@@ -758,6 +812,26 @@ export default class CharacterManager {
     updateCameraReference() {
         if (this.camera && this.camera.userData && this.camera.userData.followCamera) {
             this.camera.userData.followCamera.player = this.character;
+        }
+    }
+
+    // Update the setPortalManager method
+    setPortalManager(portalManager) {
+        console.log('[CharacterManager] Setting portal manager:', portalManager);
+        this.portalManager = portalManager;
+        this.portalCheckEnabled = true;
+        
+        // Log initial portal state
+        if (portalManager) {
+            console.log('[CharacterManager] Portal manager state:', {
+                hasPortals: portalManager.portals.length > 0,
+                portalCount: portalManager.portals.length,
+                portals: portalManager.portals.map(p => ({
+                    id: p.portalId,
+                    position: p.mesh?.position,
+                    isActive: p.isActive
+                }))
+            });
         }
     }
 } 

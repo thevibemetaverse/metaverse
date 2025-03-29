@@ -69,6 +69,10 @@ export default class Game {
             console.log('[Game] Initializing portals');
             await this.portalManager.initializeDefaultPortals();
 
+            // Connect portal manager to character manager
+            console.log('[Game] Connecting portal manager to character manager');
+            this.characterManager.setPortalManager(this.portalManager);
+
             // Start checking for portal collisions
             console.log('[Game] Starting portal collision checks');
             this.startPortalCollisionCheck();

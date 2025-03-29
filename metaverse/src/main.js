@@ -92,6 +92,10 @@ characterManager.initialize().then(async (loadedCharacter) => {
     console.log('[main] Initializing portals');
     await portalManager.initializeDefaultPortals();
     
+    // Connect portal manager to character manager
+    console.log('[main] Connecting portal manager to character manager');
+    characterManager.setPortalManager(portalManager);
+    
     animate();
 }).catch(error => {
     console.error('Failed to initialize character:', error);

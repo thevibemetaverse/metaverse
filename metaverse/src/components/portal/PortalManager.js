@@ -16,6 +16,8 @@ export class PortalManager {
         // UI elements
         this.portalUI = null;
         this.setupPortalUI();
+        
+        console.log('[PortalManager] Initialized with scene, camera, and playerState');
     }
     
     setupPortalUI() {
@@ -66,6 +68,13 @@ export class PortalManager {
             // Log scene state before adding
             console.log('[PortalManager] Scene children count before adding portal:', this.scene.children.length);
             
+            // Set position and rotation explicitly
+            portalMesh.position.copy(portalConfig.position);
+            portalMesh.rotation.copy(portalConfig.rotation);
+            
+            // Log portal position after setting
+            console.log(`[PortalManager] Portal ${portalConfig.portalId} position:`, portalMesh.position);
+            
             this.scene.add(portalMesh);
             
             // Log scene state after adding
@@ -81,7 +90,7 @@ export class PortalManager {
     }
     
     async initializeDefaultPortals() {
-        console.log('[PortalManager] Initializing default portals');
+        console.log('[PortalManager] Starting default portals initialization');
         console.log('[PortalManager] Current scene children count:', this.scene.children.length);
         
         // Portal configurations
@@ -90,7 +99,7 @@ export class PortalManager {
             {
                 position: new THREE.Vector3(-17.5, 0, 25),  // -67.5 + 50 = -17.5
                 rotation: new THREE.Euler(0, 0, 0),
-                destination: "https://example-game1.com",
+                destination: "https://thevibemetaverse.vercel.app/api/portal/thevibemetaverse",
                 portalId: "portal-1",
                 title: "Portal 1",
                 description: "First portal in the row",
@@ -99,7 +108,7 @@ export class PortalManager {
             {
                 position: new THREE.Vector3(-2.5, 0, 25),   // -52.5 + 50 = -2.5
                 rotation: new THREE.Euler(0, 0, 0),
-                destination: "https://example-game2.com",
+                destination: "https://thevibemetaverse.vercel.app/api/portal/thevibemetaverse",
                 portalId: "portal-2",
                 title: "Portal 2",
                 description: "Second portal in the row",
@@ -108,7 +117,7 @@ export class PortalManager {
             {
                 position: new THREE.Vector3(12.5, 0, 25),   // -37.5 + 50 = 12.5
                 rotation: new THREE.Euler(0, 0, 0),
-                destination: "https://example-game3.com",
+                destination: "https://thevibemetaverse.vercel.app/api/portal/thevibemetaverse",
                 portalId: "portal-3",
                 title: "Portal 3",
                 description: "Center portal",
@@ -117,7 +126,7 @@ export class PortalManager {
             {
                 position: new THREE.Vector3(27.5, 0, 25),   // -22.5 + 50 = 27.5
                 rotation: new THREE.Euler(0, 0, 0),
-                destination: "https://example-game4.com",
+                destination: "https://thevibemetaverse.vercel.app/api/portal/thevibemetaverse",
                 portalId: "portal-4",
                 title: "Portal 4",
                 description: "Fourth portal in the row",
@@ -126,7 +135,7 @@ export class PortalManager {
             {
                 position: new THREE.Vector3(42.5, 0, 25),   // -7.5 + 50 = 42.5
                 rotation: new THREE.Euler(0, 0, 0),
-                destination: "https://example-game5.com",
+                destination: "https://thevibemetaverse.vercel.app/api/portal/thevibemetaverse",
                 portalId: "portal-5",
                 title: "Portal 5",
                 description: "Rightmost portal in the row",
@@ -135,7 +144,7 @@ export class PortalManager {
             {
                 position: new THREE.Vector3(57.5, 0, 25),   // 7.5 + 50 = 57.5
                 rotation: new THREE.Euler(0, 0, 0),
-                destination: "https://example-game6.com",
+                destination: "https://thevibemetaverse.vercel.app/api/portal/thevibemetaverse",
                 portalId: "portal-6",
                 title: "Portal 6",
                 description: "Portal behind the user",
@@ -144,7 +153,7 @@ export class PortalManager {
             {
                 position: new THREE.Vector3(72.5, 0, 25),   // 22.5 + 50 = 72.5
                 rotation: new THREE.Euler(0, 0, 0),
-                destination: "https://example-game7.com",
+                destination: "https://thevibemetaverse.vercel.app/api/portal/thevibemetaverse",
                 portalId: "portal-7",
                 title: "Portal 7",
                 description: "Portal in the corner",
@@ -153,7 +162,7 @@ export class PortalManager {
             {
                 position: new THREE.Vector3(87.5, 0, 25),   // 37.5 + 50 = 87.5
                 rotation: new THREE.Euler(0, 0, 0),
-                destination: "https://example-game8.com",
+                destination: "https://thevibemetaverse.vercel.app/api/portal/thevibemetaverse",
                 portalId: "portal-8",
                 title: "Portal 8",
                 description: "Portal in the corner",
@@ -162,7 +171,7 @@ export class PortalManager {
             {
                 position: new THREE.Vector3(102.5, 0, 25),  // 52.5 + 50 = 102.5
                 rotation: new THREE.Euler(0, 0, 0),
-                destination: "https://example-game9.com",
+                destination: "https://thevibemetaverse.vercel.app/api/portal/thevibemetaverse",
                 portalId: "portal-9",
                 title: "Portal 9",
                 description: "Portal in the corner",
@@ -171,7 +180,7 @@ export class PortalManager {
             {
                 position: new THREE.Vector3(117.5, 0, 25),  // 67.5 + 50 = 117.5
                 rotation: new THREE.Euler(0, 0, 0),
-                destination: "https://example-game10.com",
+                destination: "https://thevibemetaverse.vercel.app/api/portal/thevibemetaverse",
                 portalId: "portal-10",
                 title: "Portal 10",
                 description: "Portal in the corner",
@@ -181,7 +190,7 @@ export class PortalManager {
             {
                 position: new THREE.Vector3(0, 0, -25),
                 rotation: new THREE.Euler(0, Math.PI, 0),
-                destination: "https://example-game11.com",
+                destination: "https://thevibemetaverse.vercel.app/api/portal/thevibemetaverse",
                 portalId: "portal-11",
                 title: "Portal 11",
                 description: "Portal behind the user",
@@ -191,7 +200,7 @@ export class PortalManager {
             {
                 position: new THREE.Vector3(15, 0, -5),  // z changed from -15 to -5
                 rotation: new THREE.Euler(0, 0, 0),
-                destination: "https://example-game14.com",
+                destination: "https://thevibemetaverse.vercel.app/api/portal/thevibemetaverse",
                 portalId: "portal-14",
                 title: "Portal 14",
                 description: "Portal in the corner",
@@ -200,7 +209,7 @@ export class PortalManager {
             {
                 position: new THREE.Vector3(30, 0, -5),  // z changed from -15 to -5
                 rotation: new THREE.Euler(0, 0, 0),
-                destination: "https://example-game15.com",
+                destination: "https://thevibemetaverse.vercel.app/api/portal/thevibemetaverse",
                 portalId: "portal-15",
                 title: "Portal 15",
                 description: "Portal in the corner",
@@ -209,7 +218,7 @@ export class PortalManager {
             {
                 position: new THREE.Vector3(45, 0, -5),  // z changed from -15 to -5
                 rotation: new THREE.Euler(0, 0, 0),
-                destination: "https://example-game16.com",
+                destination: "https://thevibemetaverse.vercel.app/api/portal/thevibemetaverse",
                 portalId: "portal-16",
                 title: "Portal 16",
                 description: "Portal in the corner",
@@ -218,7 +227,7 @@ export class PortalManager {
             {
                 position: new THREE.Vector3(60, 0, -5),  // z changed from -15 to -5
                 rotation: new THREE.Euler(0, 0, 0),
-                destination: "https://example-game17.com",
+                destination: "https://thevibemetaverse.vercel.app/api/portal/thevibemetaverse",
                 portalId: "portal-17",
                 title: "Portal 17",
                 description: "Portal in the corner",
@@ -227,7 +236,7 @@ export class PortalManager {
             {
                 position: new THREE.Vector3(75, 0, -5),  // z changed from -15 to -5
                 rotation: new THREE.Euler(0, 0, 0),
-                destination: "https://example-game18.com",
+                destination: "https://thevibemetaverse.vercel.app/api/portal/thevibemetaverse",
                 portalId: "portal-18",
                 title: "Portal 18",
                 description: "Portal in the corner",
@@ -236,7 +245,7 @@ export class PortalManager {
             {
                 position: new THREE.Vector3(90, 0, -5),  // z changed from -15 to -5
                 rotation: new THREE.Euler(0, 0, 0),
-                destination: "https://example-game19.com",
+                destination: "https://thevibemetaverse.vercel.app/api/portal/thevibemetaverse",
                 portalId: "portal-19",
                 title: "Portal 19",
                 description: "Portal in the corner",
@@ -245,7 +254,7 @@ export class PortalManager {
             {
                 position: new THREE.Vector3(-25, 0, -2),
                 rotation: new THREE.Euler(0, Math.PI / 2, 0),
-                destination: "https://example-game20.com",
+                destination: "https://thevibemetaverse.vercel.app/api/portal/thevibemetaverse",
                 portalId: "portal-20",
                 title: "Portal 20",
                 description: "Portal facing the desk",
@@ -254,7 +263,7 @@ export class PortalManager {
             {
                 position: new THREE.Vector3(-25, 0, -12),
                 rotation: new THREE.Euler(0, Math.PI / 2, 0),
-                destination: "https://example-game21.com",
+                destination: "https://thevibemetaverse.vercel.app/api/portal/thevibemetaverse",
                 portalId: "portal-21",
                 title: "Portal 21",
                 description: "Portal facing the desk",
@@ -263,7 +272,7 @@ export class PortalManager {
             {
                 position: new THREE.Vector3(-25, 0, -22),
                 rotation: new THREE.Euler(0, Math.PI / 2, 0),
-                destination: "https://example-game22.com",
+                destination: "https://thevibemetaverse.vercel.app/api/portal/thevibemetaverse",
                 portalId: "portal-22",
                 title: "Portal 22",
                 description: "Portal facing the desk",
@@ -272,7 +281,7 @@ export class PortalManager {
             {
                 position: new THREE.Vector3(-25, 0, -32),
                 rotation: new THREE.Euler(0, Math.PI / 2, 0),
-                destination: "https://example-game23.com",
+                destination: "https://thevibemetaverse.vercel.app/api/portal/thevibemetaverse",
                 portalId: "portal-23",
                 title: "Portal 23",
                 description: "Portal facing the desk",
@@ -281,7 +290,7 @@ export class PortalManager {
             {
                 position: new THREE.Vector3(-25, 0, -42),
                 rotation: new THREE.Euler(0, Math.PI / 2, 0),
-                destination: "https://example-game24.com",
+                destination: "https://thevibemetaverse.vercel.app/api/portal/thevibemetaverse",
                 portalId: "portal-24",
                 title: "Portal 24",
                 description: "Portal facing the desk",
@@ -290,7 +299,7 @@ export class PortalManager {
             {
                 position: new THREE.Vector3(-25, 0, -52),
                 rotation: new THREE.Euler(0, Math.PI / 2, 0),
-                destination: "https://example-game25.com",
+                destination: "https://thevibemetaverse.vercel.app/api/portal/thevibemetaverse",
                 portalId: "portal-25",
                 title: "Portal 25",
                 description: "Portal facing the desk",
@@ -298,15 +307,27 @@ export class PortalManager {
             }
         ];
         
+        // Update all portal destinations to use the same URL
+        defaultPortals.forEach(portal => {
+            portal.destination = "https://thevibemetaverse.vercel.app/api/portal/thevibemetaverse";
+        });
+        
         console.log('[PortalManager] Starting to add portals to scene');
         // Add each default portal
         const promises = defaultPortals.map(config => this.addPortal(config));
         const results = await Promise.all(promises);
         const successfulPortals = results.filter(Boolean).length;
-        console.log('[PortalManager] Portal initialization complete:');
-        console.log('- Successfully added:', successfulPortals, 'portals');
-        console.log('- Failed to add:', defaultPortals.length - successfulPortals, 'portals');
-        console.log('- Total scene children:', this.scene.children.length);
+        console.log('[PortalManager] Portal initialization complete:', {
+            totalPortals: defaultPortals.length,
+            successfulPortals,
+            failedPortals: defaultPortals.length - successfulPortals,
+            sceneChildrenCount: this.scene.children.length,
+            portalPositions: this.portals.map(p => ({
+                id: p.portalId,
+                position: p.mesh?.position,
+                isActive: p.isActive
+            }))
+        });
     }
     
     async fetchPortalsFromAPI() {
@@ -337,13 +358,46 @@ export class PortalManager {
         this.portals = [];
     }
     
-    checkCollision(playerPosition, collisionDistance = 1.5) {
+    checkCollision(playerPosition, collisionDistance = 2.0) {
+        // Log all portal positions for debugging
+        const portalState = this.portals.map(p => ({
+            id: p.portalId,
+            position: p.mesh?.position,
+            isActive: p.isActive,
+            hasMesh: !!p.mesh
+        }));
+        
+        console.log('[PortalManager] Portal collision check:', {
+            playerPosition: playerPosition.toArray(),
+            collisionDistance,
+            portalCount: this.portals.length,
+            portalState
+        });
+        
         // Simple distance-based collision detection
         for (const portal of this.portals) {
-            if (!portal.mesh || !portal.isActive) continue;
+            if (!portal.mesh || !portal.isActive) {
+                console.log(`[PortalManager] Skipping portal ${portal.portalId}:`, {
+                    hasMesh: !!portal.mesh,
+                    isActive: portal.isActive
+                });
+                continue;
+            }
             
-            const distance = playerPosition.distanceTo(portal.mesh.position);
+            const portalPosition = portal.mesh.position;
+            const distance = playerPosition.distanceTo(portalPosition);
+            
+            // Log collision check for debugging
+            console.log(`[PortalManager] Checking collision with portal ${portal.portalId}:`, {
+                distance,
+                threshold: collisionDistance,
+                playerPos: playerPosition.toArray(),
+                portalPos: portalPosition.toArray(),
+                isActive: portal.isActive
+            });
+            
             if (distance < collisionDistance) {
+                console.log(`[PortalManager] Collision detected with portal ${portal.portalId}`);
                 this.showPortalInfo(portal);
                 return portal;
             }
