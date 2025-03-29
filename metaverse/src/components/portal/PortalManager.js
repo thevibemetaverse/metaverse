@@ -56,44 +56,297 @@ export class PortalManager {
     }
     
     async addPortal(portalConfig) {
+        console.log('[PortalManager] Adding portal:', portalConfig);
         const portal = new Portal(portalConfig);
         try {
+            console.log('[PortalManager] Loading portal model from:', portalConfig.modelPath);
             const portalMesh = await portal.load(this.loadingManager);
+            console.log('[PortalManager] Portal model loaded successfully, adding to scene');
+            
+            // Log scene state before adding
+            console.log('[PortalManager] Scene children count before adding portal:', this.scene.children.length);
+            
             this.scene.add(portalMesh);
+            
+            // Log scene state after adding
+            console.log('[PortalManager] Scene children count after adding portal:', this.scene.children.length);
+            
             this.portals.push(portal);
+            console.log('[PortalManager] Portal added successfully. Total portals:', this.portals.length);
             return portal;
         } catch (error) {
-            console.error("Failed to add portal:", error);
+            console.error("[PortalManager] Failed to add portal:", error);
             return null;
         }
     }
     
     async initializeDefaultPortals() {
-        // Sample hardcoded portals
+        console.log('[PortalManager] Initializing default portals');
+        console.log('[PortalManager] Current scene children count:', this.scene.children.length);
+        
+        // Portal configurations
         const defaultPortals = [
             {
-                position: new THREE.Vector3(5, 1, 0),
-                rotation: new THREE.Euler(0, Math.PI / 4, 0),
+                position: new THREE.Vector3(-20, 0, 25),
+                rotation: new THREE.Euler(0, 0, 0),
+                scale: new THREE.Vector3(2, 2, 2),
                 destination: "https://example-game1.com",
-                portalId: "game-1",
-                title: "Adventure World",
-                description: "Explore mysterious ruins and solve ancient puzzles",
-                modelPath: './assets/models/new-portal.gltf'
+                portalId: "portal-1",
+                title: "Portal 1",
+                description: "First portal in the row",
+                modelPath: '/assets/models/portal/portal-new.gltf'  // Updated path
             },
             {
-                position: new THREE.Vector3(-5, 1, 3),
-                rotation: new THREE.Euler(0, -Math.PI / 4, 0),
+                position: new THREE.Vector3(-10, 0, 25),
+                rotation: new THREE.Euler(0, 0, 0),
+                scale: new THREE.Vector3(1.0, 1.0, 1.0),
                 destination: "https://example-game2.com",
-                portalId: "game-2",
-                title: "Space Explorer",
-                description: "Navigate the cosmos and discover new planets",
-                modelPath: './assets/models/new-portal.gltf'
+                portalId: "portal-2",
+                title: "Portal 2",
+                description: "Second portal in the row",
+                modelPath: '/assets/models/portal/portal-new.gltf'  // Updated path
+            },
+            {
+                position: new THREE.Vector3(0, 0, 25),
+                rotation: new THREE.Euler(0, 0, 0),
+                scale: new THREE.Vector3(1.0, 1.0, 1.0),
+                destination: "https://example-game3.com",
+                portalId: "portal-3",
+                title: "Portal 3",
+                description: "Center portal",
+                modelPath: '/assets/models/portal/portal-new.gltf'  // Updated path
+            },
+            {
+                position: new THREE.Vector3(10, 0, 25),
+                rotation: new THREE.Euler(0, 0, 0),
+                scale: new THREE.Vector3(1.0, 1.0, 1.0),
+                destination: "https://example-game4.com",
+                portalId: "portal-4",
+                title: "Portal 4",
+                description: "Fourth portal in the row",
+                modelPath: '/assets/models/portal/portal-new.gltf'  // Updated path
+            },
+            {
+                position: new THREE.Vector3(20, 0, 25),
+                rotation: new THREE.Euler(0, 0, 0),
+                scale: new THREE.Vector3(1.0, 1.0, 1.0),
+                destination: "https://example-game5.com",
+                portalId: "portal-5",
+                title: "Portal 5",
+                description: "Rightmost portal in the row",
+                modelPath: '/assets/models/portal/portal-new.gltf'  // Updated path
+            },
+            {
+                position: new THREE.Vector3(0, 0, -25),
+                rotation: new THREE.Euler(0, Math.PI, 0),
+                scale: new THREE.Vector3(1.0, 1.0, 1.0),
+                destination: "https://example-game6.com",
+                portalId: "portal-6",
+                title: "Portal 6",
+                description: "Portal behind the user",
+                modelPath: '/assets/models/portal/portal-new.gltf'  // Updated path
+            },
+            {
+                position: new THREE.Vector3(15, 0, 15),
+                rotation: new THREE.Euler(0, 0, 0),
+                scale: new THREE.Vector3(1.0, 1.0, 1.0),
+                destination: "https://example-game7.com",
+                portalId: "portal-7",
+                title: "Portal 7",
+                description: "Portal in the corner",
+                modelPath: '/assets/models/portal/portal-new.gltf'  // Updated path
+            },
+            {
+                position: new THREE.Vector3(25, 0, 15),
+                rotation: new THREE.Euler(0, 0, 0),
+                scale: new THREE.Vector3(1.0, 1.0, 1.0),
+                destination: "https://example-game8.com",
+                portalId: "portal-8",
+                title: "Portal 8",
+                description: "Portal in the corner",
+                modelPath: '/assets/models/portal/portal-new.gltf'  // Updated path
+            },
+            {
+                position: new THREE.Vector3(25, 0, -15),
+                rotation: new THREE.Euler(0, 0, 0),
+                scale: new THREE.Vector3(1.0, 1.0, 1.0),
+                destination: "https://example-game9.com",
+                portalId: "portal-9",
+                title: "Portal 9",
+                description: "Portal in the corner",
+                modelPath: '/assets/models/portal/portal-new.gltf'  // Updated path
+            },
+            {
+                position: new THREE.Vector3(35, 0, -15),
+                rotation: new THREE.Euler(0, 0, 0),
+                scale: new THREE.Vector3(1.0, 1.0, 1.0),
+                destination: "https://example-game10.com",
+                portalId: "portal-10",
+                title: "Portal 10",
+                description: "Portal in the corner",
+                modelPath: '/assets/models/portal/portal-new.gltf'  // Updated path
+            },
+            {
+                position: new THREE.Vector3(45, 0, -15),
+                rotation: new THREE.Euler(0, 0, 0),
+                scale: new THREE.Vector3(1.0, 1.0, 1.0),
+                destination: "https://example-game11.com",
+                portalId: "portal-11",
+                title: "Portal 11",
+                description: "Portal in the corner",
+                modelPath: '/assets/models/portal/portal-new.gltf'  // Updated path
+            },
+            {
+                position: new THREE.Vector3(55, 0, -15),
+                rotation: new THREE.Euler(0, 0, 0),
+                scale: new THREE.Vector3(1.0, 1.0, 1.0),
+                destination: "https://example-game12.com",
+                portalId: "portal-12",
+                title: "Portal 12",
+                description: "Portal in the corner",
+                modelPath: '/assets/models/portal/portal-new.gltf'  // Updated path
+            },
+            {
+                position: new THREE.Vector3(65, 0, -15),
+                rotation: new THREE.Euler(0, 0, 0),
+                scale: new THREE.Vector3(1.0, 1.0, 1.0),
+                destination: "https://example-game13.com",
+                portalId: "portal-13",
+                title: "Portal 13",
+                description: "Portal in the corner",
+                modelPath: '/assets/models/portal/portal-new.gltf'  // Updated path
+            },
+            {
+                position: new THREE.Vector3(35, 0, 15),
+                rotation: new THREE.Euler(0, 0, 0),
+                scale: new THREE.Vector3(1.0, 1.0, 1.0),
+                destination: "https://example-game14.com",
+                portalId: "portal-14",
+                title: "Portal 14",
+                description: "Portal in the corner",
+                modelPath: '/assets/models/portal/portal-new.gltf'  // Updated path
+            },
+            {
+                position: new THREE.Vector3(45, 0, 15),
+                rotation: new THREE.Euler(0, 0, 0),
+                scale: new THREE.Vector3(1.0, 1.0, 1.0),
+                destination: "https://example-game15.com",
+                portalId: "portal-15",
+                title: "Portal 15",
+                description: "Portal in the corner",
+                modelPath: '/assets/models/portal/portal-new.gltf'  // Updated path
+            },
+            {
+                position: new THREE.Vector3(55, 0, 15),
+                rotation: new THREE.Euler(0, 0, 0),
+                scale: new THREE.Vector3(1.0, 1.0, 1.0),
+                destination: "https://example-game16.com",
+                portalId: "portal-16",
+                title: "Portal 16",
+                description: "Portal in the corner",
+                modelPath: '/assets/models/portal/portal-new.gltf'  // Updated path
+            },
+            {
+                position: new THREE.Vector3(65, 0, 15),
+                rotation: new THREE.Euler(0, 0, 0),
+                scale: new THREE.Vector3(1.0, 1.0, 1.0),
+                destination: "https://example-game17.com",
+                portalId: "portal-17",
+                title: "Portal 17",
+                description: "Portal in the corner",
+                modelPath: '/assets/models/portal/portal-new.gltf'  // Updated path
+            },
+            {
+                position: new THREE.Vector3(75, 0, 15),
+                rotation: new THREE.Euler(0, 0, 0),
+                scale: new THREE.Vector3(1.0, 1.0, 1.0),
+                destination: "https://example-game18.com",
+                portalId: "portal-18",
+                title: "Portal 18",
+                description: "Portal in the corner",
+                modelPath: '/assets/models/portal/portal-new.gltf'  // Updated path
+            },
+            {
+                position: new THREE.Vector3(85, 0, 15),
+                rotation: new THREE.Euler(0, 0, 0),
+                scale: new THREE.Vector3(1.0, 1.0, 1.0),
+                destination: "https://example-game19.com",
+                portalId: "portal-19",
+                title: "Portal 19",
+                description: "Portal in the corner",
+                modelPath: '/assets/models/portal/portal-new.gltf'  // Updated path
+            },
+            {
+                position: new THREE.Vector3(-25, 0, -2),
+                rotation: new THREE.Euler(0, Math.PI / 2, 0),
+                scale: new THREE.Vector3(1.0, 1.0, 1.0),
+                destination: "https://example-game20.com",
+                portalId: "portal-20",
+                title: "Portal 20",
+                description: "Portal facing the desk",
+                modelPath: '/assets/models/portal/portal-new.gltf'  // Updated path
+            },
+            {
+                position: new THREE.Vector3(-25, 0, -12),
+                rotation: new THREE.Euler(0, Math.PI / 2, 0),
+                scale: new THREE.Vector3(1.0, 1.0, 1.0),
+                destination: "https://example-game21.com",
+                portalId: "portal-21",
+                title: "Portal 21",
+                description: "Portal facing the desk",
+                modelPath: '/assets/models/portal/portal-new.gltf'  // Updated path
+            },
+            {
+                position: new THREE.Vector3(-25, 0, -22),
+                rotation: new THREE.Euler(0, Math.PI / 2, 0),
+                scale: new THREE.Vector3(1.0, 1.0, 1.0),
+                destination: "https://example-game22.com",
+                portalId: "portal-22",
+                title: "Portal 22",
+                description: "Portal facing the desk",
+                modelPath: '/assets/models/portal/portal-new.gltf'  // Updated path
+            },
+            {
+                position: new THREE.Vector3(-25, 0, -32),
+                rotation: new THREE.Euler(0, Math.PI / 2, 0),
+                scale: new THREE.Vector3(1.0, 1.0, 1.0),
+                destination: "https://example-game23.com",
+                portalId: "portal-23",
+                title: "Portal 23",
+                description: "Portal facing the desk",
+                modelPath: '/assets/models/portal/portal-new.gltf'  // Updated path
+            },
+            {
+                position: new THREE.Vector3(-25, 0, -42),
+                rotation: new THREE.Euler(0, Math.PI / 2, 0),
+                scale: new THREE.Vector3(1.0, 1.0, 1.0),
+                destination: "https://example-game24.com",
+                portalId: "portal-24",
+                title: "Portal 24",
+                description: "Portal facing the desk",
+                modelPath: '/assets/models/portal/portal-new.gltf'  // Updated path
+            },
+            {
+                position: new THREE.Vector3(-25, 0, -52),
+                rotation: new THREE.Euler(0, Math.PI / 2, 0),
+                scale: new THREE.Vector3(1.0, 1.0, 1.0),
+                destination: "https://example-game25.com",
+                portalId: "portal-25",
+                title: "Portal 25",
+                description: "Portal facing the desk",
+                modelPath: '/assets/models/portal/portal-new.gltf'  // Updated path
             }
         ];
         
+        console.log('[PortalManager] Starting to add portals to scene');
         // Add each default portal
         const promises = defaultPortals.map(config => this.addPortal(config));
-        await Promise.all(promises);
+        const results = await Promise.all(promises);
+        const successfulPortals = results.filter(Boolean).length;
+        console.log('[PortalManager] Portal initialization complete:');
+        console.log('- Successfully added:', successfulPortals, 'portals');
+        console.log('- Failed to add:', defaultPortals.length - successfulPortals, 'portals');
+        console.log('- Total scene children:', this.scene.children.length);
     }
     
     async fetchPortalsFromAPI() {

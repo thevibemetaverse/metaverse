@@ -6,6 +6,7 @@ import Ground from './components/environment/ground';
 import HillsGenerator from './components/environment/hills';
 import { FollowCamera } from './components/character/camera';
 import { createEnvironmentElements } from './components/environment/environmentelements.js';
+import { PortalManager } from './components/portal/PortalManager';
 
 // Scene setup
 const scene = new THREE.Scene();
@@ -66,8 +67,15 @@ const characterManager = new CharacterManager(scene, renderer.domElement);
 let character;
 let followCamera;
 
+// Initialize portal manager
+const portalManager = new PortalManager(scene, null, {
+    username: 'Guest',
+    color: 'blue',
+    speed: 5
+});
+
 // Initialize character and start animation loop
-characterManager.initialize().then((loadedCharacter) => {
+characterManager.initialize().then(async (loadedCharacter) => {
     character = loadedCharacter;
     
     // Initialize FollowCamera
@@ -76,6 +84,13 @@ characterManager.initialize().then((loadedCharacter) => {
     
     // Set the camera in character manager
     characterManager.setCamera(camera);
+    
+    // Set the camera in portal manager
+    portalManager.camera = camera;
+    
+    // Initialize portals
+    console.log('[main] Initializing portals');
+    await portalManager.initializeDefaultPortals();
     
     animate();
 }).catch(error => {
@@ -94,6 +109,11 @@ function animate() {
     // Update camera
     if (followCamera) {
         followCamera.update();
+    }
+    
+    // Update portals
+    if (portalManager) {
+        portalManager.update(deltaTime);
     }
     
     renderer.render(scene, followCamera.getCamera());

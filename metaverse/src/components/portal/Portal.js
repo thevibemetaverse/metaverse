@@ -9,7 +9,7 @@ export class Portal {
         portalId = "portal-default",
         title = "Default Portal",
         description = "A portal to another world",
-        modelPath = './assets/models/new-portal.gltf'
+        modelPath = '/assets/models/portal/portal-new.gltf'
     }) {
         this.position = position;
         this.rotation = rotation;
@@ -28,6 +28,7 @@ export class Portal {
     }
 
     async load(loadingManager) {
+        console.log(`[Portal] Starting to load portal model from: ${this.modelPath}`);
         // Import the GLTFLoader only when needed
         const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js');
         const loader = new GLTFLoader(loadingManager);
@@ -36,6 +37,7 @@ export class Portal {
             loader.load(
                 this.modelPath,
                 (gltf) => {
+                    console.log(`[Portal] Model loaded successfully for portal: ${this.portalId}`);
                     this.mesh = gltf.scene;
                     this.mesh.position.copy(this.position);
                     this.mesh.rotation.copy(this.rotation);
@@ -53,6 +55,7 @@ export class Portal {
                     
                     // Setup animations if available
                     if (gltf.animations && gltf.animations.length) {
+                        console.log(`[Portal] Found ${gltf.animations.length} animations for portal: ${this.portalId}`);
                         this.animationMixer = new THREE.AnimationMixer(this.mesh);
                         gltf.animations.forEach(animation => {
                             const action = this.animationMixer.clipAction(animation);
@@ -62,13 +65,14 @@ export class Portal {
                     }
                     
                     this.setupEffects();
+                    console.log(`[Portal] Portal setup complete for: ${this.portalId}`);
                     resolve(this.mesh);
                 },
                 (xhr) => {
-                    console.log(`Loading portal model: ${(xhr.loaded / xhr.total) * 100}% loaded`);
+                    console.log(`[Portal] Loading progress for ${this.portalId}: ${(xhr.loaded / xhr.total) * 100}% loaded`);
                 },
                 (error) => {
-                    console.error(`Error loading portal model: ${error}`);
+                    console.error(`[Portal] Error loading portal model for ${this.portalId}:`, error);
                     reject(error);
                 }
             );
