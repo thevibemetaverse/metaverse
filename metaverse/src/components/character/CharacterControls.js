@@ -62,9 +62,8 @@ export default class CharacterControls {
                     break;
                     
                 case 'ArrowLeft':
-                case 'KeyA':
-                    this.moveLeft = true;
-                    console.log('Move left activated');
+                    this.rotateLeft = true;
+                    console.log('Rotate left activated');
                     break;
                     
                 case 'ArrowDown':
@@ -74,6 +73,15 @@ export default class CharacterControls {
                     break;
                     
                 case 'ArrowRight':
+                    this.rotateRight = true;
+                    console.log('Rotate right activated');
+                    break;
+
+                case 'KeyA':
+                    this.moveLeft = true;
+                    console.log('Move left activated');
+                    break;
+
                 case 'KeyD':
                     this.moveRight = true;
                     console.log('Move right activated');
@@ -103,9 +111,8 @@ export default class CharacterControls {
                     break;
                     
                 case 'ArrowLeft':
-                case 'KeyA':
-                    this.moveLeft = false;
-                    console.log('Move left deactivated');
+                    this.rotateLeft = false;
+                    console.log('Rotate left deactivated');
                     break;
                     
                 case 'ArrowDown':
@@ -115,6 +122,15 @@ export default class CharacterControls {
                     break;
                     
                 case 'ArrowRight':
+                    this.rotateRight = false;
+                    console.log('Rotate right deactivated');
+                    break;
+
+                case 'KeyA':
+                    this.moveLeft = false;
+                    console.log('Move left deactivated');
+                    break;
+
                 case 'KeyD':
                     this.moveRight = false;
                     console.log('Move right deactivated');
@@ -254,7 +270,7 @@ export default class CharacterControls {
         }
         
         // Get character's forward and right vectors based on its current rotation
-        const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), this.character.rotation.y);
+        const forward = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), this.character.rotation.y);
         const right = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), this.character.rotation.y);
         
         // Calculate movement in character's local space
@@ -270,12 +286,12 @@ export default class CharacterControls {
             this.character.position.z -= forward.z * moveAmount;
         }
         if (this.moveLeft) {
-            this.character.position.x -= right.x * moveAmount;
-            this.character.position.z -= right.z * moveAmount;
-        }
-        if (this.moveRight) {
             this.character.position.x += right.x * moveAmount;
             this.character.position.z += right.z * moveAmount;
+        }
+        if (this.moveRight) {
+            this.character.position.x -= right.x * moveAmount;
+            this.character.position.z -= right.z * moveAmount;
         }
         
         console.log('Character position:', this.character.position);
