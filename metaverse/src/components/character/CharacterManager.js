@@ -34,6 +34,7 @@ export default class CharacterManager {
         this.previousState = AnimationState.IDLE;
         this.transitionInProgress = false;
         this.transitionTimeout = null;
+        this.jumpAnimationStarted = false;
         
         // Bind methods
         this.handleKeyPress = this.handleKeyPress.bind(this);
@@ -120,9 +121,16 @@ export default class CharacterManager {
         // Clean up old character
         this.scene.remove(this.character);
         
-        // Load jump model
-        console.log('Loading jump model:', this.modelPaths.jump);
-        const gltf = await this.loadModel(this.modelPaths.jump);
+        // Use preloaded jump model if available, otherwise load it
+        let gltf;
+        if (this.preloadedJumpModel) {
+            console.log('Using preloaded jump model');
+            gltf = this.preloadedJumpModel;
+        } else {
+            console.log('Loading jump model:', this.modelPaths.jump);
+            gltf = await this.loadModel(this.modelPaths.jump);
+        }
+        
         this.setupNewCharacter(gltf, currentPosition, currentRotation);
         
         // Restore camera state after model swap
@@ -137,34 +145,11 @@ export default class CharacterManager {
             jumpAction.setEffectiveWeight(1);
             jumpAction.loop = THREE.LoopOnce;
             jumpAction.clampWhenFinished = true;
+            
+            // Set up a finished callback
+            jumpAction.reset();
+            this.jumpAnimationStarted = true;
             jumpAction.play();
-            
-            // Duration in ms based on animation length + buffer
-            const jumpDuration = (jumpAction.getClip().duration * 1000) + 200;
-            console.log('Jump duration:', jumpDuration, 'ms');
-            
-            // Set timeout to return to previous state
-            this.transitionTimeout = setTimeout(async () => {
-                console.log('Jump animation complete, returning to previous state');
-                // Store camera state before returning to default model
-                const finalCameraState = this.preserveCameraState();
-                
-                // Determine which state to return to based on movement
-                const returnState = this.characterControls && this.characterControls.isMoving() 
-                    ? AnimationState.RUNNING 
-                    : AnimationState.IDLE;
-                
-                console.log('Returning to state:', returnState);
-                
-                // Reset flags
-                this.transitionInProgress = false;
-                
-                // Return to previous state
-                await this.returnToDefaultModel(returnState);
-                
-                // Restore camera state after returning to default model
-                this.restoreCameraState(finalCameraState);
-            }, jumpDuration);
         } else {
             console.warn('No jump animation found in model');
             // Reset state if no animation found
@@ -349,6 +334,9 @@ export default class CharacterManager {
             this.scene.add(this.character);
             
             console.log('Character model loaded successfully');
+
+            // Preload jump model in the background
+            this.preloadJumpModel();
         } catch (error) {
             console.error('Error loading character model:', error);
             
@@ -389,6 +377,20 @@ export default class CharacterManager {
                 }
             );
         });
+    }
+
+    preloadJumpModel() {
+        // Load the jump model in the background
+        this.loader.load(
+            this.modelPaths.jump,
+            (gltf) => {
+                console.log('Jump model preloaded successfully');
+                // Store the preloaded model for later use
+                this.preloadedJumpModel = gltf;
+            },
+            (xhr) => console.log(`Preloading jump model: ${(xhr.loaded / xhr.total) * 100}% loaded`),
+            (error) => console.error('Error preloading jump model:', error)
+        );
     }
 
     createUsernameLabel() {
@@ -437,10 +439,29 @@ export default class CharacterManager {
             this.characterMixer.update(deltaTime);
             
             // Check for jump animation completion
-            if (this.currentState === AnimationState.JUMPING) {
+            if (this.currentState === AnimationState.JUMPING && this.jumpAnimationStarted) {
                 const jumpAction = this.animations['mixamo.com'];
-                if (jumpAction && jumpAction.time >= jumpAction.getClip().duration) {
-                    // Animation complete - transition is handled by timeout in handleJumpTransition
+                if (jumpAction && jumpAction.time >= jumpAction.getClip().duration * 0.95) { // 95% complete
+                    this.jumpAnimationStarted = false; // Reset flag
+                    
+                    // Handle jump completion
+                    const finalCameraState = this.preserveCameraState();
+                    
+                    // Determine which state to return to based on movement
+                    const returnState = this.characterControls && this.characterControls.isMoving() 
+                        ? AnimationState.RUNNING 
+                        : AnimationState.IDLE;
+                    
+                    console.log('Jump animation complete, returning to:', returnState);
+                    
+                    // Reset flags
+                    this.transitionInProgress = false;
+                    
+                    // Return to previous state
+                    this.returnToDefaultModel(returnState).then(() => {
+                        // Restore camera state after returning to default model
+                        this.restoreCameraState(finalCameraState);
+                    });
                 }
             }
         }
