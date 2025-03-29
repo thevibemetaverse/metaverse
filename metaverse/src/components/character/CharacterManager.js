@@ -195,11 +195,20 @@ export default class CharacterManager {
         const currentPosition = this.character.position.clone();
         const currentRotation = this.character.rotation.clone();
         
-        // Remove current character
+        // Load default model first, before removing the current one
+        let gltf;
+        if (this.preloadedDefaultModel) {
+            console.log('Using preloaded default model');
+            gltf = this.preloadedDefaultModel;
+        } else {
+            console.log('Loading default model');
+            gltf = await this.loadModel(this.modelPaths.default);
+        }
+        
+        // Only remove the current character after the new one is loaded
         this.scene.remove(this.character);
         
-        // Load default model
-        const gltf = await this.loadModel(this.modelPaths.default);
+        // Setup the new character
         this.setupNewCharacter(gltf, currentPosition, currentRotation);
         
         // Restore camera state after model swap
@@ -380,16 +389,26 @@ export default class CharacterManager {
     }
 
     preloadJumpModel() {
-        // Load the jump model in the background
+        // Load both models in the background
         this.loader.load(
             this.modelPaths.jump,
             (gltf) => {
                 console.log('Jump model preloaded successfully');
-                // Store the preloaded model for later use
                 this.preloadedJumpModel = gltf;
             },
             (xhr) => console.log(`Preloading jump model: ${(xhr.loaded / xhr.total) * 100}% loaded`),
             (error) => console.error('Error preloading jump model:', error)
+        );
+        
+        // Also preload the default model for smoother transitions back
+        this.loader.load(
+            this.modelPaths.default,
+            (gltf) => {
+                console.log('Default model preloaded successfully');
+                this.preloadedDefaultModel = gltf;
+            },
+            (xhr) => console.log(`Preloading default model: ${(xhr.loaded / xhr.total) * 100}% loaded`),
+            (error) => console.error('Error preloading default model:', error)
         );
     }
 
