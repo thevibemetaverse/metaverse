@@ -923,7 +923,7 @@ export class MultiplayerManager {
             mesh.position.set(data.position?.x || 0, data.position?.y || 0, data.position?.z || 0);
             mesh.rotation.set(data.rotation?.x || 0, data.rotation?.y || 0, data.rotation?.z || 0);
             
-            // Create and position name label
+            // Create and position name label for all players (including local)
             const username = data.username || `Player${data.id.slice(0, 4)}`;
             const nameLabel = this.createNameLabel(username);
             nameLabel.position.set(
@@ -939,9 +939,11 @@ export class MultiplayerManager {
             this.safeReferences.add(nameLabel);
             
             // Add to scene
+            this.scene.add(nameLabel);
+            
+            // Add mesh to scene
             console.log(`[DIAGNOSTIC] Adding player ${data.id} mesh to scene`);
             this.scene.add(mesh);
-            this.scene.add(nameLabel);
             
             // Store or update player data
             const existingPlayer = this.players.get(data.id) || {};
@@ -992,6 +994,7 @@ export class MultiplayerManager {
         mesh.receiveShadow = true;
         mesh.visible = true;
         
+        // Create username label for all players
         const nameLabel = this.createNameLabel(data.username);
         nameLabel.position.copy(mesh.position);
         nameLabel.position.y += this.nameLabelHeight;
@@ -1000,10 +1003,13 @@ export class MultiplayerManager {
         this.scene.add(mesh);
         this.scene.add(nameLabel);
         
+        const isLocalPlayer = data.id === this.playerId;
+        
         this.players.set(data.id, {
             username: data.username,
             mesh: mesh,
             nameLabel: nameLabel,
+            isLocalPlayer: isLocalPlayer,
             lastUpdate: Date.now()
         });
         
@@ -1173,13 +1179,15 @@ export class MultiplayerManager {
         const urlParams = new URLSearchParams(window.location.search);
         const username = urlParams.get('username');
         
-        // If no username provided, generate a unique one
-        if (!username) {
-            const randomNum = Math.floor(Math.random() * 1000);
-            return `Guest${randomNum}`;
+        // If username is provided in URL, use it
+        if (username) {
+            return username;
         }
         
-        return username;
+        // We should never reach this point because the main.js
+        // now handles showing a form to get the username before initializing
+        // this manager, but as a fallback:
+        return 'Anonymous' + Math.floor(Math.random() * 1000);
     }
 
     getAvatarUrl() {

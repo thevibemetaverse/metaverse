@@ -73,8 +73,8 @@ export default class CharacterManager {
             console.warn('[Manager] Character or Camera not ready for initial controls setup.');
         }
         
-        // Create username label
-        this.createUsernameLabel();
+        // We no longer create username label for local player
+        // It will be handled by MultiplayerManager only
         
         // Add separate listener for non-movement keys like Jump
         window.addEventListener('keydown', this.handleManagerKeyDown.bind(this));
@@ -611,43 +611,10 @@ export default class CharacterManager {
     }
 
     createUsernameLabel() {
-        if (!this.character) {
-            console.warn('Cannot create username label: character is null');
-            return;
-        }
-
-        // Create canvas for username
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
-        canvas.width = 256;
-        canvas.height = 64;
-        
-        // Style the canvas
-        context.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        context.fillRect(0, 0, canvas.width, canvas.height);
-        context.font = 'bold 28px Arial';
-        context.textAlign = 'center';
-        context.fillStyle = 'white';
-        context.fillText(this.username, canvas.width / 2, canvas.height / 2 + 8);
-        
-        // Create sprite with canvas texture
-        const texture = new THREE.CanvasTexture(canvas);
-        const material = new THREE.SpriteMaterial({ 
-            map: texture,
-            transparent: true,
-            depthTest: false
-        });
-        const sprite = new THREE.Sprite(material);
-        
-        // Position the sprite above the character
-        sprite.position.y = 3.5;
-        sprite.scale.set(2, 0.5, 1);
-        
-        // Make the sprite always face the camera
-        sprite.material.depthWrite = false;
-        sprite.renderOrder = 999;
-        
-        this.character.add(sprite);
+        // This method is now a no-op to prevent local username label creation
+        // Username labels for all players (including local) are handled by MultiplayerManager
+        console.log('[CharacterManager] Skipping username label creation for local player');
+        return;
     }
 
     update(deltaTime) {

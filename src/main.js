@@ -9,6 +9,19 @@ import { createEnvironmentElements } from './components/environment/environmente
 import { PortalManager } from './components/portal/PortalManager';
 import { MultiplayerManager } from './components/multiplayer/MultiplayerManager';
 
+// Function to get username from URL parameters
+function getUsernameFromURL() {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('username');
+}
+
+// Function to update URL with username parameter
+function updateURLWithUsername(username) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('username', username);
+    window.history.replaceState({}, '', url);
+}
+
 // Scene setup
 const scene = new THREE.Scene();
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -63,60 +76,101 @@ createEnvironmentElements(scene).then(environment => {
     console.error('Error creating environment elements:', error);
 });
 
-// Initialize character manager
-const characterManager = new CharacterManager(scene, renderer.domElement);
+// Character and camera references
+let characterManager;
 let character;
 let followCamera;
+let portalManager;
+let multiplayerManager;
 
-// Initialize portal manager
-const portalManager = new PortalManager(scene, null, {
-    username: 'Guest',
-    color: 'blue',
-    speed: 5
-});
+// Function to start the game
+function startGame(username) {
+    console.log('[main] Starting game with username:', username);
+    
+    // Update URL with username
+    updateURLWithUsername(username);
+    
+    // Hide the username modal
+    const usernameModal = document.getElementById('username-modal');
+    if (usernameModal) {
+        usernameModal.classList.add('hidden');
+    }
+    
+    // Initialize character manager
+    characterManager = new CharacterManager(scene, renderer.domElement);
+    
+    // Ensure character manager has the correct username
+    if (characterManager.username !== username) {
+        console.log('[main] Setting character manager username:', username);
+        characterManager.username = username;
+        characterManager.playerState = {
+            ...characterManager.playerState || {},
+            username: username
+        };
+    }
+    
+    // Initialize portal manager
+    portalManager = new PortalManager(scene, null, {
+        username: username,
+        color: 'blue',
+        speed: 5
+    });
 
-// Initialize multiplayer manager
-const multiplayerManager = new MultiplayerManager(scene);
+    // Initialize multiplayer manager
+    multiplayerManager = new MultiplayerManager(scene);
+    
+    // Ensure multiplayer manager has the correct username
+    if (multiplayerManager.username !== username) {
+        console.log('[main] Setting multiplayer manager username:', username);
+        multiplayerManager.username = username;
+    }
 
-// Initialize character and start animation loop
-characterManager.initialize().then(async (loadedCharacter) => {
-    character = loadedCharacter;
-    
-    // Initialize FollowCamera
-    followCamera = new FollowCamera(character);
-    const camera = followCamera.getCamera();
-    
-    // Set the camera in character manager
-    characterManager.setCamera(camera);
-    
-    // Set the camera in portal manager
-    portalManager.camera = camera;
-    
-    // Initialize portals
-    console.log('[main] Initializing portals');
-    await portalManager.initializeDefaultPortals();
-    
-    // Create Pieter portal in line with other portals
-    console.log('[main] Creating Pieter portal');
-    portalManager.createPieterPortal();
-    
-    // Connect portal manager to character manager
-    console.log('[main] Connecting portal manager to character manager');
-    characterManager.setPortalManager(portalManager);
+    // Initialize character and start animation loop
+    characterManager.initialize().then(async (loadedCharacter) => {
+        character = loadedCharacter;
+        
+        // Initialize FollowCamera
+        followCamera = new FollowCamera(character);
+        const camera = followCamera.getCamera();
+        
+        // Set the camera in character manager
+        characterManager.setCamera(camera);
+        
+        // Set the camera in portal manager
+        portalManager.camera = camera;
+        
+        // Initialize portals
+        console.log('[main] Initializing portals');
+        await portalManager.initializeDefaultPortals();
+        
+        // Create Pieter portal in line with other portals
+        console.log('[main] Creating Pieter portal');
+        portalManager.createPieterPortal();
+        
+        // Connect portal manager to character manager
+        console.log('[main] Connecting portal manager to character manager');
+        characterManager.setPortalManager(portalManager);
 
-    // Set the local player model in multiplayer manager
-    console.log('[main] Setting local player model in multiplayer manager');
-    multiplayerManager.setLocalPlayerModel(character);
+        // Set the local player model in multiplayer manager
+        console.log('[main] Setting local player model in multiplayer manager');
+        multiplayerManager.setLocalPlayerModel(character);
 
-    // Connect to multiplayer server after character is fully initialized
-    console.log('[main] Connecting to multiplayer server');
-    multiplayerManager.connect();
-    
-    // Start animation loop
-    animate();
-}).catch(error => {
-    console.error('Failed to initialize character:', error);
-});
+        // Connect to multiplayer server after character is fully initialized
+        console.log('[main] Connecting to multiplayer server');
+        multiplayerManager.connect();
+        
+        // Start animation loop if not already running
+        if (!animationRunning) {
+            animationRunning = true;
+            animate();
+        }
+    }).catch(error => {
+        console.error('Failed to initialize character:', error);
+    });
+}
+
+// Animation loop control
+let animationRunning = false;
 
 // Animation loop
 function animate() {
@@ -152,7 +206,7 @@ function animate() {
         }
     }
     
-    renderer.render(scene, followCamera.getCamera());
+    renderer.render(scene, followCamera ? followCamera.getCamera() : new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000));
 }
 
 // Handle window resize
@@ -167,5 +221,30 @@ window.addEventListener('resize', () => {
 window.addEventListener('beforeunload', () => {
     if (multiplayerManager) {
         multiplayerManager.dispose();
+    }
+});
+
+// Check for username when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    // Get username from URL if available
+    const username = getUsernameFromURL();
+    
+    if (username) {
+        // Start game directly if username is in URL
+        startGame(username);
+    } else {
+        // Set up form submission
+        const usernameForm = document.getElementById('submit-username');
+        if (usernameForm) {
+            usernameForm.addEventListener('submit', (event) => {
+                event.preventDefault();
+                const usernameInput = document.getElementById('username-input');
+                if (usernameInput && usernameInput.value.trim()) {
+                    startGame(usernameInput.value.trim());
+                }
+            });
+        } else {
+            console.error('Username form not found!');
+        }
     }
 });
