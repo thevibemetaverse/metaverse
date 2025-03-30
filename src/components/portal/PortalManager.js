@@ -111,35 +111,6 @@ export class PortalManager {
         // Portal configurations
         console.log('[PortalManager] Creating portal configurations, showEnterPortal:', showEnterPortal);
         const defaultPortals = [
-            // AIRPORT GROUP (z=40) - Main arrival/departure area
-            {
-                position: new THREE.Vector3(55, 0, 40),
-                rotation: new THREE.Euler(0, 0, 0),
-                destination: "https://thevibemetaverse.vercel.app/api/portal/auto-boss",
-                portalId: "auto-boss",
-                title: "Auto Boss Portal",
-                description: "First portal in airport row",
-                modelPath: '/assets/models/portal/portal-new.gltf'
-            },
-            {
-                position: new THREE.Vector3(70, 0, 40),
-                rotation: new THREE.Euler(0, 0, 0),
-                destination: "https://thevibemetaverse.vercel.app/api/portal/foodvibers",
-                portalId: "foodvibers",
-                title: "Food Vibers Portal",
-                description: "Center portal in airport row",
-                modelPath: '/assets/models/portal/portal-new.gltf'
-            },
-            {
-                position: new THREE.Vector3(85, 0, 40),
-                rotation: new THREE.Euler(0, 0, 0),
-                destination: "https://thevibemetaverse.vercel.app/api/portal/neon-trailblazer",
-                portalId: "neon-trailblazer",
-                title: "Neon Trailblazer Portal",
-                description: "Last portal in airport row",
-                modelPath: '/assets/models/portal/portal-new.gltf'
-            },
-
             // WATER GROUP - Portals near or on water
             {
                 position: new THREE.Vector3(18, -.2*Math.PI, 20),
@@ -151,6 +122,15 @@ export class PortalManager {
                 modelPath: '/assets/models/portal/portal-new.gltf'
             },
             {
+                position: new THREE.Vector3(6, 0, 17),
+                rotation: new THREE.Euler(0, -.16*Math.PI, 0),
+                destination: "https://thevibemetaverse.vercel.app/api/portal/tidefall",
+                portalId: "tidefall",
+                title: "Tidefall Portal",
+                description: "Portal in misc area",
+                modelPath: '/assets/models/portal/portal-new.gltf'
+            },
+            {
                 position: new THREE.Vector3(30, 0, 20),
                 rotation: new THREE.Euler(0, .05*Math.PI, 0),
                 destination: "https://thevibemetaverse.vercel.app/api/portal/yacht-world",
@@ -159,26 +139,88 @@ export class PortalManager {
                 description: "Portal near the water",
                 modelPath: '/assets/models/portal/portal-new.gltf'
             },
-
-            // BACK ROW GROUP (z=20)
             {
-                position: new THREE.Vector3(55, 0, 20),
-                rotation: new THREE.Euler(0, 0, 0),
-                destination: "https://thevibemetaverse.vercel.app/api/portal/snowbrawl-world",
-                portalId: "snowbrawl-world",
-                title: "Snowbrawl World Portal",
-                description: "Portal in the back row",
+                position: new THREE.Vector3(43, 0, 18),
+                rotation: new THREE.Euler(0, .1*Math.PI, 0),
+                destination: "https://thevibemetaverse.vercel.app/api/portal/viberates",
+                portalId: "viberates",
+                title: "Viberates Portal",
+                description: "Portal in misc area",
                 modelPath: '/assets/models/portal/portal-new.gltf'
             },
-            {
-                position: new THREE.Vector3(70, 0, 20),
-                rotation: new THREE.Euler(0, 0, 0),
-                destination: "https://thevibemetaverse.vercel.app/api/portal/spacerunner",
-                portalId: "spacerunner",
-                title: "Space Runner Portal",
-                description: "Portal in the back row",
-                modelPath: '/assets/models/portal/portal-new.gltf'
-            },
+                        // BACK ROW GROUP (z=20)
+                        {
+                            position: new THREE.Vector3(55, 0, 40),
+                            rotation: new THREE.Euler(0, 0, 0),
+                            destination: "https://thevibemetaverse.vercel.app/api/portal/auto-boss",
+                            portalId: "auto-boss",
+                            title: "Auto Boss Portal",
+                            description: "First portal in airport row",
+                            modelPath: '/assets/models/portal/portal-new.gltf'
+                        },
+                        {
+                            position: new THREE.Vector3(70, 0, 40),
+                            rotation: new THREE.Euler(0, 0, 0),
+                            destination: "https://thevibemetaverse.vercel.app/api/portal/foodvibers",
+                            portalId: "foodvibers",
+                            title: "Food Vibers Portal",
+                            description: "Center portal in airport row",
+                            modelPath: '/assets/models/portal/portal-new.gltf'
+                        },
+                        {
+                            position: new THREE.Vector3(75, 0, 40),
+                            rotation: new THREE.Euler(0, 0, 0),
+                            destination: "https://thevibemetaverse.vercel.app/api/portal/neon-trailblazer",
+                            portalId: "neon-trailblazer",
+                            title: "Neon Trailblazer Portal",
+                            description: "Last portal in airport row",
+                            modelPath: '/assets/models/portal/portal-new.gltf'
+                        },
+                        {
+                            position: new THREE.Vector3(100, 0, 40),
+                            rotation: new THREE.Euler(0, 0, 0),
+                            destination: "https://thevibemetaverse.vercel.app/api/portal/ronansrun",
+                            portalId: "ronansrun",
+                            title: "Ronan's Run Portal",
+                            description: "Portal in the row",
+                            modelPath: '/assets/models/portal/portal-new.gltf'
+                        },
+                        {
+                            position: new THREE.Vector3(60, 0, 20),
+                            rotation: new THREE.Euler(0, 0, 0),
+                            destination: "https://thevibemetaverse.vercel.app/api/portal/snowbrawl-world",
+                            portalId: "snowbrawl-world",
+                            title: "Snowbrawl World Portal",
+                            description: "Portal in the back row",
+                            modelPath: '/assets/models/portal/portal-new.gltf'
+                        },
+                        {
+                            position: new THREE.Vector3(75, 0, 20),
+                            rotation: new THREE.Euler(0, 0, 0),
+                            destination: "https://thevibemetaverse.vercel.app/api/portal/spacerunner",
+                            portalId: "spacerunner",
+                            title: "Space Runner Portal",
+                            description: "Portal in the back row",
+                            modelPath: '/assets/models/portal/portal-new.gltf'
+                        },
+                        {
+                            position: new THREE.Vector3(90, 0, 20),
+                            rotation: new THREE.Euler(0, 0, 0),
+                            destination: "https://thevibemetaverse.vercel.app/api/portal/quack",
+                            portalId: "quack",
+                            title: "Quack Portal",
+                            description: "Portal in the row",
+                            modelPath: '/assets/models/portal/portal-new.gltf'
+                        },
+                        {
+                            position: new THREE.Vector3(105, 0, 20),
+                            rotation: new THREE.Euler(0, 0, 0),
+                            destination: "https://thevibemetaverse.vercel.app/api/portal/red-panda-vibes",
+                            portalId: "red-panda-vibes",
+                            title: "Red Panda Vibes Portal",
+                            description: "Portal in the row",
+                            modelPath: '/assets/models/portal/portal-new.gltf'
+                        },
 
             // FRONT ROW GROUP (z=-4)
             {
@@ -191,25 +233,6 @@ export class PortalManager {
                 modelPath: '/assets/models/portal/portal-new.gltf'
             },
 
-            // OTHER PORTALS - Miscellaneous locations
-            {
-                position: new THREE.Vector3(44, 0, 180),
-                rotation: new THREE.Euler(0, .1*Math.PI, 0),
-                destination: "https://thevibemetaverse.vercel.app/api/portal/viberates",
-                portalId: "viberates",
-                title: "Viberates Portal",
-                description: "Portal in misc area",
-                modelPath: '/assets/models/portal/portal-new.gltf'
-            },
-            {
-                position: new THREE.Vector3(6, 0, 17),
-                rotation: new THREE.Euler(0, -.16*Math.PI, 0),
-                destination: "https://thevibemetaverse.vercel.app/api/portal/tidefall",
-                portalId: "tidefall",
-                title: "Tidefall Portal",
-                description: "Portal in misc area",
-                modelPath: '/assets/models/portal/portal-new.gltf'
-            },
             // Special "Enter" portal - only shown if portal=true in URL
             ...(showEnterPortal ? [{
                 position: new THREE.Vector3(0, 0, -25),
@@ -220,60 +243,6 @@ export class PortalManager {
                 description: "Special portal behind the user",
                 modelPath: '/assets/models/portal/portal-new.gltf'
             }] : []),
-            {
-                position: new THREE.Vector3(125, 0, 20),
-                rotation: new THREE.Euler(0, 0, 0),
-                destination: "https://thevibemetaverse.vercel.app/api/portal/quack",
-                portalId: "quack",
-                title: "Quack Portal",
-                description: "Portal in the corner",
-                modelPath: '/assets/models/portal/portal-new.gltf'
-            },
-            {
-                position: new THREE.Vector3(55, 0, 20),
-                rotation: new THREE.Euler(0, 0, 0),
-                destination: "https://thevibemetaverse.vercel.app/api/portal/snowbrawl-world",
-                portalId: "snowbrawl-world",
-                title: "Snowbrawl World Portal",
-                description: "Portal in the back row",
-                modelPath: '/assets/models/portal/portal-new.gltf'
-            },
-            {
-                position: new THREE.Vector3(70, 0, 20),
-                rotation: new THREE.Euler(0, 0, 0),
-                destination: "https://thevibemetaverse.vercel.app/api/portal/spacerunner",
-                portalId: "spacerunner",
-                title: "Space Runner Portal",
-                description: "Portal in the back row",
-                modelPath: '/assets/models/portal/portal-new.gltf'
-            },
-            {
-                position: new THREE.Vector3(85, 0, 20),
-                rotation: new THREE.Euler(0, 0, 0),
-                destination: "https://thevibemetaverse.vercel.app/api/portal/quack",
-                portalId: "quack",
-                title: "Quack Portal",
-                description: "Portal in the row",
-                modelPath: '/assets/models/portal/portal-new.gltf'
-            },
-            {
-                position: new THREE.Vector3(100, 0, 20),
-                rotation: new THREE.Euler(0, 0, 0),
-                destination: "https://thevibemetaverse.vercel.app/api/portal/red-panda-vibes",
-                portalId: "red-panda-vibes",
-                title: "Red Panda Vibes Portal",
-                description: "Portal in the row",
-                modelPath: '/assets/models/portal/portal-new.gltf'
-            },
-            {
-                position: new THREE.Vector3(115, 0, 20),
-                rotation: new THREE.Euler(0, 0, 0),
-                destination: "https://thevibemetaverse.vercel.app/api/portal/ronansrun",
-                portalId: "ronansrun",
-                title: "Ronan's Run Portal",
-                description: "Portal in the row",
-                modelPath: '/assets/models/portal/portal-new.gltf'
-            }
         ];
         
         console.log('[PortalManager] Portal configurations created:', {
