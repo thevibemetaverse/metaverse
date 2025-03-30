@@ -481,7 +481,7 @@ export default class CharacterManager {
             username: this.username,
             color: urlParams.get('color') || 'blue',
             speed: parseFloat(urlParams.get('speed')) || 5,
-            avatarUrl: urlParams.get('avatar_url') || null,
+            avatarUrl: urlParams.get('avatar_url') || 'https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb',
             team: urlParams.get('team') || null
         };
         
