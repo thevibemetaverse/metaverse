@@ -336,6 +336,13 @@ export default class CharacterManager {
         this.character = gltf.scene;
         this.character.name = 'playerCharacter';
         
+        // Set initial position and rotation
+        this.character.position.set(0, 0, 0); // Spawn at origin
+        this.character.rotation.y = Math.PI - (15 * Math.PI / 180); // 180 degrees minus 15 degrees clockwise
+        
+        // Center the model and set scale
+        this.character.scale.set(1, 1, 1);
+        
         // Store the model path for later reference
         this.character.userData.modelPath = gltf.userData?.modelPath || this.modelPaths.default;
         
@@ -497,6 +504,10 @@ export default class CharacterManager {
             this.character = gltf.scene;
             this.character.name = 'playerCharacter';
             
+            // Set initial position and rotation
+            this.character.position.set(0, 0, 50); // Spawn at origin
+            this.character.rotation.y = Math.PI - (15 * Math.PI / 180); // 180 degrees minus 15 degrees clockwise
+            
             // Center the model and set scale
             this.character.scale.set(1, 1, 1);
             
@@ -529,7 +540,8 @@ export default class CharacterManager {
         
         this.character = new THREE.Mesh(geometry, material);
         this.character.name = 'playerCharacter';
-        this.character.position.y = 1; // Place on ground
+        this.character.position.set(0, 1, -50); // Place on ground with y=1 for height
+        this.character.rotation.y = Math.PI - (15 * Math.PI / 180); // 180 degrees minus 15 degrees clockwise
         this.character.castShadow = true;
         
         // Add to scene

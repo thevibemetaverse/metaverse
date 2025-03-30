@@ -1,55 +1,58 @@
 import * as THREE from 'three';
-import { Water } from 'three/examples/jsm/objects/Water.js'; // Use Water (not Water2) for better wave animation
+import { Water } from 'three/examples/jsm/objects/Water.js';
 
-// Function to create water with waves
 function createWater(scene) {
   console.log('Starting water creation...');
   
   // Water parameters
   const waterSize = 10;
+  const baseRadius = waterSize / 2;
   
-  // Create water geometry with natural, irregular shape
+  // Create water shape with organic edges
   const waterShape = new THREE.Shape();
-  const radius = waterSize/2;
+  const segments = 36; // Reduced segments for better performance
   
-  // Create an irregular outline with random variations
-  const segments = 48; // Increased from 24 for smoother curves
-  const noiseAmount = radius * 0.15; // Reduced slightly for less dramatic variations
-  
-  // Start at a random point
-  const startAngle = Math.random() * Math.PI * 2;
-  const firstX = Math.cos(startAngle) * (radius + (Math.random() * noiseAmount - noiseAmount/2));
-  const firstY = Math.sin(startAngle) * (radius + (Math.random() * noiseAmount - noiseAmount/2));
-  
-  waterShape.moveTo(firstX, firstY);
-  
-  // Generate smoother interpolation points
+  // Simplified noise generation
   const points = [];
   for (let i = 0; i <= segments; i++) {
-    const angle = startAngle + (i / segments) * Math.PI * 2;
-    const radiusVariation = radius + (Math.random() * noiseAmount - noiseAmount/2);
+    const angle = (i / segments) * Math.PI * 2;
+    
+    // Use simpler mathematical functions for variation
+    const variation = 
+      Math.sin(angle * 2) * 0.2 + 
+      Math.sin(angle * 3) * 0.1 + 
+      Math.sin(angle * 5) * 0.05;
+    
+    const radius = baseRadius * (1 + variation);
+    
     points.push({
-      x: Math.cos(angle) * radiusVariation,
-      y: Math.sin(angle) * radiusVariation
+      x: Math.cos(angle) * radius,
+      y: Math.sin(angle) * radius
     });
   }
   
-  // Close the loop by adding the first point again
+  // Close the loop
   points.push(points[0]);
   
-  // Create a smooth curve using splines instead of direct connections
-  for (let i = 1; i < points.length; i++) {
+  // Start the shape
+  waterShape.moveTo(points[0].x, points[0].y);
+  
+  // Create smooth curves between points
+  for (let i = 0; i < points.length - 1; i++) {
     const current = points[i];
-    const prev = points[i-1];
+    const next = points[i + 1];
     
-    // Use quadraticCurveTo for smoother transitions
-    const controlX = (prev.x + current.x) / 2;
-    const controlY = (prev.y + current.y) / 2;
+    // Simple quadratic curve for smooth transitions
+    const midX = (current.x + next.x) / 2;
+    const midY = (current.y + next.y) / 2;
     
-    waterShape.quadraticCurveTo(controlX, controlY, current.x, current.y);
+    waterShape.quadraticCurveTo(
+      current.x, current.y,
+      midX, midY
+    );
   }
   
-  const waterGeometry = new THREE.ShapeGeometry(waterShape, 128); // Increased segments for the geometry
+  const waterGeometry = new THREE.ShapeGeometry(waterShape, 64);
 
   // Create directional light for sun reflection
   const sunLight = new THREE.DirectionalLight(0xffffff, 1.0);
@@ -58,41 +61,36 @@ function createWater(scene) {
   scene.add(sunLight);
   scene.add(sunLight.target);
   
-  // Create Water material with original Water (not Water2)
+  // Create Water material
   const water = new Water(waterGeometry, {
     textureWidth: 512,
     textureHeight: 512,
     waterNormals: new THREE.TextureLoader().load(
-      'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/waternormals.jpg', 
+      'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/waternormals.jpg',
       function(texture) {
         texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
       }
     ),
     sunDirection: new THREE.Vector3(sunLight.position.x, sunLight.position.y, sunLight.position.z).normalize(),
     sunColor: 0xffffff,
-    waterColor: 0x0077ff,
-    distortionScale: 3.7, // Increase this value for more pronounced waves
+    waterColor: 0x4d80b3,
+    distortionScale: 1.2,
     fog: scene.fog !== undefined
   });
 
-  // Position and rotate water
   water.rotation.x = -Math.PI / 2;
-  water.position.y = .2; // Water level
-  console.log('Water positioned at y = 0');
-
-  // Add water to scene
+  water.position.y = 0.2;
+  water.position.x = -20;
+  
   scene.add(water);
-  console.log('Water added to scene with wave animation capability');
-
-  // Return water object for animation
+  console.log('Water added to scene');
+  
   return water;
 }
 
-// Function to animate water with proper time update
 function animateWater(water, time) {
   if (water && water.material && water.material.uniforms['time']) {
-    // Update the time parameter for wave animation
-    water.material.uniforms['time'].value += 1/360;
+    water.material.uniforms['time'].value += 1/720;
   }
 }
 
