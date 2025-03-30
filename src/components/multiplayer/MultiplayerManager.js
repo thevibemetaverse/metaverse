@@ -10,6 +10,7 @@ export class MultiplayerManager {
         this.playerId = null;
         this.isConnected = false;
         this.loader = new GLTFLoader();
+        // Try different possible paths for the model
         this.modelPath = './assets/models/metaverse-explorer.glb';
         this.nameLabelHeight = 4; // Height above player model
         this.reconnectAttempts = 0;
@@ -17,6 +18,7 @@ export class MultiplayerManager {
         this.reconnectDelay = 3000;
         this.username = null; // Store username
         this.pendingAvatars = new Set(); // Track avatars being created
+        this.localPlayerModel = null; // Reference to local player's model
     }
 
     connect(serverUrl = '') {
@@ -154,30 +156,105 @@ export class MultiplayerManager {
     handlePlayerUpdate(data) {
         if (data.id === this.playerId) return;
         
-        const player = this.players.get(data.id);
-        if (player) {
-            // Update player position without time window restriction
-            player.mesh.position.set(data.position.x, data.position.y, data.position.z);
-            player.mesh.rotation.set(data.rotation.x, data.rotation.y, data.rotation.z);
+        try {
+            let player = this.players.get(data.id);
             
-            // Update player name label position
-            if (player.nameLabel) {
-                player.nameLabel.position.copy(player.mesh.position);
-                player.nameLabel.position.y += this.nameLabelHeight;
+            // If we don't have this player and aren't creating it, create them now
+            if (!player && !this.pendingAvatars.has(data.id)) {
+                console.log('[MultiplayerManager] Creating player on update:', data.id);
+                this.handlePlayerJoined({
+                    id: data.id,
+                    username: data.username || `Player${data.id.slice(0, 4)}`,
+                    position: data.position,
+                    rotation: data.rotation
+                });
+                return; // Return and wait for next update after player is created
             }
             
-            player.lastUpdate = Date.now();
-        } else if (!this.pendingAvatars.has(data.id)) {
-            // If we receive an update for a player we don't have and aren't creating,
-            // create their avatar
-            console.log('[MultiplayerManager] Received update for unknown player:', data.id);
-            this.handlePlayerJoined({
-                id: data.id,
-                username: `Player${data.id.slice(0, 4)}`,
-                position: data.position,
-                rotation: data.rotation
+            // Skip if player not fully loaded yet
+            if (!player || !player.mesh) return;
+            
+            // Store old position for debugging
+            const oldPosition = {
+                x: player.mesh.position.x,
+                y: player.mesh.position.y,
+                z: player.mesh.position.z
+            };
+            
+            // CRITICAL FIX: For remote players, we completely remove and re-add the mesh 
+            // to force a scene graph update that ensures visibility
+            if (player.mesh.parent) {
+                player.mesh.parent.remove(player.mesh);
+            }
+            
+            // Update player position directly
+            player.mesh.position.x = data.position.x;
+            player.mesh.position.y = data.position.y; 
+            player.mesh.position.z = data.position.z;
+            player.mesh.rotation.x = data.rotation.x;
+            player.mesh.rotation.y = data.rotation.y;
+            player.mesh.rotation.z = data.rotation.z;
+            
+            // Re-add to scene to force an update
+            this.scene.add(player.mesh);
+            
+            console.log(`[MultiplayerManager] Player ${data.id} moved from (${oldPosition.x.toFixed(2)}, ${oldPosition.y.toFixed(2)}, ${oldPosition.z.toFixed(2)}) to (${data.position.x.toFixed(2)}, ${data.position.y.toFixed(2)}, ${data.position.z.toFixed(2)})`);
+            
+            // Critical: force visibility on
+            player.mesh.visible = true;
+            
+            // Set frustumCulled to false to prevent Three.js from culling the mesh
+            player.mesh.frustumCulled = false;
+            
+            // Make all children visible and not culled
+            player.mesh.traverse((child) => {
+                if (child.isMesh) {
+                    child.visible = true;
+                    child.frustumCulled = false;
+                    
+                    // Ensure materials are correct
+                    if (child.material) {
+                        child.material.transparent = false;
+                        child.material.opacity = 1;
+                        child.material.needsUpdate = true;
+                        child.material.depthWrite = true;
+                        child.material.depthTest = true;
+                    }
+                }
             });
+            
+            // Update name label
+            if (player.nameLabel) {
+                // Remove and re-add name label to force update
+                if (player.nameLabel.parent) {
+                    player.nameLabel.parent.remove(player.nameLabel);
+                }
+                
+                player.nameLabel.position.x = player.mesh.position.x;
+                player.nameLabel.position.y = player.mesh.position.y + this.nameLabelHeight;
+                player.nameLabel.position.z = player.mesh.position.z;
+                player.nameLabel.visible = true;
+                player.nameLabel.renderOrder = 999;
+                player.nameLabel.frustumCulled = false;
+                
+                // Re-add label
+                this.scene.add(player.nameLabel);
+            }
+            
+            // Force update of matrix world for all objects
+            this.scene.updateMatrixWorld(true);
+            
+            // Update last seen time
+            player.lastUpdate = Date.now();
+            
+        } catch (error) {
+            console.error('[MultiplayerManager] Error updating player:', error);
         }
+    }
+
+    // Remove unused debug marker method
+    updateDebugMarker(player) {
+        // This method is no longer used - keep empty for backward compatibility
     }
 
     async createPlayerAvatar(data) {
@@ -189,54 +266,141 @@ export class MultiplayerManager {
             return;
         }
         
+        // Skip if we already have this player
+        if (this.players.has(data.id)) {
+            console.log('[MultiplayerManager] Player already exists:', data.id);
+            return;
+        }
+        
         // Add to pending avatars
         this.pendingAvatars.add(data.id);
         
         try {
-            // Load the character model
-            const gltf = await this.loadModel(this.modelPath);
-            const mesh = gltf.scene;
+            let mesh;
+            // Special handling for remote players vs. local player
+            const isLocalPlayer = data.id === this.playerId;
             
-            // Set initial position
-            mesh.position.set(data.position?.x || 0, data.position?.y || 0, data.position?.z || 0);
-            mesh.rotation.set(data.rotation?.x || 0, data.rotation?.y || 0, data.rotation?.z || 0);
-            
-            // Setup animations
-            const mixer = new THREE.AnimationMixer(mesh);
-            const animations = {};
-            
-            if (gltf.animations && gltf.animations.length) {
-                gltf.animations.forEach(animation => {
-                    const action = mixer.clipAction(animation);
-                    animations[animation.name] = action;
-                    // Start with idle animation
-                    if (animation.name.toLowerCase().includes('idle')) {
-                        action.play();
-                    }
-                });
+            if (isLocalPlayer && this.localPlayerModel) {
+                console.log('[MultiplayerManager] Using local player model');
+                mesh = this.localPlayerModel.clone();
+            } else {
+                // For remote players, load the GLB model with special adjustments
+                console.log('[MultiplayerManager] Loading model from path:', this.modelPath);
+                const gltf = await this.loadModel(this.modelPath);
+                console.log('[MultiplayerManager] Model loaded successfully:', gltf);
+                
+                // For remote players, we'll make extra adjustments to ensure visibility
+                mesh = gltf.scene;
+                
+                // Create a wrapper group for the model
+                // This extra level in the scene graph helps with visibility
+                const wrapperGroup = new THREE.Group();
+                wrapperGroup.add(mesh);
+                mesh = wrapperGroup; // Use the wrapper as the player's mesh
+                
+                // Set up animations
+                if (gltf.animations && gltf.animations.length) {
+                    const mixer = new THREE.AnimationMixer(gltf.scene);
+                    const animations = {};
+                    
+                    console.log('[MultiplayerManager] Found animations:', gltf.animations.map(a => a.name));
+                    gltf.animations.forEach(animation => {
+                        const action = mixer.clipAction(animation);
+                        animations[animation.name] = action;
+                        // Start with idle animation
+                        if (animation.name.toLowerCase().includes('idle')) {
+                            action.play();
+                        }
+                    });
+                    
+                    // Save mixer and animations
+                    this.players.set(data.id, {
+                        mixer: mixer,
+                        animations: animations
+                    });
+                }
             }
             
-            // Create name label
-            const nameLabel = this.createNameLabel(data.username);
-            nameLabel.position.copy(mesh.position);
-            nameLabel.position.y += this.nameLabelHeight;
+            // Set initial position
+            mesh.position.x = data.position?.x || 0;
+            mesh.position.y = data.position?.y || 0;
+            mesh.position.z = data.position?.z || 0;
+            mesh.rotation.x = data.rotation?.x || 0;
+            mesh.rotation.y = data.rotation?.y || 0;
+            mesh.rotation.z = data.rotation?.z || 0;
+            
+            // CRITICAL: disable frustum culling on the mesh and all its children
+            mesh.frustumCulled = false;
+            
+            // Make sure the mesh is visible and properly configured
+            mesh.visible = true;
+            mesh.traverse((child) => {
+                if (child.isMesh) {
+                    child.visible = true;
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                    child.frustumCulled = false;
+                    child.matrixAutoUpdate = true;  // Ensure matrix updates
+                    
+                    // Ensure materials are properly configured
+                    if (child.material) {
+                        child.material.transparent = false;
+                        child.material.opacity = 1;
+                        child.material.needsUpdate = true;
+                        child.material.depthWrite = true;
+                        child.material.depthTest = true;
+                        
+                        // Handle material arrays
+                        if (Array.isArray(child.material)) {
+                            child.material.forEach(mat => {
+                                mat.transparent = false;
+                                mat.opacity = 1;
+                                mat.needsUpdate = true;
+                                mat.depthWrite = true;
+                                mat.depthTest = true;
+                            });
+                        }
+                    }
+                }
+            });
+            
+            // Create name label with proper username
+            const username = data.username || `Player${data.id.slice(0, 4)}`;
+            const nameLabel = this.createNameLabel(username);
+            nameLabel.position.x = mesh.position.x;
+            nameLabel.position.y = mesh.position.y + this.nameLabelHeight;
+            nameLabel.position.z = mesh.position.z;
             nameLabel.renderOrder = 999;
+            nameLabel.visible = true;
+            nameLabel.frustumCulled = false;
             
             // Add to scene
             this.scene.add(mesh);
             this.scene.add(nameLabel);
             
-            // Store player data
+            // Store or update player data
+            const existingPlayer = this.players.get(data.id) || {};
             this.players.set(data.id, {
-                username: data.username,
+                ...existingPlayer,
+                username: username,
                 mesh: mesh,
                 nameLabel: nameLabel,
-                mixer: mixer,
-                animations: animations,
-                lastUpdate: Date.now()
+                lastUpdate: Date.now(),
+                isLocalPlayer: isLocalPlayer // Track if this is the local player
             });
 
-            console.log('[MultiplayerManager] Avatar created successfully for player:', data.username);
+            console.log('[MultiplayerManager] Player avatar created successfully');
+            
+            // Extra validation log
+            const player = this.players.get(data.id);
+            console.log(`[MultiplayerManager] Player ${data.id} state:`, {
+                exists: !!player,
+                position: player?.mesh?.position,
+                visible: player?.mesh?.visible,
+                inScene: !!player?.mesh?.parent,
+                frustumCulled: player?.mesh?.frustumCulled,
+                isLocalPlayer: player?.isLocalPlayer
+            });
         } catch (error) {
             console.error('[MultiplayerManager] Error creating avatar:', error);
             // Fallback to simple cube if model loading fails
@@ -248,6 +412,7 @@ export class MultiplayerManager {
     }
 
     createFallbackAvatar(data) {
+        console.log('[MultiplayerManager] Creating fallback avatar for player:', data.id);
         const geometry = new THREE.BoxGeometry(1, 2, 1);
         const material = new THREE.MeshStandardMaterial({ 
             color: data.id === this.playerId ? 0xff0000 : 0x00ff00,
@@ -258,10 +423,11 @@ export class MultiplayerManager {
         mesh.position.set(data.position?.x || 0, data.position?.y || 0, data.position?.z || 0);
         mesh.castShadow = true;
         mesh.receiveShadow = true;
+        mesh.visible = true;
         
         const nameLabel = this.createNameLabel(data.username);
         nameLabel.position.copy(mesh.position);
-        nameLabel.position.y += this.nameLabelHeight; // Use the configured height
+        nameLabel.position.y += this.nameLabelHeight;
         nameLabel.renderOrder = 999;
         
         this.scene.add(mesh);
@@ -270,21 +436,11 @@ export class MultiplayerManager {
         this.players.set(data.id, {
             username: data.username,
             mesh: mesh,
-            nameLabel: nameLabel
+            nameLabel: nameLabel,
+            lastUpdate: Date.now()
         });
-    }
-
-    loadModel(path) {
-        return new Promise((resolve, reject) => {
-            this.loader.load(
-                path,
-                (gltf) => resolve(gltf),
-                (progress) => {
-                    console.log(`[MultiplayerManager] Loading model: ${(progress.loaded / progress.total * 100)}%`);
-                },
-                (error) => reject(error)
-            );
-        });
+        
+        console.log('[MultiplayerManager] Fallback avatar created successfully');
     }
 
     removePlayerAvatar(playerId) {
@@ -355,11 +511,47 @@ export class MultiplayerManager {
         
         // Only send updates if position or rotation has changed significantly
         const player = this.players.get(this.playerId);
-        if (player) {
+        if (player && player.mesh) {
             const posDiff = position.distanceTo(player.mesh.position);
             const rotDiff = Math.abs(rotation.y - player.mesh.rotation.y);
             
             if (posDiff > 0.01 || rotDiff > 0.01) {
+                // Update local position first
+                player.mesh.position.copy(position);
+                player.mesh.rotation.copy(rotation);
+                
+                // Ensure mesh and all its children are visible and properly configured
+                player.mesh.visible = true;
+                player.mesh.traverse((child) => {
+                    if (child.isMesh) {
+                        child.visible = true;
+                        child.castShadow = true;
+                        child.receiveShadow = true;
+                        // Ensure materials are properly configured
+                        if (child.material) {
+                            child.material.transparent = false;
+                            child.material.opacity = 1;
+                            child.material.needsUpdate = true;
+                            child.material.depthWrite = true;
+                            child.material.depthTest = true;
+                        }
+                    }
+                });
+                
+                // Update name label position
+                if (player.nameLabel) {
+                    player.nameLabel.position.copy(position);
+                    player.nameLabel.position.y += this.nameLabelHeight;
+                    player.nameLabel.visible = true;
+                    player.nameLabel.renderOrder = 999;
+                }
+                
+                // Force a render update
+                if (player.mesh.parent) {
+                    player.mesh.parent.updateMatrixWorld();
+                }
+                
+                // Send update to server
                 this.socket.emit('playerUpdate', {
                     position: position,
                     rotation: rotation
@@ -387,12 +579,89 @@ export class MultiplayerManager {
     }
 
     update(deltaTime) {
-        // Update animations for all players
-        this.players.forEach(player => {
+        // Update animations and ensure visibility for all players
+        this.players.forEach((player, id) => {
+            // Skip if player is not fully initialized
+            if (!player || !player.mesh) return;
+            
+            // Update animation mixer if available
             if (player.mixer) {
                 player.mixer.update(deltaTime);
             }
+            
+            // Skip local player - it's handled differently
+            if (id === this.playerId) return;
+            
+            // CRITICAL: Force remote player model to stay visible
+            if (player.mesh) {
+                // If mesh is not in scene for some reason, re-add it
+                if (!player.mesh.parent) {
+                    console.log(`[MultiplayerManager] Re-adding player ${id} to scene during update`);
+                    this.scene.add(player.mesh);
+                    
+                    // Also make sure the name label is in the scene
+                    if (player.nameLabel && !player.nameLabel.parent) {
+                        this.scene.add(player.nameLabel);
+                    }
+                }
+                
+                // Ensure mesh is visible
+                player.mesh.visible = true;
+                player.mesh.frustumCulled = false;
+                
+                // Force all child meshes to stay visible
+                player.mesh.traverse((child) => {
+                    if (child.isMesh) {
+                        child.visible = true;
+                        child.frustumCulled = false;
+                        
+                        // Ensure materials are up to date
+                        if (child.material) {
+                            child.material.needsUpdate = true;
+                            child.material.depthTest = true;
+                            child.material.depthWrite = true;
+                            
+                            // Handle material arrays
+                            if (Array.isArray(child.material)) {
+                                child.material.forEach(mat => {
+                                    mat.needsUpdate = true;
+                                    mat.depthTest = true;
+                                    mat.depthWrite = true;
+                                });
+                            }
+                        }
+                    }
+                });
+                
+                // Every few seconds, completely remove and re-add remote players to force scene graph updates
+                const now = Date.now();
+                if (!player.lastResetTime || now - player.lastResetTime > 5000) { // Reset every 5 seconds
+                    if (player.mesh.parent) {
+                        player.mesh.parent.remove(player.mesh);
+                    }
+                    this.scene.add(player.mesh);
+                    
+                    // Update last reset time
+                    player.lastResetTime = now;
+                }
+            }
+            
+            // Update name label
+            if (player.nameLabel) {
+                player.nameLabel.visible = true;
+                player.nameLabel.position.x = player.mesh.position.x;
+                player.nameLabel.position.y = player.mesh.position.y + this.nameLabelHeight;
+                player.nameLabel.position.z = player.mesh.position.z;
+                
+                // Re-add to scene if it was somehow removed
+                if (!player.nameLabel.parent) {
+                    this.scene.add(player.nameLabel);
+                }
+            }
         });
+        
+        // Force update of all matrix worlds
+        this.scene.updateMatrixWorld(true);
     }
 
     dispose() {
@@ -403,5 +672,38 @@ export class MultiplayerManager {
         this.cleanupAllPlayers();
         this.isConnected = false;
         this.playerId = null;
+    }
+
+    // Add method to set local player model
+    setLocalPlayerModel(model) {
+        this.localPlayerModel = model;
+        console.log('[MultiplayerManager] Local player model set');
+    }
+
+    loadModel(path) {
+        return new Promise((resolve, reject) => {
+            console.log('[MultiplayerManager] Starting model load from:', path);
+            this.loader.load(
+                path,
+                (gltf) => {
+                    console.log('[MultiplayerManager] Model loaded successfully');
+                    // Debug: Log model details
+                    console.log('[MultiplayerManager] Model details:', {
+                        scene: gltf.scene ? 'has scene' : 'no scene',
+                        animations: gltf.animations ? gltf.animations.length : 0,
+                        cameras: gltf.cameras ? gltf.cameras.length : 0,
+                        asset: gltf.asset
+                    });
+                    resolve(gltf);
+                },
+                (progress) => {
+                    console.log(`[MultiplayerManager] Loading model: ${(progress.loaded / progress.total * 100)}%`);
+                },
+                (error) => {
+                    console.error('[MultiplayerManager] Error loading model:', error);
+                    reject(error);
+                }
+            );
+        });
     }
 } 

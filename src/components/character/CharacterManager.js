@@ -391,6 +391,20 @@ export default class CharacterManager {
                 action.enabled = false;
                 action.reset();
             });
+
+            // Start with idle animation
+            const idleAnimName = Object.keys(this.animations).find(name => 
+                name.toLowerCase().includes('idle')
+            );
+            if (idleAnimName && this.animations[idleAnimName]) {
+                const idleAction = this.animations[idleAnimName];
+                idleAction.reset();
+                idleAction.setEffectiveTimeScale(1.0);
+                idleAction.setEffectiveWeight(1);
+                idleAction.loop = THREE.LoopRepeat;
+                idleAction.enabled = true;
+                idleAction.play();
+            }
         } else {
             this.characterMixer = null;
         }
@@ -499,6 +513,22 @@ export default class CharacterManager {
             
             // Center the model and set scale
             this.character.scale.set(1, 1, 1);
+            
+            // Make sure the mesh is visible and properly configured
+            this.character.visible = true;
+            this.character.traverse((child) => {
+                if (child.isMesh) {
+                    child.visible = true;
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                    // Ensure materials are properly configured
+                    if (child.material) {
+                        child.material.transparent = false;
+                        child.material.opacity = 1;
+                        child.material.needsUpdate = true;
+                    }
+                }
+            });
             
             // Setup animations if available
             this.setupAnimations(gltf);

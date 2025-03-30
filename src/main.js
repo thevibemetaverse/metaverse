@@ -104,10 +104,15 @@ characterManager.initialize().then(async (loadedCharacter) => {
     console.log('[main] Connecting portal manager to character manager');
     characterManager.setPortalManager(portalManager);
 
-    // Connect to multiplayer server
+    // Set the local player model in multiplayer manager
+    console.log('[main] Setting local player model in multiplayer manager');
+    multiplayerManager.setLocalPlayerModel(character);
+
+    // Connect to multiplayer server after character is fully initialized
     console.log('[main] Connecting to multiplayer server');
     multiplayerManager.connect();
     
+    // Start animation loop
     animate();
 }).catch(error => {
     console.error('Failed to initialize character:', error);
@@ -120,7 +125,9 @@ function animate() {
     const deltaTime = 0.016; // Approximately 60 FPS
     
     // Update character manager
-    characterManager.update(deltaTime);
+    if (characterManager) {
+        characterManager.update(deltaTime);
+    }
     
     // Update camera
     if (followCamera) {
