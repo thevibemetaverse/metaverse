@@ -1,42 +1,59 @@
 import * as THREE from 'three';
-import { Water } from 'three/examples/jsm/objects/Water.js';
+import { Water } from 'three/examples/jsm/objects/Water.js'; // Use Water (not Water2) for better wave animation
 
-// Function to create water
+// Function to create water with waves
 function createWater(scene) {
-    // Create water geometry
-    const waterGeometry = new THREE.PlaneGeometry(10000, 10000);
-    
-    // Create water material
-    const water = new Water(waterGeometry, {
-        textureWidth: 512,
-        textureHeight: 512,
-        waterNormals: new THREE.TextureLoader().load('/assets/textures/waternormals.jpg', function(texture) {
-            texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-            texture.repeat.set(4, 4);
-        }),
-        sunDirection: new THREE.Vector3(),
-        sunColor: 0xffffff,
-        waterColor: 0x001e0f,
-        distortionScale: 3.7,
-        fog: scene.fog !== undefined
-    });
+  console.log('Starting water creation...');
+  
+  // Water parameters
+  const waterSize = 50;
+  
+  // Create water geometry
+  const waterGeometry = new THREE.PlaneGeometry(waterSize, waterSize, 128, 128);
 
-    // Position and rotate water
-    water.rotation.x = -Math.PI / 2;
-    water.position.y = 1; // Adjust this value to set water level
+  // Create directional light for sun reflection
+  const sunLight = new THREE.DirectionalLight(0xffffff, 1.0);
+  sunLight.position.set(30, 100, 30);
+  sunLight.target.position.set(0, 0, 0);
+  scene.add(sunLight);
+  scene.add(sunLight.target);
+  
+  // Create Water material with original Water (not Water2)
+  const water = new Water(waterGeometry, {
+    textureWidth: 512,
+    textureHeight: 512,
+    waterNormals: new THREE.TextureLoader().load(
+      'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/waternormals.jpg', 
+      function(texture) {
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+      }
+    ),
+    sunDirection: new THREE.Vector3(sunLight.position.x, sunLight.position.y, sunLight.position.z).normalize(),
+    sunColor: 0xffffff,
+    waterColor: 0x0077ff,
+    distortionScale: 3.7, // Increase this value for more pronounced waves
+    fog: scene.fog !== undefined
+  });
 
-    // Add water to scene
-    scene.add(water);
+  // Position and rotate water
+  water.rotation.x = -Math.PI / 2;
+  water.position.y = .2; // Water level
+  console.log('Water positioned at y = 0');
 
-    // Return water object for animation
-    return water;
+  // Add water to scene
+  scene.add(water);
+  console.log('Water added to scene with wave animation capability');
+
+  // Return water object for animation
+  return water;
 }
 
-// Function to animate water
+// Function to animate water with proper time update
 function animateWater(water, time) {
-    if (water) {
-        water.material.uniforms['time'].value += 1.0 / 60.0;
-    }
+  if (water && water.material && water.material.uniforms['time']) {
+    // Update the time parameter for wave animation
+    water.material.uniforms['time'].value += 1/60;
+  }
 }
 
-export { createWater, animateWater }; 
+export { createWater, animateWater };
