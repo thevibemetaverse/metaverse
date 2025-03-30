@@ -5,8 +5,9 @@ import Sky from './components/environment/sky';
 import Ground from './components/environment/ground';
 import HillsGenerator from './components/environment/hills';
 import { FollowCamera } from './components/character/camera';
-import { createEnvironmentElements } from './components/environment/environmentelements.js';
+import { createEnvironmentElements } from './components/environment/environmentElements.js';
 import { PortalManager } from './components/portal/PortalManager';
+import { animateWater } from './components/environment/waterSystem.js';
 
 // Scene setup
 const scene = new THREE.Scene();
@@ -123,6 +124,9 @@ function animate() {
     if (portalManager) {
         portalManager.update(deltaTime);
     }
+
+    // Update water animation
+    animateWater(scene.water, deltaTime);
     
     renderer.render(scene, followCamera.getCamera());
 }
