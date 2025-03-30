@@ -122,8 +122,8 @@ async function createEnvironmentElements(scene) {
       const logoImage = create2DImage(
         '/assets/images/affordihome.png',
         logoPosition,
-        50,
-        20,
+        40,
+        25,
         new THREE.Euler(0, 0, 0)
       );
       environment.add(logoImage);
