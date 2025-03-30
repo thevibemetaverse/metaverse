@@ -313,5 +313,28 @@
 
   <!-- Debug controls -->
   <script type="module" src="/src/main.js"></script>
+  
+  <!-- Timeline Chat Widget Embed Code -->
+  <script>
+  (function(){
+      // Timeline Chat Widget Configuration
+      const timelineChatConfig = {
+          serverUrl: "https://chat.roostervibes.farm",
+          widgetPosition: "right", // "right" or "left"
+          theme: "light",          // "light" or "dark"
+          buttonColor: "#4CAF50",
+          buttonText: "CHAT"
+      };
+
+      // Create and inject the chat widget script
+      const script = document.createElement("script");
+      script.src = timelineChatConfig.serverUrl + "/static/chat-embed.min.js";
+      script.onload = function() {
+          // Initialize the widget with custom config when script loads
+          window.TimelineChatWidget.init(timelineChatConfig);
+      };
+      document.body.appendChild(script);
+  })();
+  </script>
 </body>
 </html> 
