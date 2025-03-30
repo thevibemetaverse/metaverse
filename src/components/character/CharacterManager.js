@@ -505,7 +505,7 @@ export default class CharacterManager {
             this.character.name = 'playerCharacter';
             
             // Set initial position and rotation
-            this.character.position.set(0, 0, 50); // Spawn at origin
+            this.character.position.set(0, 0, 60); // Spawn at origin
             this.character.rotation.y = Math.PI - (15 * Math.PI / 180); // 180 degrees minus 15 degrees clockwise
             
             // Center the model and set scale

@@ -6,7 +6,7 @@ function createWater(scene) {
   
   // Water parameters
   const waterLength = 50;  // Original size for length
-  const waterWidth = 85;  // Increased width
+  const waterWidth = 75;  // Increased width
   const baseRadiusLength = waterLength / 2;
   const baseRadiusWidth = waterWidth / 2;
   
@@ -85,7 +85,7 @@ function createWater(scene) {
 
   water.rotation.x = -Math.PI / 2;
   water.position.y = 0.2;
-  water.position.x = 25;
+  water.position.x = 35;
   water.position.z = -5;
   
   scene.add(water);
