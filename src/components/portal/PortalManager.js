@@ -205,7 +205,7 @@ export class PortalManager {
             },
             // Back row - portals at z=-5
             {
-                position: new THREE.Vector3(20, 0, -5),
+                position: new THREE.Vector3(20, 0, 25),
                 rotation: new THREE.Euler(0, 0, 0),
                 destination: "https://thevibemetaverse.vercel.app/api/portal/snowbrawl-world",
                 portalId: "snowbrawl-world",
@@ -214,7 +214,7 @@ export class PortalManager {
                 modelPath: '/assets/models/portal/portal-new.gltf'
             },
             {
-                position: new THREE.Vector3(35, 0, -5),
+                position: new THREE.Vector3(35, 0, 25),
                 rotation: new THREE.Euler(0, 0, 0),
                 destination: "https://thevibemetaverse.vercel.app/api/portal/spacerunner",
                 portalId: "spacerunner",
@@ -223,7 +223,7 @@ export class PortalManager {
                 modelPath: '/assets/models/portal/portal-new.gltf'
             },
             {
-                position: new THREE.Vector3(50, 0, -5),
+                position: new THREE.Vector3(50, 0, 25),
                 rotation: new THREE.Euler(0, 0, 0),
                 destination: "https://thevibemetaverse.vercel.app/api/portal/thevibemetaverse",
                 portalId: "thevibemetaverse",
@@ -232,7 +232,7 @@ export class PortalManager {
                 modelPath: '/assets/models/portal/portal-new.gltf'
             },
             {
-                position: new THREE.Vector3(65, 0, -5),
+                position: new THREE.Vector3(50, 0, 25),
                 rotation: new THREE.Euler(0, 0, 0),
                 destination: "https://thevibemetaverse.vercel.app/api/portal/tidefall",
                 portalId: "tidefall",
@@ -241,7 +241,7 @@ export class PortalManager {
                 modelPath: '/assets/models/portal/portal-new.gltf'
             },
             {
-                position: new THREE.Vector3(80, 0, -5),
+                position: new THREE.Vector3(65, 0, 25),
                 rotation: new THREE.Euler(0, 0, 0),
                 destination: "https://thevibemetaverse.vercel.app/api/portal/viberates",
                 portalId: "viberates",
@@ -250,7 +250,7 @@ export class PortalManager {
                 modelPath: '/assets/models/portal/portal-new.gltf'
             },
             {
-                position: new THREE.Vector3(90, 0, -5),  // z changed from -15 to -5
+                position: new THREE.Vector3(80, 0, 25),  // z changed from -15 to -5
                 rotation: new THREE.Euler(0, 0, 0),
                 destination: "https://thevibemetaverse.vercel.app/api/portal/yacht-world",
                 portalId: "yacht-world",
