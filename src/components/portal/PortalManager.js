@@ -205,7 +205,7 @@ export class PortalManager {
             },
             // Back row - portals at z=-5
             {
-                position: new THREE.Vector3(20, 0, 25),
+                position: new THREE.Vector3(35, 0, 25),
                 rotation: new THREE.Euler(0, 0, 0),
                 destination: "https://thevibemetaverse.vercel.app/api/portal/snowbrawl-world",
                 portalId: "snowbrawl-world",

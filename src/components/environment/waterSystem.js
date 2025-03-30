@@ -5,29 +5,34 @@ function createWater(scene) {
   console.log('Starting water creation...');
   
   // Water parameters
-  const waterSize = 10;
-  const baseRadius = waterSize / 2;
+  const waterLength = 50;  // Original size for length
+  const waterWidth = 85;  // Increased width
+  const baseRadiusLength = waterLength / 2;
+  const baseRadiusWidth = waterWidth / 2;
   
   // Create water shape with organic edges
   const waterShape = new THREE.Shape();
-  const segments = 36; // Reduced segments for better performance
+  const segments = 36;
   
-  // Simplified noise generation
+  // Modified points generation for elliptical shape
   const points = [];
   for (let i = 0; i <= segments; i++) {
     const angle = (i / segments) * Math.PI * 2;
     
-    // Use simpler mathematical functions for variation
     const variation = 
       Math.sin(angle * 2) * 0.2 + 
       Math.sin(angle * 3) * 0.1 + 
       Math.sin(angle * 5) * 0.05;
     
-    const radius = baseRadius * (1 + variation);
+    // Use different radii for width and length
+    const radius = {
+      x: baseRadiusWidth * (1 + variation),
+      y: baseRadiusLength * (1 + variation)
+    };
     
     points.push({
-      x: Math.cos(angle) * radius,
-      y: Math.sin(angle) * radius
+      x: Math.cos(angle) * radius.x,
+      y: Math.sin(angle) * radius.y
     });
   }
   
@@ -80,7 +85,8 @@ function createWater(scene) {
 
   water.rotation.x = -Math.PI / 2;
   water.position.y = 0.2;
-  water.position.x = -20;
+  water.position.x = 25;
+  water.position.z = -5;
   
   scene.add(water);
   console.log('Water added to scene');
