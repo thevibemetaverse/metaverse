@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader.js';
+import { createWater } from './waterSystem.js';
 
 // Model loaders
 const loadingManager = new THREE.LoadingManager();
@@ -61,6 +62,13 @@ async function createEnvironmentElements(scene) {
   scene.add(environment);
 
   try {
+    // Create water first (so it's at the bottom)
+    console.log('Creating water...');
+    const water = createWater(scene);
+    console.log('Water created:', water);
+    // Store water in scene for animation
+    scene.water = water;
+
     // Load BBQ Sauce
     console.log('About to load BBQ Sauce...');
     const bbqSauce = await loadGLTFModel(
