@@ -4,6 +4,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader.js';
 import { createWater } from './waterSystem.js';
+import { create2DImage } from './imageSystem.js';
 
 // Model loaders
 const loadingManager = new THREE.LoadingManager();
@@ -89,7 +90,20 @@ async function createEnvironmentElements(scene) {
       new THREE.Euler(0, 0, 0)
     );
     console.log('Office Computer loaded:', officeComputer);
-    if (officeComputer) environment.add(officeComputer);
+    if (officeComputer) {
+      environment.add(officeComputer);
+      
+      // Add solsys image next to the computer
+      const computerImagePosition = new THREE.Vector3(20, 7, 55); // Position to the right of computer
+      const logoImage2 = create2DImage(
+        '/assets/images/solsys.png',
+        computerImagePosition,
+        15, // Smaller size to fit near desk
+        8,
+        new THREE.Euler(0, -Math.PI/2, 0) // Rotate 90 degrees clockwise around Z axis
+      );
+      environment.add(logoImage2);
+    }
 
     // Load Runway
     console.log('About to load Runway...');
@@ -111,7 +125,20 @@ async function createEnvironmentElements(scene) {
       new THREE.Euler(0, 0, 0)
     );
     console.log('Eiffel Tower loaded:', eiffelTower);
-    if (eiffelTower) environment.add(eiffelTower);
+    if (eiffelTower) {
+      environment.add(eiffelTower);
+      
+      // First logo remains at its current position
+      const logoPosition = new THREE.Vector3(65, 30, -60);
+      const logoImage = create2DImage(
+        '/assets/images/affordihome.png',
+        logoPosition,
+        40,
+        25,
+        new THREE.Euler(0, 0, 0)
+      );
+      environment.add(logoImage);
+    }
 
     // Load Sagrada Familia
     console.log('About to load Sagrada Familia...');
