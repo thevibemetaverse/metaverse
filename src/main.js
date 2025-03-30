@@ -82,8 +82,7 @@ let followCamera;
 // Initialize portal manager
 const portalManager = new PortalManager(scene, null, {
     username: 'Guest',
-    color: import.meta.env.VITE_DEFAULT_CHARACTER_COLOR || 'blue',
-    speed: parseInt(import.meta.env.VITE_DEFAULT_CHARACTER_SPEED) || 5
+    speed: 5
 });
 
 // Track portal interactions
@@ -100,8 +99,7 @@ characterManager.initialize().then(async (loadedCharacter) => {
     
     // Track character initialization
     posthog.capture('character_initialized', {
-        character_color: import.meta.env.VITE_DEFAULT_CHARACTER_COLOR,
-        character_speed: import.meta.env.VITE_DEFAULT_CHARACTER_SPEED
+        timestamp: new Date().toISOString()
     });
     
     // Initialize FollowCamera
