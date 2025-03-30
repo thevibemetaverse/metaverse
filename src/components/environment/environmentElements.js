@@ -95,7 +95,7 @@ async function createEnvironmentElements(scene) {
     console.log('About to load Runway...');
     const runway = await loadGLTFModel(
       '/assets/models/runway.glb',
-      new THREE.Vector3(-15, .1, 1),
+      new THREE.Vector3(-15, .1, 10),
       new THREE.Vector3(.02, .02, .02),
       new THREE.Euler(0, .8*Math.PI, 0) 
     );
