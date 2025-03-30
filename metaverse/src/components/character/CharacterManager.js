@@ -469,8 +469,19 @@ export default class CharacterManager {
         // Get username from URL or use default
         this.username = urlParams.get('username') || 'Guest';
         
-        // Get custom avatar URL if provided
-        this.avatarUrl = urlParams.get('avatar_url') || null;
+        // Update playerState
+        this.playerState = {
+            username: this.username,
+            color: urlParams.get('color') || 'blue',
+            speed: parseFloat(urlParams.get('speed')) || 5,
+            avatarUrl: urlParams.get('avatar_url') || null,
+            team: urlParams.get('team') || null
+        };
+        
+        // Update portal manager's playerState if it exists
+        if (this.portalManager) {
+            this.portalManager.playerState = this.playerState;
+        }
     }
 
     async loadCharacterModel() {
@@ -821,11 +832,15 @@ export default class CharacterManager {
         this.portalManager = portalManager;
         this.portalCheckEnabled = true;
         
-        // Log initial portal state
+        // Share playerState with portal manager
         if (portalManager) {
+            portalManager.playerState = this.playerState;
+            
+            // Log initial portal state
             console.log('[CharacterManager] Portal manager state:', {
                 hasPortals: portalManager.portals.length > 0,
                 portalCount: portalManager.portals.length,
+                playerState: this.playerState,
                 portals: portalManager.portals.map(p => ({
                     id: p.portalId,
                     position: p.mesh?.position,
