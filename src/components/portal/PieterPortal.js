@@ -21,10 +21,6 @@ export class PieterPortal {
     createStartPortal() {
         // Create portal group to contain all portal elements
         const startPortalGroup = new THREE.Group();
-        startPortalGroup.position.set(0, 0, 5); // Position directly in front of user
-        startPortalGroup.rotation.x = 0.35;
-        startPortalGroup.rotation.y = 0;
-
         // Create portal effect
         const startPortalGeometry = new THREE.TorusGeometry(15, 2, 16, 100);
         const startPortalMaterial = new THREE.MeshPhongMaterial({
