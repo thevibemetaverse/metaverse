@@ -113,7 +113,7 @@ export class PortalManager {
         const defaultPortals = [
             // Front row - evenly spaced portals starting at x=20
             {
-                position: new THREE.Vector3(20, 0, 25),
+                position: new THREE.Vector3(20, 0, 40),
                 rotation: new THREE.Euler(0, 0, 0),
                 destination: "https://thevibemetaverse.vercel.app/api/portal/auto-boss",
                 portalId: "auto-boss",
@@ -122,7 +122,7 @@ export class PortalManager {
                 modelPath: '/assets/models/portal/portal-new.gltf'
             },
             {
-                position: new THREE.Vector3(35, 0, 25),
+                position: new THREE.Vector3(35, 0, 40),
                 rotation: new THREE.Euler(0, 0, 0),
                 destination: "https://thevibemetaverse.vercel.app/api/portal/fly-pieter",
                 portalId: "fly-pieter",
@@ -131,7 +131,7 @@ export class PortalManager {
                 modelPath: '/assets/models/portal/portal-new.gltf'
             },
             {
-                position: new THREE.Vector3(50, 0, 25),
+                position: new THREE.Vector3(50, 0, 40),
                 rotation: new THREE.Euler(0, 0, 0),
                 destination: "https://thevibemetaverse.vercel.app/api/portal/foodvibers",
                 portalId: "foodvibers",
@@ -140,7 +140,7 @@ export class PortalManager {
                 modelPath: '/assets/models/portal/portal-new.gltf'
             },
             {
-                position: new THREE.Vector3(65, 0, 25),
+                position: new THREE.Vector3(65, 0, 40),
                 rotation: new THREE.Euler(0, 0, 0),
                 destination: "https://thevibemetaverse.vercel.app/api/portal/jet-ski",
                 portalId: "jet-ski",
@@ -149,7 +149,7 @@ export class PortalManager {
                 modelPath: '/assets/models/portal/portal-new.gltf'
             },
             {
-                position: new THREE.Vector3(80, 0, 25),
+                position: new THREE.Vector3(80, 0, 40),
                 rotation: new THREE.Euler(0, 0, 0),
                 destination: "https://thevibemetaverse.vercel.app/api/portal/neon-trailblazer",
                 portalId: "neon-trailblazer",
@@ -476,7 +476,7 @@ export class PortalManager {
         // Create portal group to contain all portal elements
         const portalGroup = new THREE.Group();
         // Position in line with other portals (front row)
-        portalGroup.position.set(0, 0, -25); // Position after the last portal in the front row
+        portalGroup.position.set(0, 0, -5); // Position after the last portal in the front row
         
         // Create portal effect
         const portalGeometry = new THREE.TorusGeometry(7.5, 1, 16, 100);
@@ -560,8 +560,6 @@ export class PortalManager {
             particles: particles,
             animate: animatePortal
         };
-
-        console.log('[PortalManager] Created Pieter portal in line with other portals');
         return portalGroup;
     }
 } 
