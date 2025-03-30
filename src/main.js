@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { inject } from '@vercel/analytics';
+import posthog from 'posthog-js';
 import CharacterManager from './components/character/CharacterManager';
 import Sky from './components/environment/sky';
 import Ground from './components/environment/ground';
@@ -12,6 +13,12 @@ import { animateWater } from './components/environment/waterSystem.js';
 
 // Initialize Vercel Analytics
 inject();
+
+// Initialize PostHog
+posthog.init(import.meta.env.POSTHOG_KEY, {
+    api_host: 'https://us.i.posthog.com',
+    person_profiles: 'identified_only',
+});
 
 // Scene setup
 const scene = new THREE.Scene();
@@ -75,13 +82,27 @@ let followCamera;
 // Initialize portal manager
 const portalManager = new PortalManager(scene, null, {
     username: 'Guest',
-    color: 'blue',
-    speed: 5
+    color: import.meta.env.VITE_DEFAULT_CHARACTER_COLOR || 'blue',
+    speed: parseInt(import.meta.env.VITE_DEFAULT_CHARACTER_SPEED) || 5
 });
+
+// Track portal interactions
+portalManager.onPortalEnter = (portalId) => {
+    posthog.capture('portal_entered', {
+        portal_id: portalId,
+        timestamp: new Date().toISOString()
+    });
+};
 
 // Initialize character and start animation loop
 characterManager.initialize().then(async (loadedCharacter) => {
     character = loadedCharacter;
+    
+    // Track character initialization
+    posthog.capture('character_initialized', {
+        character_color: import.meta.env.VITE_DEFAULT_CHARACTER_COLOR,
+        character_speed: import.meta.env.VITE_DEFAULT_CHARACTER_SPEED
+    });
     
     // Initialize FollowCamera
     followCamera = new FollowCamera(character);
@@ -133,10 +154,27 @@ characterManager.initialize().then(async (loadedCharacter) => {
 });
 
 // Animation loop
+let lastPerformanceCheck = Date.now();
+let frameCount = 0;
+
 function animate() {
     requestAnimationFrame(animate);
     
     const deltaTime = 0.016; // Approximately 60 FPS
+    frameCount++;
+    
+    // Track performance every 10 seconds
+    const now = Date.now();
+    if (now - lastPerformanceCheck >= 10000) {
+        const fps = Math.round((frameCount * 1000) / (now - lastPerformanceCheck));
+        posthog.capture('performance_metrics', {
+            fps: fps,
+            timestamp: new Date().toISOString()
+        });
+        
+        frameCount = 0;
+        lastPerformanceCheck = now;
+    }
     
     // Update character manager
     characterManager.update(deltaTime);
