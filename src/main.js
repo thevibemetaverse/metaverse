@@ -7,6 +7,7 @@ import HillsGenerator from './components/environment/hills';
 import { FollowCamera } from './components/character/camera';
 import { createEnvironmentElements } from './components/environment/environmentelements.js';
 import { PortalManager } from './components/portal/PortalManager';
+import { MultiplayerManager } from './components/multiplayer/MultiplayerManager';
 
 // Scene setup
 const scene = new THREE.Scene();
@@ -74,6 +75,9 @@ const portalManager = new PortalManager(scene, null, {
     speed: 5
 });
 
+// Initialize multiplayer manager
+const multiplayerManager = new MultiplayerManager(scene);
+
 // Initialize character and start animation loop
 characterManager.initialize().then(async (loadedCharacter) => {
     character = loadedCharacter;
@@ -99,6 +103,10 @@ characterManager.initialize().then(async (loadedCharacter) => {
     // Connect portal manager to character manager
     console.log('[main] Connecting portal manager to character manager');
     characterManager.setPortalManager(portalManager);
+
+    // Connect to multiplayer server
+    console.log('[main] Connecting to multiplayer server');
+    multiplayerManager.connect();
     
     animate();
 }).catch(error => {
@@ -123,6 +131,19 @@ function animate() {
     if (portalManager) {
         portalManager.update(deltaTime);
     }
+
+    // Update multiplayer
+    if (multiplayerManager) {
+        multiplayerManager.update(deltaTime);
+        
+        // Send player position updates
+        if (character) {
+            multiplayerManager.updatePlayerPosition(
+                character.position,
+                character.rotation
+            );
+        }
+    }
     
     renderer.render(scene, followCamera.getCamera());
 }
@@ -133,4 +154,11 @@ window.addEventListener('resize', () => {
         followCamera.resize();
     }
     renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// Handle cleanup on page unload
+window.addEventListener('beforeunload', () => {
+    if (multiplayerManager) {
+        multiplayerManager.dispose();
+    }
 });
