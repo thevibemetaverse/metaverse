@@ -42,6 +42,7 @@ void main() {
 
 const rippleFragmentShader = `
 uniform sampler2D baseTexture;
+uniform sampler2D portalDepthTexture;
 uniform float time;
 uniform vec4 uniqueOffset;
 varying vec2 vUv;
@@ -55,43 +56,40 @@ float random(vec2 st) {
 void main() {
     vec2 uv = vUv;
     vec2 center = vec2(0.5);
-    float distanceFromCenter = length(uv - center);
+    vec2 centeredUV = uv - center;
+    float distanceFromCenter = length(centeredUV);
     
-    // Create multiple ripples with different frequencies and phases
-    float ripple = 0.0;
+    // Simplified depth effect
+    float zoomFactor = 2.0 + sin(time * 0.5) * 0.1;
+    vec2 rotatedUV = centeredUV / zoomFactor + center;
     
-    // First ripple set - slower, larger waves
-    float freq1 = 2.0 + random(vec2(1.0 + uniqueOffset.x, 1.0)) * 1.0;
-    float speed1 = 0.7 + random(vec2(2.0, 2.0 + uniqueOffset.y)) * 0.3;
-    ripple += sin(freq1 * distanceFromCenter - (time + uniqueOffset.x) * speed1) * 0.004;
+    // Sample depth texture
+    vec4 depthColor = texture2D(portalDepthTexture, rotatedUV);
     
-    // Second ripple set - medium waves
-    float freq2 = 3.0 + random(vec2(3.0 + uniqueOffset.y, 3.0)) * 1.0;
-    float speed2 = 0.9 + random(vec2(4.0, 4.0 + uniqueOffset.z)) * 0.3;
-    ripple += sin(freq2 * distanceFromCenter - (time + uniqueOffset.y) * speed2 + 1.5) * 0.003;
+    // Single simplified ripple effect
+    float freq = 2.0 + random(vec2(1.0 + uniqueOffset.x, 1.0)) * 0.5;
+    float speed = 0.7 + random(vec2(2.0, 2.0 + uniqueOffset.y)) * 0.3;
+    float ripple = sin(freq * distanceFromCenter * 8.0 - time * speed) * 0.003;
     
-    // Third ripple set - faster, smaller waves
-    float freq3 = 4.0 + random(vec2(5.0 + uniqueOffset.z, 5.0)) * 1.0;
-    float speed3 = 1.1 + random(vec2(6.0, 6.0 + uniqueOffset.w)) * 0.3;
-    ripple += sin(freq3 * distanceFromCenter - (time + uniqueOffset.z) * speed3 + 3.0) * 0.002;
+    // Simplified distortion
+    vec2 finalUV = uv + vec2(ripple) * (1.0 - distanceFromCenter * 0.5);
     
-    // Add very subtle caustics effect
-    float caustics = sin(uv.x * 15.0 + time * 0.5) * sin(uv.y * 15.0 + time * 0.5) * 0.005;
-    ripple += caustics;
+    // Sample base texture with distortions
+    vec4 baseColor = texture2D(baseTexture, finalUV);
     
-    // Apply distortion to UV coordinates with fade out near edges
-    float fadeEdges = smoothstep(0.85, 0.0, distanceFromCenter);
-    vec2 rippleUV = uv + vec2(ripple) * fadeEdges;
+    // Simplified depth blend
+    vec4 finalColor = baseColor;
+    if (depthColor.a > 0.0) {
+        finalColor = mix(baseColor, depthColor * baseColor, distanceFromCenter * 0.5);
+    }
     
-    // Sample texture with ripple distortion
-    vec4 texColor = texture2D(baseTexture, rippleUV);
+    // Combined glow effect
+    float glowStrength = 0.1 + sin(time * 0.5) * 0.02;
+    vec3 glowColor = vec3(0.2, 0.4, 0.8);
+    vec3 glow = glowColor * (1.0 - distanceFromCenter) * glowStrength;
     
-    // Add very subtle highlights based on normal and ripple
-    float highlight = max(0.0, dot(vNormal, vec3(0.0, 0.0, 1.0)));
-    highlight = pow(highlight, 3.0) * 0.1 * (1.0 + ripple * 2.0);
-    
-    // Mix texture with highlights
-    gl_FragColor = texColor + vec4(highlight, highlight, highlight, 0.0);
+    // Final color composition
+    gl_FragColor = finalColor + vec4(glow, 0.0);
 }
 `;
 
