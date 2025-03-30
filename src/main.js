@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import { inject } from '@vercel/analytics';
 import CharacterManager from './components/character/CharacterManager';
 import Sky from './components/environment/sky';
 import Ground from './components/environment/ground';
@@ -8,6 +9,9 @@ import { FollowCamera } from './components/character/camera';
 import { createEnvironmentElements } from './components/environment/environmentElements.js';
 import { PortalManager } from './components/portal/PortalManager';
 import { animateWater } from './components/environment/waterSystem.js';
+
+// Initialize Vercel Analytics
+inject();
 
 // Scene setup
 const scene = new THREE.Scene();
