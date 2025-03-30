@@ -461,7 +461,8 @@ export class PortalManager {
         // Create portal group to contain all portal elements
         const portalGroup = new THREE.Group();
         // Position in line with other portals (front row)
-        portalGroup.position.set(0, 0, -5); // Position after the last portal in the front row
+        portalGroup.position.set(125, 0, 30); // Position after the last portal in the front row
+        portalGroup.rotation.y = .5*Math.PI;
         
         // Create portal effect
         const portalGeometry = new THREE.TorusGeometry(7.5, 1, 16, 100);
