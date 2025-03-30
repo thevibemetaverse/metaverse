@@ -50,21 +50,6 @@ export class Portal {
                     this.mesh.traverse((child) => {
                         if (child.isMesh) {
                             child.userData.portalRef = this;
-                            
-                            console.log(`[Portal] Checking mesh material for ${this.portalId}:`, {
-                                meshName: child.name,
-                                materialName: child.material?.name,
-                                materialType: child.material?.type,
-                                isBasicMaterial: child.material instanceof THREE.MeshBasicMaterial,
-                                currentProperties: {
-                                    transparent: child.material?.transparent,
-                                    opacity: child.material?.opacity,
-                                    side: child.material?.side,
-                                    metalness: child.material?.metalness,
-                                    roughness: child.material?.roughness
-                                }
-                            });
-                            
                             // Create basic materials for portal textures
                             if (child.material.name === 'Material.002' || child.material.name === 'Cube002_3') {
                                 const basicMaterial = new THREE.MeshBasicMaterial({
