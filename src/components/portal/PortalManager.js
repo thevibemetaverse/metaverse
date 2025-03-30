@@ -113,6 +113,15 @@ export class PortalManager {
         const defaultPortals = [
             // WATER GROUP - Portals near or on water
             {
+                position: new THREE.Vector3(6, 0, 17),
+                rotation: new THREE.Euler(0, -.16*Math.PI, 0),
+                destination: "https://thevibemetaverse.vercel.app/api/portal/vibe-sail",
+                portalId: "vibe-sail",
+                title: "Vibe Sailing Portal",
+                description: "Portal in misc area",
+                modelPath: '/assets/models/portal/portal-new.gltf'
+            },
+            {
                 position: new THREE.Vector3(18, -.2*Math.PI, 20),
                 rotation: new THREE.Euler(0, 0, 0),
                 destination: "https://thevibemetaverse.vercel.app/api/portal/jet-ski",
@@ -122,26 +131,26 @@ export class PortalManager {
                 modelPath: '/assets/models/portal/portal-new.gltf'
             },
             {
-                position: new THREE.Vector3(6, 0, 17),
-                rotation: new THREE.Euler(0, -.16*Math.PI, 0),
-                destination: "https://thevibemetaverse.vercel.app/api/portal/tidefall",
-                portalId: "tidefall",
-                title: "Tidefall Portal",
-                description: "Portal in misc area",
-                modelPath: '/assets/models/portal/portal-new.gltf'
-            },
-            {
-                position: new THREE.Vector3(30, 0, 20),
-                rotation: new THREE.Euler(0, .05*Math.PI, 0),
+                position: new THREE.Vector3(33, 0, 18),
+                rotation: new THREE.Euler(0, .1*Math.PI, 0),
                 destination: "https://thevibemetaverse.vercel.app/api/portal/yacht-world",
-                portalId: "yacht-world",
-                title: "Yacht World Portal",
+                portalId: "vibe-racer",
+                title: "Vibe Racer Portal",
                 description: "Portal near the water",
                 modelPath: '/assets/models/portal/portal-new.gltf'
             },
             {
-                position: new THREE.Vector3(43, 0, 18),
-                rotation: new THREE.Euler(0, .1*Math.PI, 0),
+                position: new THREE.Vector3(47, 0, 12),
+                rotation: new THREE.Euler(0, .15*Math.PI, 0),
+                destination: "https://thevibemetaverse.vercel.app/api/portal/yacht-world",
+                portalId: "yacht-world",
+                title: "Viberates Portal",
+                description: "Portal in misc area",
+                modelPath: '/assets/models/portal/portal-new.gltf'
+            },
+            {
+                position: new THREE.Vector3(62, 0, 2),
+                rotation: new THREE.Euler(0, .2*Math.PI, 0),
                 destination: "https://thevibemetaverse.vercel.app/api/portal/viberates",
                 portalId: "viberates",
                 title: "Viberates Portal",
@@ -229,6 +238,15 @@ export class PortalManager {
                 destination: "https://thevibemetaverse.vercel.app/api/portal/fly-pieter",
                 portalId: "fly-pieter",
                 title: "Fly Pieter Portal",
+                description: "Portal in the front row",
+                modelPath: '/assets/models/portal/portal-new.gltf'
+            },
+            {
+                position: new THREE.Vector3(-28, 0, 28),
+                rotation: new THREE.Euler(0, -.2*Math.PI, 0),
+                destination: "https://thevibemetaverse.vercel.app/api/portal/ww2-dogfight",
+                portalId: "ww2-dogfight",
+                title: "WW2 Dogfight Portal",
                 description: "Portal in the front row",
                 modelPath: '/assets/models/portal/portal-new.gltf'
             },
@@ -467,8 +485,8 @@ export class PortalManager {
         // Create portal effect
         const portalGeometry = new THREE.TorusGeometry(7.5, 1, 16, 100);
         const portalMaterial = new THREE.MeshPhongMaterial({
-            color: 0xff0000,
-            emissive: 0xff0000,
+            color: 0x00ff00,
+            emissive: 0x00ff00,
             transparent: true,
             opacity: 0.8
         });
@@ -478,7 +496,7 @@ export class PortalManager {
         // Create portal inner surface
         const portalInnerGeometry = new THREE.CircleGeometry(6.5, 32);
         const portalInnerMaterial = new THREE.MeshBasicMaterial({
-            color: 0xff0000,
+            color: 0x00ff00,
             transparent: true,
             opacity: 0.5,
             side: THREE.DoubleSide
@@ -500,10 +518,10 @@ export class PortalManager {
             positions[i + 1] = Math.sin(angle) * radius;
             positions[i + 2] = (Math.random() - 0.5) * 2;
 
-            // Red color with slight variation
-            colors[i] = 0.8 + Math.random() * 0.2;
-            colors[i + 1] = 0;
-            colors[i + 2] = 0;
+            // Green color with slight variation
+            colors[i] = 0; // red
+            colors[i + 1] = 0.8 + Math.random() * 0.2; // green
+            colors[i + 2] = 0; // blue
         }
 
         particles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
