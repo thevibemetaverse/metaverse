@@ -218,7 +218,7 @@ export class Portal {
         url.searchParams.set('portal', 'true');
         
         // Add optional parameters if available
-        if (playerState.avatarUrl) url.searchParams.set('avatar_url', playerState.avatarUrl);
+        url.searchParams.set('avatar_url', playerState.avatarUrl || 'https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb');
         if (playerState.team) url.searchParams.set('team', playerState.team);
         
         return url.toString();
