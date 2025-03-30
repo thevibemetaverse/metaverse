@@ -84,9 +84,9 @@ async function createEnvironmentElements(scene) {
     console.log('About to load Office Computer...');
     const officeComputer = await loadGLTFModel(
       '/assets/models/office_computer.glb',
-      new THREE.Vector3(-15, 0, 45),
+      new THREE.Vector3(15, 0, 55),
       new THREE.Vector3(0.04, 0.04, 0.04),
-      new THREE.Euler(0, Math.PI*.9, 0)
+      new THREE.Euler(0, 0, 0)
     );
     console.log('Office Computer loaded:', officeComputer);
     if (officeComputer) environment.add(officeComputer);
