@@ -136,6 +136,15 @@ export class PortalManager {
                             modelPath: '/assets/models/portal/portal-new.gltf'
                         },
                         {
+                            position: new THREE.Vector3(75, 0, 20),
+                            rotation: new THREE.Euler(0, 0, 0),
+                            destination: "https://thevibemetaverse.vercel.app/api/portal/red-panda-vibes",
+                            portalId: "red-panda-vibes",
+                            title: "Red Panda Vibes Portal",
+                            description: "Portal in the row",
+                            modelPath: '/assets/models/portal/portal-new.gltf'
+                        },
+                        {
                             position: new THREE.Vector3(85, 0, 40),
                             rotation: new THREE.Euler(0, 0, 0),
                             destination: "https://thevibemetaverse.vercel.app/api/portal/neon-trailblazer",
@@ -156,14 +165,14 @@ export class PortalManager {
                         {
                             position: new THREE.Vector3(60, 0, 20),
                             rotation: new THREE.Euler(0, 0, 0),
-                            destination: "https://thevibemetaverse.vercel.app/api/portal/snowbrawl-world",
-                            portalId: "snowbrawl-world",
-                            title: "Snowbrawl World Portal",
-                            description: "Portal in the back row",
+                            destination: "https://thevibemetaverse.vercel.app/api/portal/quack",
+                            portalId: "quack",
+                            title: "Quack Portal",
+                            description: "Portal in the row",
                             modelPath: '/assets/models/portal/portal-new.gltf'
                         },
                         {
-                            position: new THREE.Vector3(75, 0, 20),
+                            position: new THREE.Vector3(105, 0, 20),
                             rotation: new THREE.Euler(0, 0, 0),
                             destination: "https://thevibemetaverse.vercel.app/api/portal/spacerunner",
                             portalId: "spacerunner",
@@ -174,19 +183,10 @@ export class PortalManager {
                         {
                             position: new THREE.Vector3(90, 0, 20),
                             rotation: new THREE.Euler(0, 0, 0),
-                            destination: "https://thevibemetaverse.vercel.app/api/portal/quack",
-                            portalId: "quack",
-                            title: "Quack Portal",
-                            description: "Portal in the row",
-                            modelPath: '/assets/models/portal/portal-new.gltf'
-                        },
-                        {
-                            position: new THREE.Vector3(105, 0, 20),
-                            rotation: new THREE.Euler(0, 0, 0),
-                            destination: "https://thevibemetaverse.vercel.app/api/portal/red-panda-vibes",
-                            portalId: "red-panda-vibes",
-                            title: "Red Panda Vibes Portal",
-                            description: "Portal in the row",
+                            destination: "https://thevibemetaverse.vercel.app/api/portal/snowbrawl-world",
+                            portalId: "snowbrawl-world",
+                            title: "Snowbrawl World Portal",
+                            description: "Portal in the back row",
                             modelPath: '/assets/models/portal/portal-new.gltf'
                         },
 
