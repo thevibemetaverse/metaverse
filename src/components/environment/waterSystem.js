@@ -6,10 +6,50 @@ function createWater(scene) {
   console.log('Starting water creation...');
   
   // Water parameters
-  const waterSize = 50;
+  const waterSize = 10;
   
-  // Create water geometry
-  const waterGeometry = new THREE.PlaneGeometry(waterSize, waterSize, 128, 128);
+  // Create water geometry with natural, irregular shape
+  const waterShape = new THREE.Shape();
+  const radius = waterSize/2;
+  
+  // Create an irregular outline with random variations
+  const segments = 48; // Increased from 24 for smoother curves
+  const noiseAmount = radius * 0.15; // Reduced slightly for less dramatic variations
+  
+  // Start at a random point
+  const startAngle = Math.random() * Math.PI * 2;
+  const firstX = Math.cos(startAngle) * (radius + (Math.random() * noiseAmount - noiseAmount/2));
+  const firstY = Math.sin(startAngle) * (radius + (Math.random() * noiseAmount - noiseAmount/2));
+  
+  waterShape.moveTo(firstX, firstY);
+  
+  // Generate smoother interpolation points
+  const points = [];
+  for (let i = 0; i <= segments; i++) {
+    const angle = startAngle + (i / segments) * Math.PI * 2;
+    const radiusVariation = radius + (Math.random() * noiseAmount - noiseAmount/2);
+    points.push({
+      x: Math.cos(angle) * radiusVariation,
+      y: Math.sin(angle) * radiusVariation
+    });
+  }
+  
+  // Close the loop by adding the first point again
+  points.push(points[0]);
+  
+  // Create a smooth curve using splines instead of direct connections
+  for (let i = 1; i < points.length; i++) {
+    const current = points[i];
+    const prev = points[i-1];
+    
+    // Use quadraticCurveTo for smoother transitions
+    const controlX = (prev.x + current.x) / 2;
+    const controlY = (prev.y + current.y) / 2;
+    
+    waterShape.quadraticCurveTo(controlX, controlY, current.x, current.y);
+  }
+  
+  const waterGeometry = new THREE.ShapeGeometry(waterShape, 128); // Increased segments for the geometry
 
   // Create directional light for sun reflection
   const sunLight = new THREE.DirectionalLight(0xffffff, 1.0);
@@ -52,7 +92,7 @@ function createWater(scene) {
 function animateWater(water, time) {
   if (water && water.material && water.material.uniforms['time']) {
     // Update the time parameter for wave animation
-    water.material.uniforms['time'].value += 1/60;
+    water.material.uniforms['time'].value += 1/360;
   }
 }
 
