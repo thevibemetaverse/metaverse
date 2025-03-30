@@ -94,13 +94,13 @@ async function createEnvironmentElements(scene) {
       environment.add(officeComputer);
       
       // Add solsys image next to the computer
-      const computerImagePosition = new THREE.Vector3(20, 10, 55); // Position to the right of computer
+      const computerImagePosition = new THREE.Vector3(20, 7, 55); // Position to the right of computer
       const logoImage2 = create2DImage(
         '/assets/images/solsys.png',
         computerImagePosition,
         15, // Smaller size to fit near desk
-        17,
-        new THREE.Euler(0, 0, 0) // Rotate 90 degrees clockwise around Z axis
+        8,
+        new THREE.Euler(0, -Math.PI/2, 0) // Rotate 90 degrees clockwise around Z axis
       );
       environment.add(logoImage2);
     }
