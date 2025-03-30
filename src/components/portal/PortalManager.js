@@ -122,8 +122,8 @@ export class PortalManager {
                 modelPath: '/assets/models/portal/portal-new.gltf'
             },
             {
-                position: new THREE.Vector3(0, 0, 0),
-                rotation: new THREE.Vector3(0, 0, 0),
+                position: new THREE.Vector3(-15, 0, -4),
+                rotation: new THREE.Euler(0, -.2*Math.PI, 0),
                 destination: "https://thevibemetaverse.vercel.app/api/portal/fly-pieter",
                 portalId: "fly-pieter",
                 title: "Fly Pieter Portal",
