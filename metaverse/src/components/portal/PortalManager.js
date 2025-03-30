@@ -105,7 +105,14 @@ export class PortalManager {
         const urlParams = new URLSearchParams(window.location.search);
         const showEnterPortal = urlParams.get('portal') === 'true';
         
+        console.log('[PortalManager] URL parameters:', {
+            portal: urlParams.get('portal'),
+            showEnterPortal,
+            ref: urlParams.get('ref')
+        });
+        
         // Portal configurations
+        console.log('[PortalManager] Creating portal configurations, showEnterPortal:', showEnterPortal);
         const defaultPortals = [
             // Front row - evenly spaced portals starting at x=20
             {
@@ -155,7 +162,7 @@ export class PortalManager {
             },
             // Special "Enter" portal - only shown if portal=true in URL
             ...(showEnterPortal ? [{
-                position: new THREE.Vector3(95, 0, 25),
+                position: new THREE.Vector3(0, 0, -25),
                 rotation: new THREE.Euler(0, 0, 0),
                 destination: urlParams.get('ref') || "https://thevibemetaverse.vercel.app/api/portal/enter",
                 portalId: "enter",
@@ -256,21 +263,36 @@ export class PortalManager {
             }
         ];
         
+        console.log('[PortalManager] Portal configurations created:', {
+            totalPortals: defaultPortals.length,
+            hasEnterPortal: defaultPortals.some(p => p.portalId === 'enter'),
+            portalIds: defaultPortals.map(p => p.portalId)
+        });
+        
         // Update all portal destinations to use their own IDs
         defaultPortals.forEach(portal => {
-            portal.destination = `https://thevibemetaverse.vercel.app/api/portal/${portal.portalId}`;
+            if (portal.portalId !== 'enter') {
+                portal.destination = `https://thevibemetaverse.vercel.app/api/portal/${portal.portalId}`;
+            }
         });
         
         console.log('[PortalManager] Starting to add portals to scene');
         // Add each default portal
-        const promises = defaultPortals.map(config => this.addPortal(config));
+        const promises = defaultPortals.map(config => {
+            console.log(`[PortalManager] Adding portal to scene:`, {
+                id: config.portalId,
+                position: config.position,
+                destination: config.destination
+            });
+            return this.addPortal(config);
+        });
         const results = await Promise.all(promises);
         const successfulPortals = results.filter(Boolean).length;
         
         // Update textures for all portals
         this.updateAllPortalTextures('Material.002', '/assets/images/thevibemetaverse.png');
         
-        console.log('[PortalManager] Portal initialization complete:', {
+        console.log('[PortalManager] Portal addition results:', {
             totalPortals: defaultPortals.length,
             successfulPortals,
             failedPortals: defaultPortals.length - successfulPortals,
