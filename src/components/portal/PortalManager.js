@@ -13,48 +13,7 @@ export class PortalManager {
         // Cache for future API responses
         this.portalDataCache = new Map();
         
-        // UI elements
-        this.portalUI = null;
-        this.setupPortalUI();
-        
         console.log('[PortalManager] Initialized with scene, camera, and playerState');
-    }
-    
-    setupPortalUI() {
-        // Create a container for portal UI
-        this.portalUI = document.createElement('div');
-        this.portalUI.style.position = 'absolute';
-        this.portalUI.style.top = '20px';
-        this.portalUI.style.right = '20px';
-        this.portalUI.style.zIndex = '1000';
-        this.portalUI.style.display = 'none';
-        document.body.appendChild(this.portalUI);
-    }
-    
-    showPortalInfo(portal) {
-        if (!portal) {
-            this.portalUI.style.display = 'none';
-            return;
-        }
-        
-        this.portalUI.innerHTML = `
-            <div style="background: rgba(0, 0, 0, 0.8); color: white; padding: 15px; border-radius: 8px; max-width: 300px;">
-                <h3 style="margin: 0 0 10px 0;">${portal.title}</h3>
-                <p style="margin: 0 0 15px 0;">${portal.description}</p>
-                <button style="background: #4CAF50; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
-                    Enter Portal
-                </button>
-            </div>
-        `;
-        
-        this.portalUI.style.display = 'block';
-        
-        // Add click handler to the button
-        const button = this.portalUI.querySelector('button');
-        button.addEventListener('click', () => {
-            const destinationURL = portal.prepareDestinationURL(this.playerState);
-            window.location.href = destinationURL;
-        });
     }
     
     async addPortal(portalConfig) {
@@ -332,43 +291,12 @@ export class PortalManager {
     
     checkCollision(playerPosition, collisionDistance = 2.0) {
         // Log all portal positions for debugging
-        const portalState = this.portals.map(p => ({
-            id: p.portalId,
-            position: p.mesh?.position,
-            isActive: p.isActive,
-            hasMesh: !!p.mesh
-        }));
-        
-        console.log('[PortalManager] Portal collision check:', {
+        console.log('[PortalManager] Checking collisions with portals:', {
             playerPosition: playerPosition.toArray(),
             collisionDistance,
-            portalCount: this.portals.length,
-            portalState,
-            pieterPortal: this.pieterPortal ? {
-                hasGroup: !!this.pieterPortal.group,
-                position: this.pieterPortal.group?.position
-            } : null
+            activePortals: this.portals.filter(p => p.isActive).length
         });
-        
-        // Check Pieter portal collision first
-        if (this.pieterPortal && this.pieterPortal.group) {
-            const portalPosition = this.pieterPortal.group.position;
-            const distance = playerPosition.distanceTo(portalPosition);
-            
-            console.log(`[PortalManager] Checking collision with Pieter portal:`, {
-                distance,
-                threshold: collisionDistance,
-                playerPos: playerPosition.toArray(),
-                portalPos: portalPosition.toArray()
-            });
-            
-            if (distance < collisionDistance) {
-                console.log(`[PortalManager] Collision detected with Pieter portal`);
-                window.location.href = 'https://portal.pieter.com';
-                return true;
-            }
-        }
-        
+
         // Simple distance-based collision detection for other portals
         for (const portal of this.portals) {
             if (!portal.mesh || !portal.isActive) {
@@ -393,13 +321,12 @@ export class PortalManager {
             
             if (distance < collisionDistance) {
                 console.log(`[PortalManager] Collision detected with portal ${portal.portalId}`);
-                this.showPortalInfo(portal);
+                const destinationURL = portal.prepareDestinationURL(this.playerState);
+                window.location.href = destinationURL;
                 return portal;
             }
         }
         
-        // Hide portal UI if no collision
-        this.showPortalInfo(null);
         return null;
     }
     
@@ -420,12 +347,11 @@ export class PortalManager {
         if (intersects.length > 0 && intersects[0].distance < distance) {
             const hitObject = intersects[0].object;
             const portal = hitObject.userData.portalRef;
-            this.showPortalInfo(portal);
+            const destinationURL = portal.prepareDestinationURL(this.playerState);
+            window.location.href = destinationURL;
             return portal;
         }
         
-        // Hide portal UI if no collision
-        this.showPortalInfo(null);
         return null;
     }
     
@@ -451,11 +377,6 @@ export class PortalManager {
     }
     
     dispose() {
-        // Clean up UI
-        if (this.portalUI && this.portalUI.parentNode) {
-            this.portalUI.parentNode.removeChild(this.portalUI);
-        }
-        
         // Remove all portals
         this.removeAllPortals();
     }
