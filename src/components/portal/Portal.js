@@ -1,5 +1,98 @@
 import * as THREE from 'three';
 
+// Ripple effect shader
+const rippleVertexShader = `
+uniform float time;
+uniform vec4 uniqueOffset;
+varying vec2 vUv;
+varying vec3 vNormal;
+
+// Simple pseudo-random function
+float random(vec2 st) {
+    return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
+}
+
+void main() {
+    vUv = uv;
+    vNormal = normal;
+    
+    // Create 3D displacement
+    float displacement = 0.0;
+    vec3 pos = position;
+    
+    // Add extremely subtle vertex displacement for 3D effect
+    float freq1 = 1.5 + random(vec2(1.0 + uniqueOffset.x, 1.0)) * 0.5;
+    float wave1 = sin(freq1 * position.x + (time + uniqueOffset.x) * 0.3) * 
+                 sin(freq1 * position.y + (time + uniqueOffset.y) * 0.3) * 0.002;
+                 
+    float freq2 = 2.0 + random(vec2(2.0 + uniqueOffset.y, 2.0)) * 0.5;
+    float wave2 = sin(freq2 * position.y + (time + uniqueOffset.y) * 0.2) * 
+                 sin(freq2 * position.z + (time + uniqueOffset.z) * 0.2) * 0.001;
+    
+    displacement = wave1 + wave2;
+    
+    // Add distance-based fade for displacement
+    float distanceFromCenter = length(position.xy);
+    float fadeOut = smoothstep(0.8, 0.0, distanceFromCenter);
+    pos += normal * displacement * fadeOut;
+    
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+}
+`;
+
+const rippleFragmentShader = `
+uniform sampler2D baseTexture;
+uniform sampler2D portalDepthTexture;
+uniform float time;
+uniform vec4 uniqueOffset;
+varying vec2 vUv;
+varying vec3 vNormal;
+
+// Simple pseudo-random function
+float random(vec2 st) {
+    return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
+}
+
+void main() {
+    vec2 uv = vUv;
+    vec2 center = vec2(0.5);
+    vec2 centeredUV = uv - center;
+    float distanceFromCenter = length(centeredUV);
+    
+    // Simplified depth effect
+    float zoomFactor = 2.0 + sin(time * 0.5) * 0.1;
+    vec2 rotatedUV = centeredUV / zoomFactor + center;
+    
+    // Sample depth texture
+    vec4 depthColor = texture2D(portalDepthTexture, rotatedUV);
+    
+    // Single simplified ripple effect
+    float freq = 2.0 + random(vec2(1.0 + uniqueOffset.x, 1.0)) * 0.5;
+    float speed = 0.7 + random(vec2(2.0, 2.0 + uniqueOffset.y)) * 0.3;
+    float ripple = sin(freq * distanceFromCenter * 8.0 - time * speed) * 0.003;
+    
+    // Simplified distortion
+    vec2 finalUV = uv + vec2(ripple) * (1.0 - distanceFromCenter * 0.5);
+    
+    // Sample base texture with distortions
+    vec4 baseColor = texture2D(baseTexture, finalUV);
+    
+    // Simplified depth blend
+    vec4 finalColor = baseColor;
+    if (depthColor.a > 0.0) {
+        finalColor = mix(baseColor, depthColor * baseColor, distanceFromCenter * 0.5);
+    }
+    
+    // Combined glow effect
+    float glowStrength = 0.1 + sin(time * 0.5) * 0.02;
+    vec3 glowColor = vec3(0.2, 0.4, 0.8);
+    vec3 glow = glowColor * (1.0 - distanceFromCenter) * glowStrength;
+    
+    // Final color composition
+    gl_FragColor = finalColor + vec4(glow, 0.0);
+}
+`;
+
 export class Portal {
     constructor({
         position = new THREE.Vector3(0, 0, 0),
@@ -25,6 +118,14 @@ export class Portal {
         this.effects = [];
         this.animationMixer = null;
         this.animations = {};
+        
+        // Generate unique random offsets for this portal instance
+        this.uniqueOffset = new THREE.Vector4(
+            Math.random() * 10,
+            Math.random() * 10,
+            Math.random() * 10,
+            Math.random() * 10
+        );
     }
 
     async load(loadingManager) {
@@ -50,25 +151,26 @@ export class Portal {
                     this.mesh.traverse((child) => {
                         if (child.isMesh) {
                             child.userData.portalRef = this;
-                            // Create basic materials for portal textures
+                            // Create ripple shader material for portal textures
                             if (child.material.name === 'Material.002' || child.material.name === 'Cube002_3') {
-                                const basicMaterial = new THREE.MeshBasicMaterial({
+                                const shaderMaterial = new THREE.ShaderMaterial({
+                                    uniforms: {
+                                        baseTexture: { value: null },
+                                        time: { value: 0 },
+                                        uniqueOffset: { value: this.uniqueOffset }
+                                    },
+                                    vertexShader: rippleVertexShader,
+                                    fragmentShader: rippleFragmentShader,
                                     transparent: true,
-                                    opacity: 1.0,
                                     side: THREE.DoubleSide
                                 });
-                                basicMaterial.name = child.material.name;
-                                child.material = basicMaterial;
+                                shaderMaterial.name = child.material.name;
+                                child.material = shaderMaterial;
                                 
-                                console.log(`[Portal] Applied flat material to ${this.portalId}:`, {
+                                console.log(`[Portal] Applied ripple shader material to ${this.portalId}:`, {
                                     meshName: child.name,
-                                    materialName: basicMaterial.name,
-                                    isBasicMaterial: basicMaterial instanceof THREE.MeshBasicMaterial,
-                                    properties: {
-                                        transparent: basicMaterial.transparent,
-                                        opacity: basicMaterial.opacity,
-                                        side: basicMaterial.side
-                                    }
+                                    materialName: shaderMaterial.name,
+                                    isShaderMaterial: shaderMaterial instanceof THREE.ShaderMaterial
                                 });
                             }
                         }
@@ -128,6 +230,15 @@ export class Portal {
             this.animationMixer.update(deltaTime);
         }
         
+        // Update ripple effect
+        if (this.mesh) {
+            this.mesh.traverse((child) => {
+                if (child.isMesh && child.material instanceof THREE.ShaderMaterial) {
+                    child.material.uniforms.time.value += deltaTime;
+                }
+            });
+        }
+        
         // Update effects
         this.effects.forEach(effect => effect.update(deltaTime));
     }
@@ -163,29 +274,15 @@ export class Portal {
                 
                 this.mesh.traverse((child) => {
                     if (child.isMesh && child.material && child.material.name === materialName) {
-                        console.log(`[Portal] Found matching material ${materialName} in ${this.portalId}:`, {
-                            meshName: child.name,
-                            materialName: child.material.name,
-                            isBasicMaterial: child.material instanceof THREE.MeshBasicMaterial,
-                            currentProperties: {
-                                transparent: child.material.transparent,
-                                opacity: child.material.opacity,
-                                side: child.material.side,
-                                hasTexture: !!child.material.map
-                            }
-                        });
+                        console.log(`[Portal] Found matching material ${materialName} in ${this.portalId}`);
                         
-                        // Update the texture on the existing basic material
-                        child.material.map = texture;
-                        child.material.needsUpdate = true;
-                        materialFound = true;
-                        
-                        console.log(`[Portal] Applied texture to flat material ${materialName} in ${this.portalId}:`, {
-                            meshName: child.name,
-                            materialName: child.material.name,
-                            textureApplied: !!child.material.map,
-                            materialUpdated: child.material.needsUpdate
-                        });
+                        if (child.material instanceof THREE.ShaderMaterial) {
+                            child.material.uniforms.baseTexture.value = texture;
+                            child.material.needsUpdate = true;
+                            materialFound = true;
+                            
+                            console.log(`[Portal] Applied texture to ripple shader material ${materialName} in ${this.portalId}`);
+                        }
                     }
                 });
 
