@@ -154,27 +154,10 @@ characterManager.initialize().then(async (loadedCharacter) => {
 });
 
 // Animation loop
-let lastPerformanceCheck = Date.now();
-let frameCount = 0;
-
 function animate() {
     requestAnimationFrame(animate);
     
     const deltaTime = 0.016; // Approximately 60 FPS
-    frameCount++;
-    
-    // Track performance every 10 seconds
-    const now = Date.now();
-    if (now - lastPerformanceCheck >= 10000) {
-        const fps = Math.round((frameCount * 1000) / (now - lastPerformanceCheck));
-        posthog.capture('performance_metrics', {
-            fps: fps,
-            timestamp: new Date().toISOString()
-        });
-        
-        frameCount = 0;
-        lastPerformanceCheck = now;
-    }
     
     // Update character manager
     characterManager.update(deltaTime);
