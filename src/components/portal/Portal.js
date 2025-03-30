@@ -42,7 +42,6 @@ void main() {
 
 const rippleFragmentShader = `
 uniform sampler2D baseTexture;
-uniform sampler2D portalDepthTexture;  // New depth texture
 uniform float time;
 uniform vec4 uniqueOffset;
 varying vec2 vUv;
@@ -56,37 +55,9 @@ float random(vec2 st) {
 void main() {
     vec2 uv = vUv;
     vec2 center = vec2(0.5);
-    vec2 centeredUV = uv - center;
-    float distanceFromCenter = length(centeredUV);
+    float distanceFromCenter = length(uv - center);
     
-    // Create zooming effect for depth texture
-    float zoomFactor = 2.0 + sin(time * 0.5) * 0.2;
-    float rotationAngle = time * 0.1;
-    
-    // Rotate UVs for depth effect
-    float s = sin(rotationAngle);
-    float c = cos(rotationAngle);
-    vec2 rotatedUV = vec2(
-        centeredUV.x * c - centeredUV.y * s,
-        centeredUV.x * s + centeredUV.y * c
-    );
-    
-    // Scale UVs for zoom effect
-    rotatedUV = rotatedUV / zoomFactor;
-    rotatedUV += center;
-    
-    // Sample depth texture
-    vec4 depthColor = texture2D(portalDepthTexture, rotatedUV);
-    
-    // Add spiral distortion
-    float spiralStrength = 0.1;
-    float spiral = sin(distanceFromCenter * 10.0 - time * 2.0) * spiralStrength;
-    vec2 spiralUV = uv + vec2(
-        centeredUV.x * cos(spiral) - centeredUV.y * sin(spiral),
-        centeredUV.x * sin(spiral) + centeredUV.y * cos(spiral)
-    ) - centeredUV;
-    
-    // Create ripple effect
+    // Create multiple ripples with different frequencies and phases
     float ripple = 0.0;
     
     // First ripple set - slower, larger waves
@@ -104,33 +75,23 @@ void main() {
     float speed3 = 1.1 + random(vec2(6.0, 6.0 + uniqueOffset.w)) * 0.3;
     ripple += sin(freq3 * distanceFromCenter - (time + uniqueOffset.z) * speed3 + 3.0) * 0.002;
     
-    // Apply ripple to spiral UV
-    spiralUV += vec2(ripple) * (1.0 - distanceFromCenter);
+    // Add very subtle caustics effect
+    float caustics = sin(uv.x * 15.0 + time * 0.5) * sin(uv.y * 15.0 + time * 0.5) * 0.005;
+    ripple += caustics;
     
-    // Sample base texture with combined distortions
-    vec4 baseColor = texture2D(baseTexture, spiralUV);
+    // Apply distortion to UV coordinates with fade out near edges
+    float fadeEdges = smoothstep(0.85, 0.0, distanceFromCenter);
+    vec2 rippleUV = uv + vec2(ripple) * fadeEdges;
     
-    // Blend depth and base textures
-    float depthBlend = smoothstep(0.0, 0.7, distanceFromCenter);
-    vec4 finalColor = mix(depthColor, baseColor, depthBlend);
+    // Sample texture with ripple distortion
+    vec4 texColor = texture2D(baseTexture, rippleUV);
     
-    // Add bright center
-    float centerGlow = smoothstep(0.2, 0.0, distanceFromCenter);
-    finalColor += vec4(1.0, 1.0, 1.0, 0.0) * centerGlow;
+    // Add very subtle highlights based on normal and ripple
+    float highlight = max(0.0, dot(vNormal, vec3(0.0, 0.0, 1.0)));
+    highlight = pow(highlight, 3.0) * 0.1 * (1.0 + ripple * 2.0);
     
-    // Add edge glow
-    float edgeGlow = 1.0 - smoothstep(0.4, 0.85, distanceFromCenter);
-    float pulseIntensity = 0.3 + sin(time * 0.5) * 0.1;
-    vec3 glowColor = vec3(0.3, 0.6, 1.0);
-    vec3 glow = glowColor * edgeGlow * pulseIntensity;
-    
-    // Add inner glow
-    float innerGlow = smoothstep(0.2, 0.4, distanceFromCenter) * (1.0 - smoothstep(0.4, 0.85, distanceFromCenter));
-    float innerPulse = 0.2 + sin(time * 0.5 + 1.5) * 0.05;
-    glow += glowColor * innerGlow * innerPulse;
-    
-    // Final color composition
-    gl_FragColor = finalColor + vec4(glow, 0.0);
+    // Mix texture with highlights
+    gl_FragColor = texColor + vec4(highlight, highlight, highlight, 0.0);
 }
 `;
 
@@ -167,13 +128,6 @@ export class Portal {
             Math.random() * 10,
             Math.random() * 10
         );
-        
-        // Create portal depth texture
-        const depthTextureLoader = new THREE.TextureLoader();
-        this.portalDepthTexture = depthTextureLoader.load('/assets/textures/portal-depth.png', (texture) => {
-            texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-            texture.minFilter = texture.magFilter = THREE.LinearFilter;
-        });
     }
 
     async load(loadingManager) {
@@ -204,7 +158,6 @@ export class Portal {
                                 const shaderMaterial = new THREE.ShaderMaterial({
                                     uniforms: {
                                         baseTexture: { value: null },
-                                        portalDepthTexture: { value: this.portalDepthTexture },
                                         time: { value: 0 },
                                         uniqueOffset: { value: this.uniqueOffset }
                                     },
