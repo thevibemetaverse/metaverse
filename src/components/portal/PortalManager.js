@@ -253,7 +253,7 @@ export class PortalManager {
 
             // Special "Enter" portal - only shown if portal=true in URL
             ...(showEnterPortal ? [{
-                position: new THREE.Vector3(0, 0, -25),
+                position: new THREE.Vector3(0, 0, 70),
                 rotation: new THREE.Euler(0, 0, 0),
                 destination: urlParams.get('ref') || "https://thevibemetaverse.vercel.app/api/portal/enter",
                 portalId: "enter",
