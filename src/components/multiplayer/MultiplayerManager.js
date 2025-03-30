@@ -272,11 +272,26 @@ export class MultiplayerManager {
 
             // Store previous position for movement calculation
             const prevPosition = player.mesh.position.clone();
+            const prevRotation = player.mesh.rotation.clone();
+            
+            // Store previous position for movement direction calculation
+            player.previousPosition = prevPosition;
             
             // FIXED: Update position and rotation WITHOUT removing from scene
-            // IMPORTANT: Use matrix update strategy for smoother transitions
+            // IMPORTANT: Use proper rotation quaternion approach to avoid gimbal lock issues
             const newPosition = new THREE.Vector3(data.position.x, data.position.y, data.position.z);
-            const newRotation = new THREE.Euler(data.rotation.x, data.rotation.y, data.rotation.z);
+            
+            // Create a proper quaternion for rotation to ensure accurate orientation
+            // We receive Euler angles from the server, so convert them to a quaternion
+            const newRotation = new THREE.Euler(
+                data.rotation.x,
+                data.rotation.y,
+                data.rotation.z,
+                'YXZ' // Using YXZ order which is typical for character controls
+            );
+            
+            // Debug rotation values
+            this.logPosition(data.id, `Received rotation: (${data.rotation.x.toFixed(2)}, ${data.rotation.y.toFixed(2)}, ${data.rotation.z.toFixed(2)})`, 'log');
             
             // First ensure mesh is still in the scene
             if (!player.mesh.parent) {
@@ -288,13 +303,33 @@ export class MultiplayerManager {
             player.mesh.visible = true;
             player.mesh.frustumCulled = false;
             
-            // Apply position and rotation updates
+            // Store rotation values to track changes
+            player.previousRotation = prevRotation;
+            player.currentRotation = newRotation;
+            
+            // Apply position updates
             player.mesh.position.copy(newPosition);
-            player.mesh.rotation.copy(newRotation);
+            
+            // Apply rotation updates - make sure we're setting the rotation directly
+            player.mesh.rotation.set(newRotation.x, newRotation.y, newRotation.z, newRotation.order);
+            
+            // Log the rotation change
+            const rotDiff = Math.abs(prevRotation.y - newRotation.y);
+            if (rotDiff > 0.01) {
+                this.logPosition(data.id, `Player rotation changed by ${rotDiff.toFixed(4)} radians`, 'log');
+            }
             
             // Force update the matrix world to ensure position/rotation is applied
             player.mesh.updateMatrix();
             player.mesh.updateMatrixWorld(true);
+            
+            // Ensure rotation is applied to all children
+            const childContainer = player.mesh.children[0];
+            if (childContainer) {
+                // The container should inherit rotation from parent, but force update to be safe
+                childContainer.updateMatrix();
+                childContainer.updateMatrixWorld(true);
+            }
             
             // Check all child meshes and ensure they're visible too
             player.mesh.traverse(child => {
@@ -343,6 +378,13 @@ export class MultiplayerManager {
                 player.lastMovementTime = Date.now();
                 // Reset stale movement flag if they're moving again
                 player.hasStaleMovement = false;
+            }
+            
+            // IMPROVED: Better handling of movement state transitions
+            // Detect when player has stopped moving and transition to idle
+            if (wasMoving && !player.isMoving) {
+                this.logAnimation(data.id, `Player stopped moving, transitioning to idle`, 'log');
+                this.transitionToIdleAnimation(player);
             }
             
             // Log movement state change (important for troubleshooting animation-related issues)
@@ -450,6 +492,9 @@ export class MultiplayerManager {
                 if (player.currentAnimationAction) {
                     this.logAnimation(player.id, `Pausing animation due to stale movement state`, 'warn');
                     player.currentAnimationAction.paused = true;
+                    
+                    // FIXED: Switch to idle animation when movement becomes stale
+                    this.transitionToIdleAnimation(player);
                 }
                 // Keep the model visible but pause animation - IMPORTANT: Do not change visibility here
                 if (player.mesh) {
@@ -501,6 +546,9 @@ export class MultiplayerManager {
                     if (player.currentAnimationAction && !player.currentAnimationAction.paused) {
                         console.log(`[DIAGNOSTIC] Pausing mixamo animation for stationary player ${player.id}`);
                         player.currentAnimationAction.paused = true;
+                        
+                        // FIXED: Reset animation to first frame for better visual when stationary
+                        player.currentAnimationAction.reset();
                     }
                     return;
                 } else if (player.isMoving && !player.hasStaleMovement) {
@@ -515,10 +563,21 @@ export class MultiplayerManager {
             // Determine appropriate animation based on movement state and staleness
             let newAnimation = null;
             if (player.isMoving && !player.hasStaleMovement) {
+                // IMPORTANT: When running or walking, ensure the model is properly oriented in the direction of movement
                 if (player.movementSpeed > this.runThreshold && runAction) {
                     newAnimation = 'run';
+                    
+                    // Align model's rotation with movement direction if we have position history
+                    if (player.previousPosition && player.mesh) {
+                        this.alignModelWithMovementDirection(player);
+                    }
                 } else if (walkAction) {
                     newAnimation = 'walk';
+                    
+                    // Also align during walking, but more gently
+                    if (player.previousPosition && player.mesh) {
+                        this.alignModelWithMovementDirection(player);
+                    }
                 }
             } else if (idleAction) {
                 newAnimation = 'idle';
@@ -572,9 +631,19 @@ export class MultiplayerManager {
                 }
                     
                 if (actionToPlay) {
-                    actionToPlay.reset().fadeIn(this.animationTransitionTime).play();
+                    // IMPROVED: Ensure proper animation reset and play for smoother transitions
+                    actionToPlay.reset();
+                    actionToPlay.fadeIn(this.animationTransitionTime);
+                    actionToPlay.play();
+                    
+                    // Store the current animation state
                     player.currentAnimation = newAnimation;
                     player.currentAnimationAction = actionToPlay;
+                    
+                    // Ensure animation isn't paused when we explicitly start it
+                    player.currentAnimationAction.paused = false;
+                    
+                    this.logAnimation(player.id, `Started ${newAnimation} animation`, 'log');
                 }
             }
             
@@ -583,10 +652,16 @@ export class MultiplayerManager {
                 if ((!player.isMoving || player.hasStaleMovement) && this.pauseAnimationsWhenStill && 
                     (player.currentAnimation === 'generic-walk' || 
                      player.currentAnimation === 'walk' && animationNames.length === 1)) {
-                    // Pause animations when player is standing still or has stale movement
-                    if (!player.currentAnimationAction.paused) {
+                    // FIXED: Instead of just pausing, transition to idle if available,
+                    // otherwise pause and reset to the first frame for a better visual
+                    if (idleAction && player.currentAnimation !== 'idle') {
+                        // If we have an idle animation but we're not using it, switch to it
+                        this.transitionToIdleAnimation(player);
+                    } else if (!player.currentAnimationAction.paused) {
+                        // If no idle animation, pause the current one and reset to first frame
                         this.logAnimation(player.id, `Pausing animation for stationary player`, 'log');
                         player.currentAnimationAction.paused = true;
+                        player.currentAnimationAction.time = 0; // Reset to first frame
                     }
                 } else if (player.isMoving && !player.hasStaleMovement && player.currentAnimationAction.paused) {
                     // Unpause animations when player is moving and not stale
@@ -598,6 +673,53 @@ export class MultiplayerManager {
         } catch (error) {
             this.logAnimation(player.id, `Error updating animation: ${error.message}`, 'error');
         }
+    }
+
+    // Add a new helper method to align the model with its movement direction
+    alignModelWithMovementDirection(player) {
+        if (!player || !player.mesh || !player.previousPosition) return;
+        
+        const position = player.mesh.position;
+        const prevPosition = player.previousPosition;
+        
+        // Calculate movement vector (in X-Z plane only)
+        const movement = new THREE.Vector2(
+            position.x - prevPosition.x,
+            position.z - prevPosition.z
+        );
+        
+        // Only align if there's significant movement
+        if (movement.length() > 0.01) {
+            // FIXED: Calculate the angle correctly - Z axis is forward in standard Three.js coordinate system
+            // atan2 takes y, x but we want to calculate angle in the X-Z plane, so we use (movement.x, movement.y)
+            // where movement.y contains our Z component
+            const angle = Math.atan2(movement.x, movement.y);
+            
+            this.logPosition(player.id, `Movement vector: (${movement.x.toFixed(3)}, ${movement.y.toFixed(3)}), angle: ${angle.toFixed(3)}`, 'log');
+            
+            // Store current Y rotation to check if we need significant adjustment
+            const currentYRotation = player.mesh.rotation.y;
+            const rotationDifference = Math.abs(currentYRotation - angle);
+            
+            // Only make significant adjustments when needed
+            if (rotationDifference > 0.1) { // About 5.7 degrees threshold
+                // Smooth transition to the new rotation (interpolate)
+                // This prevents snapping and makes movement look more natural
+                const lerp = THREE.MathUtils.lerp(currentYRotation, angle, 0.2); // 0.2 = 20% blend per frame
+                
+                // Set the rotation - only modify Y axis (keep X and Z as is)
+                player.mesh.rotation.y = lerp;
+                
+                this.logAnimation(player.id, `Aligned model rotation with movement direction: ${lerp.toFixed(2)}`, 'log');
+                
+                // Force update matrices to ensure rotation is applied
+                player.mesh.updateMatrix();
+                player.mesh.updateMatrixWorld(true);
+            }
+        }
+        
+        // Store current position for next frame
+        player.previousPosition = position.clone();
     }
 
     // Remove unused debug marker method
@@ -1019,10 +1141,29 @@ export class MultiplayerManager {
                     player.mesh.parent.updateMatrixWorld();
                 }
                 
-                // Send update to server
+                // Log rotation for debugging
+                this.logPosition(this.playerId, `Sending rotation: (${rotation.x.toFixed(2)}, ${rotation.y.toFixed(2)}, ${rotation.z.toFixed(2)})`, 'log');
+                
+                // Ensure all children update their matrices
+                const childContainer = player.mesh.children[0];
+                if (childContainer) {
+                    childContainer.updateMatrix();
+                    childContainer.updateMatrixWorld(true);
+                }
+                
+                // Send update to server with properly formatted rotation
+                // Make sure we're sending the actual rotation values from the mesh
                 this.socket.emit('playerUpdate', {
-                    position: position,
-                    rotation: rotation
+                    position: {
+                        x: player.mesh.position.x,
+                        y: player.mesh.position.y,
+                        z: player.mesh.position.z
+                    },
+                    rotation: {
+                        x: player.mesh.rotation.x,
+                        y: player.mesh.rotation.y,
+                        z: player.mesh.rotation.z
+                    }
                 });
             }
         }
@@ -1689,6 +1830,35 @@ export class MultiplayerManager {
                     }
                 }
             });
+        }
+    }
+
+    // New helper method to transition to idle animation
+    transitionToIdleAnimation(player) {
+        if (!player || !player.mixer || !player.animations) return;
+        
+        // Find an idle animation
+        let idleAction = null;
+        for (const animName of this.idleAnimationNames) {
+            if (player.animations[animName]) {
+                idleAction = player.animations[animName];
+                break;
+            }
+        }
+        
+        // If we found an idle animation and it's different from the current one
+        if (idleAction && player.currentAnimation !== 'idle') {
+            // Fade out current animation if any
+            if (player.currentAnimationAction) {
+                player.currentAnimationAction.fadeOut(this.animationTransitionTime);
+            }
+            
+            // Play idle animation
+            idleAction.reset().fadeIn(this.animationTransitionTime).play();
+            player.currentAnimation = 'idle';
+            player.currentAnimationAction = idleAction;
+            
+            this.logAnimation(player.id, `Transitioned to idle animation`, 'log');
         }
     }
 
