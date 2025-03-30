@@ -17,7 +17,7 @@ export default class CharacterControls {
         this.rotateRight = false;
         
         // Character speed
-        this.moveSpeed = 5;
+        this.moveSpeed = 9;
         this.rotateSpeed = 3; // Speed of rotation in radians per second
         
         // Mobile controls state
