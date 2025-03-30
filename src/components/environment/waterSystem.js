@@ -6,7 +6,7 @@ function createWater(scene) {
   
   // Water parameters
   const waterLength = 50;  // Original size for length
-  const waterWidth = 75;  // Increased width
+  const waterWidth = 95;  // Increased width
   const baseRadiusLength = waterLength / 2;
   const baseRadiusWidth = waterWidth / 2;
   
