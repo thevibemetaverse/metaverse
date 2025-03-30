@@ -148,7 +148,7 @@ export class PortalManager {
                 description: "Portal in misc area",
                 modelPath: '/assets/models/portal/portal-new.gltf'
             },
-                        // BACK ROW GROUP (z=20)
+                        // BACK ROW GROUP (z=40)
                         {
                             position: new THREE.Vector3(55, 0, 40),
                             rotation: new THREE.Euler(0, 0, 0),
@@ -168,7 +168,7 @@ export class PortalManager {
                             modelPath: '/assets/models/portal/portal-new.gltf'
                         },
                         {
-                            position: new THREE.Vector3(75, 0, 40),
+                            position: new THREE.Vector3(85, 0, 40),
                             rotation: new THREE.Euler(0, 0, 0),
                             destination: "https://thevibemetaverse.vercel.app/api/portal/neon-trailblazer",
                             portalId: "neon-trailblazer",
