@@ -101,6 +101,10 @@ export class PortalManager {
         console.log('[PortalManager] Starting default portals initialization');
         console.log('[PortalManager] Current scene children count:', this.scene.children.length);
         
+        // Check URL parameters for portal flag
+        const urlParams = new URLSearchParams(window.location.search);
+        const showEnterPortal = urlParams.get('portal') === 'true';
+        
         // Portal configurations
         const defaultPortals = [
             // Front row - evenly spaced portals starting at x=20
@@ -149,15 +153,16 @@ export class PortalManager {
                 description: "Rightmost portal in the row",
                 modelPath: '/assets/models/portal/portal-new.gltf'
             },
-            {
+            // Special "Enter" portal - only shown if portal=true in URL
+            ...(showEnterPortal ? [{
                 position: new THREE.Vector3(95, 0, 25),
                 rotation: new THREE.Euler(0, 0, 0),
-                destination: "https://thevibemetaverse.vercel.app/api/portal/ocean-fables",
-                portalId: "ocean-fables",
-                title: "Ocean Fables Portal",
-                description: "Portal behind the user",
+                destination: urlParams.get('ref') || "https://thevibemetaverse.vercel.app/api/portal/enter",
+                portalId: "enter",
+                title: "Enter Portal",
+                description: "Special portal behind the user",
                 modelPath: '/assets/models/portal/portal-new.gltf'
-            },
+            }] : []),
             {
                 position: new THREE.Vector3(110, 0, 25),
                 rotation: new THREE.Euler(0, 0, 0),
@@ -319,10 +324,33 @@ export class PortalManager {
             playerPosition: playerPosition.toArray(),
             collisionDistance,
             portalCount: this.portals.length,
-            portalState
+            portalState,
+            pieterPortal: this.pieterPortal ? {
+                hasGroup: !!this.pieterPortal.group,
+                position: this.pieterPortal.group?.position
+            } : null
         });
         
-        // Simple distance-based collision detection
+        // Check Pieter portal collision first
+        if (this.pieterPortal && this.pieterPortal.group) {
+            const portalPosition = this.pieterPortal.group.position;
+            const distance = playerPosition.distanceTo(portalPosition);
+            
+            console.log(`[PortalManager] Checking collision with Pieter portal:`, {
+                distance,
+                threshold: collisionDistance,
+                playerPos: playerPosition.toArray(),
+                portalPos: portalPosition.toArray()
+            });
+            
+            if (distance < collisionDistance) {
+                console.log(`[PortalManager] Collision detected with Pieter portal`);
+                window.location.href = 'https://portal.pieter.com';
+                return true;
+            }
+        }
+        
+        // Simple distance-based collision detection for other portals
         for (const portal of this.portals) {
             if (!portal.mesh || !portal.isActive) {
                 console.log(`[PortalManager] Skipping portal ${portal.portalId}:`, {
@@ -419,5 +447,98 @@ export class PortalManager {
             const portalImageUrl = `https://thevibemetaverse.vercel.app/assets/images/${portal.portalId}.png`;
             portal.updateTexture(materialName, portalImageUrl);
         });
+    }
+
+    createPieterPortal() {
+        // Create portal group to contain all portal elements
+        const portalGroup = new THREE.Group();
+        // Position in line with other portals (front row)
+        portalGroup.position.set(0, 0, 25); // Position after the last portal in the front row
+        
+        // Create portal effect
+        const portalGeometry = new THREE.TorusGeometry(7.5, 1, 16, 100);
+        const portalMaterial = new THREE.MeshPhongMaterial({
+            color: 0xff0000,
+            emissive: 0xff0000,
+            transparent: true,
+            opacity: 0.8
+        });
+        const portal = new THREE.Mesh(portalGeometry, portalMaterial);
+        portalGroup.add(portal);
+                    
+        // Create portal inner surface
+        const portalInnerGeometry = new THREE.CircleGeometry(6.5, 32);
+        const portalInnerMaterial = new THREE.MeshBasicMaterial({
+            color: 0xff0000,
+            transparent: true,
+            opacity: 0.5,
+            side: THREE.DoubleSide
+        });
+        const portalInner = new THREE.Mesh(portalInnerGeometry, portalInnerMaterial);
+        portalGroup.add(portalInner);
+
+        // Create particle system for portal effect
+        const particleCount = 500;
+        const particles = new THREE.BufferGeometry();
+        const positions = new Float32Array(particleCount * 3);
+        const colors = new Float32Array(particleCount * 3);
+
+        for (let i = 0; i < particleCount * 3; i += 3) {
+            // Create particles in a ring around the portal
+            const angle = Math.random() * Math.PI * 2;
+            const radius = 7.5 + (Math.random() - 0.5) * 2;
+            positions[i] = Math.cos(angle) * radius;
+            positions[i + 1] = Math.sin(angle) * radius;
+            positions[i + 2] = (Math.random() - 0.5) * 2;
+
+            // Red color with slight variation
+            colors[i] = 0.8 + Math.random() * 0.2;
+            colors[i + 1] = 0;
+            colors[i + 2] = 0;
+        }
+
+        particles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        particles.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+        const particleMaterial = new THREE.PointsMaterial({
+            size: 0.1,
+            vertexColors: true,
+            transparent: true,
+            opacity: 0.6
+        });
+
+        const particleSystem = new THREE.Points(particles, particleMaterial);
+        portalGroup.add(particleSystem);
+
+        // Add portal group to scene
+        this.scene.add(portalGroup);
+
+        // Create portal collision box
+        const portalBox = new THREE.Box3().setFromObject(portalGroup);
+
+        // Animate particles and portal
+        const animatePortal = () => {
+            const positions = particles.attributes.position.array;
+            for (let i = 0; i < positions.length; i += 3) {
+                positions[i + 1] += 0.05 * Math.sin(Date.now() * 0.001 + i);
+            }
+            particles.attributes.position.needsUpdate = true;
+            if (portalInnerMaterial.uniforms && portalInnerMaterial.uniforms.time) {
+                portalInnerMaterial.uniforms.time.value = Date.now() * 0.001;
+            }
+            requestAnimationFrame(animatePortal);
+        };
+        animatePortal();
+
+        // Store portal reference
+        this.pieterPortal = {
+            group: portalGroup,
+            box: portalBox,
+            particles: particles,
+            animate: animatePortal
+        };
+
+        console.log('[PortalManager] Created Pieter portal in line with other portals');
+        return portalGroup;
     }
 } 

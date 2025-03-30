@@ -92,6 +92,10 @@ characterManager.initialize().then(async (loadedCharacter) => {
     console.log('[main] Initializing portals');
     await portalManager.initializeDefaultPortals();
     
+    // Create Pieter portal in line with other portals
+    console.log('[main] Creating Pieter portal');
+    portalManager.createPieterPortal();
+    
     // Connect portal manager to character manager
     console.log('[main] Connecting portal manager to character manager');
     characterManager.setPortalManager(portalManager);

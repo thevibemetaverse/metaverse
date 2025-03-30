@@ -1,0 +1,143 @@
+# The VibeMetaverse - Product Requirements Document
+
+## Executive Summary
+
+The Metaverse Hub is a 3D virtual environment allowing users to discover and travel between independent games via portals while maintaining player state continuity. This hub serves as a central navigation point in a growing ecosystem of interconnected 3D experiences.
+
+## Vision & Objectives
+
+**Vision**: Create the central hub for interconnected 3D virtual worlds, enabling seamless discovery and navigation between independent games.
+
+**Key Objectives**:
+- Simplify discovery of new games for players
+- Provide game developers with greater visibility for their experiences
+- Enable state continuity between independent games
+- Create a foundation for long-term interoperability standards
+
+## User Personas
+
+### Player "Alexis"
+- Casual gamer looking for new experiences
+- Values ease of use and visual appeal
+- Frustrated by difficulty finding quality games
+
+### Developer "Maya"
+- Independent game creator seeking wider audience
+- Values tools that help with discoverability
+- Needs straightforward integration methods
+
+## Core Features & Requirements
+
+### 1. 3D Environment (MVP)
+| ID | Requirement | Priority | Status |
+|---|---|---|---|
+| 1.1 | Create immersive 3D environment with Horizon Worlds-like aesthetic | HIGH | Not Started |
+| 1.2 | Implement basic terrain with optimized performance | HIGH | Not Started |
+| 1.3 | Add ambient environmental elements (sky, lighting, basic structures) | MEDIUM | Not Started |
+| 1.4 | Support responsive design across device capabilities | MEDIUM | Not Started |
+
+### 2. Player Avatar & Controls (MVP)
+| ID | Requirement | Priority | Status |
+|---|---|---|---|
+| 2.1 | Implement 3D character controller with keyboard/mouse navigation | HIGH | Not Started |
+| 2.2 | Support touch controls for mobile devices | HIGH | Not Started |
+| 2.3 | Support basic customization (username) | HIGH | Not Started |
+| 2.4 | Maintain player state across portal transitions | HIGH | Not Started |
+| 2.5 | Support custom avatar models via URL parameter | MEDIUM | Not Started |
+| 2.7 | Implement responsive UI elements for various screen sizes | HIGH | Not Started |
+
+### 3. Portal System (MVP)
+| ID | Requirement | Priority | Status |
+|---|---|---|---|
+| 3.1 | Create visually distinct portal objects in the environment using .gltf | HIGH | Not Started |
+| 3.2 | Implement collision detection for portal activation | HIGH | Not Started |
+| 3.3 | Support parameter passing via URL (username, color, speed, etc.) | HIGH | Not Started |
+| 3.4 | Generate return portals when entering from another game | HIGH | Not Started |
+| 3.5 | Display portal destination information (title, description) | MEDIUM | Not Started |
+| 3.6 | Add visual effects for portal activation and transition | MEDIUM | Not Started |
+| 3.7 | Show usage counters for each portal | MEDIUM | Not Started |
+
+### 4. Portal Registry & Management (MVP)
+| ID | Requirement | Priority | Status |
+|---|---|---|---|
+| 4.1 | Develop backend for storing and retrieving portal data | HIGH | Not Started |
+| 4.2 | Create API endpoints for portal management | HIGH | Not Started |
+| 4.3 | Implement portal submission system for developers | HIGH | Not Started |
+| 4.4 | Build moderation tools for portal approval | MEDIUM | Not Started |
+| 4.5 | Enable portal categorization and filtering | MEDIUM | Not Started |
+
+### 5. Analytics System - Posthog and Vercel
+| ID | Requirement | Priority | Status |
+|---|---|---|---|
+| 5.1 | Track and display basic user data with vercel and posthog | HIGH | Not Started |
+| 5.1 | Track and display portal usage statistics | HIGH | Not Started |
+
+## Technical Constraints
+
+- **Performance**: Environment must maintain 60fps on mid-range hardware
+- **Compatibility**: Must support major browsers (Chrome, Firefox, Safari, Edge)
+- **Mobile Support**: Must function on mobile devices with touch controls and responsive design
+- **Scalability**: Backend must handle up to 10,000 concurrent users
+- **Security**: Implement validation to prevent malicious portal destinations
+
+## Success Metrics
+
+| Metric | Target | Measurement Method |
+|---|---|---|
+| Monthly Active Users | 50,000+ after 6 months | Backend analytics |
+| Portal Traversals | 100,000+ monthly | Backend analytics |
+| Registered Games | 100+ after 3 months | Portal registry count |
+| User Session Length | 15+ minutes average | Backend analytics |
+| Portal Click-through Rate | 30%+ of visitors use a portal | Backend analytics |
+
+## Implementation Phases
+
+### Phase 1: MVP (2 months)
+- Basic 3D environment
+- Player avatar with simple controls (desktop and mobile)
+- Mobile-responsive design
+- Core portal functionality
+- Initial portal registry
+
+### Phase 2: Enhancement (2 months)
+- Improved visual design
+- Advanced portal effects
+- Developer portal submission system
+- Basic analytics
+
+### Phase 3: Expansion (2 months)
+- Social features
+- Advanced analytics
+- Developer API improvements
+- Performance optimizations
+
+## Integration Guidelines
+
+### Portal Parameter Specification
+
+For maximum compatibility, games should support these URL parameters:
+
+**Required Parameters:**
+- `username`: Player's display name (string)
+- `color`: Avatar color (hex code or named color)
+- `speed`: Movement speed in meters per second (float)
+- `ref`: Source URL of the referring game (string)
+- `portal`: Boolean flag indicating portal entry (boolean)
+
+**Optional Parameters:**
+- `avatar_url`: URL to custom avatar model (string)
+- `team`: Player's team affiliation (string)
+- `speed_x`, `speed_y`, `speed_z`: Directional speeds (float)
+- `rotation_x`, `rotation_y`, `rotation_z`: Avatar rotation values (float)
+
+### Example URL:
+```
+https://game.example.com/?username=player123&color=red&speed=5&ref=metaverse-hub.com&portal=true
+```
+
+## Glossary
+
+- **Portal**: Interactive object that transports players between games
+- **Hub**: The central Metaverse environment that hosts portals
+- **State Continuity**: Preserving player attributes when moving between games
+- **Portal Registry**: Backend database storing portal information 
