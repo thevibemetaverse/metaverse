@@ -316,8 +316,8 @@ export default class CharacterControls {
         const threshold = 0.2;
         this.moveForward = normalizedY < -threshold;
         this.moveBackward = normalizedY > threshold;
-        this.moveLeft = normalizedX < -threshold;
-        this.moveRight = normalizedX > threshold;
+        this.moveLeft = normalizedX > -threshold;
+        this.moveRight = normalizedX < threshold;
     }
     
     updateLookJoystick(touch) {
