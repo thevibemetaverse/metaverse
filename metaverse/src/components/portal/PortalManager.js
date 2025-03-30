@@ -65,31 +65,28 @@ export class PortalManager {
             const portalMesh = await portal.load(this.loadingManager);
             console.log('[PortalManager] Portal model loaded successfully, adding to scene');
             
-            // Log scene state before adding
-            console.log('[PortalManager] Scene children count before adding portal:', this.scene.children.length);
-            
             // Set position and rotation explicitly
             portalMesh.position.copy(portalConfig.position);
             portalMesh.rotation.copy(portalConfig.rotation);
             
-            // Log portal position after setting
-            console.log(`[PortalManager] Portal ${portalConfig.portalId} position:`, portalMesh.position);
-            
             this.scene.add(portalMesh);
-            
-            // Log scene state after adding
-            console.log('[PortalManager] Scene children count after adding portal:', this.scene.children.length);
-            
             this.portals.push(portal);
             
             // Update texture after a short delay to ensure the portal is fully loaded
             setTimeout(() => {
                 console.log(`[PortalManager] Updating texture for portal ${portalConfig.portalId}`);
-                const portalImageUrl = `https://thevibemetaverse.vercel.app/assets/images/${portalConfig.portalId}.png`;
-                portal.updateTexture('Material.002', portalImageUrl);
+                // Use special fire portal image for Enter portal
+                const portalImageUrl = portalConfig.portalId === 'enter' 
+                    ? '/assets/images/portal.jpg'  // Use absolute path to assets directory
+                    : `https://thevibemetaverse.vercel.app/assets/images/${portalConfig.portalId}.png`;
+                console.log(`[PortalManager] Setting texture for ${portalConfig.portalId} to:`, portalImageUrl);
+                
+                // Try both material names that might exist in the model
+                ['Material.002', 'Cube002_3'].forEach(materialName => {
+                    portal.updateTexture(materialName, portalImageUrl);
+                });
             }, 100);
             
-            console.log('[PortalManager] Portal added successfully. Total portals:', this.portals.length);
             return portal;
         } catch (error) {
             console.error("[PortalManager] Failed to add portal:", error);
@@ -289,9 +286,6 @@ export class PortalManager {
         const results = await Promise.all(promises);
         const successfulPortals = results.filter(Boolean).length;
         
-        // Update textures for all portals
-        this.updateAllPortalTextures('Material.002', '/assets/images/thevibemetaverse.png');
-        
         console.log('[PortalManager] Portal addition results:', {
             totalPortals: defaultPortals.length,
             successfulPortals,
@@ -466,8 +460,15 @@ export class PortalManager {
     updateAllPortalTextures(materialName, texturePath) {
         console.log(`[PortalManager] Updating textures for all portals`);
         this.portals.forEach(portal => {
-            const portalImageUrl = `https://thevibemetaverse.vercel.app/assets/images/${portal.portalId}.png`;
-            portal.updateTexture(materialName, portalImageUrl);
+            // Use special fire portal image for Enter portal
+            const portalImageUrl = portal.portalId === 'enter' 
+                ? '/assets/images/portal.jpg'  // Use absolute path to assets directory
+                : `https://thevibemetaverse.vercel.app/assets/images/${portal.portalId}.png`;
+            
+            // Try both material names that might exist in the model
+            ['Material.002', 'Cube002_3'].forEach(matName => {
+                portal.updateTexture(matName, portalImageUrl);
+            });
         });
     }
 
