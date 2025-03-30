@@ -46,10 +46,46 @@ export class Portal {
                     // Add a user data reference back to this portal object
                     this.mesh.userData.portalRef = this;
                     
-                    // Allow collision detection
+                    // Set up materials and collision detection
                     this.mesh.traverse((child) => {
                         if (child.isMesh) {
                             child.userData.portalRef = this;
+                            
+                            console.log(`[Portal] Checking mesh material for ${this.portalId}:`, {
+                                meshName: child.name,
+                                materialName: child.material?.name,
+                                materialType: child.material?.type,
+                                isBasicMaterial: child.material instanceof THREE.MeshBasicMaterial,
+                                currentProperties: {
+                                    transparent: child.material?.transparent,
+                                    opacity: child.material?.opacity,
+                                    side: child.material?.side,
+                                    metalness: child.material?.metalness,
+                                    roughness: child.material?.roughness
+                                }
+                            });
+                            
+                            // Create basic materials for portal textures
+                            if (child.material.name === 'Material.002' || child.material.name === 'Cube002_3') {
+                                const basicMaterial = new THREE.MeshBasicMaterial({
+                                    transparent: true,
+                                    opacity: 1.0,
+                                    side: THREE.DoubleSide
+                                });
+                                basicMaterial.name = child.material.name;
+                                child.material = basicMaterial;
+                                
+                                console.log(`[Portal] Applied flat material to ${this.portalId}:`, {
+                                    meshName: child.name,
+                                    materialName: basicMaterial.name,
+                                    isBasicMaterial: basicMaterial instanceof THREE.MeshBasicMaterial,
+                                    properties: {
+                                        transparent: basicMaterial.transparent,
+                                        opacity: basicMaterial.opacity,
+                                        side: basicMaterial.side
+                                    }
+                                });
+                            }
                         }
                     });
                     
@@ -127,29 +163,44 @@ export class Portal {
         textureLoader.load(
             texturePath,
             (texture) => {
+                // Basic texture settings
+                texture.encoding = THREE.sRGBEncoding;
+                texture.flipY = false;
+                
                 console.log(`[Portal] Texture loaded successfully for ${this.portalId}:`, {
                     imageWidth: texture.image.width,
                     imageHeight: texture.image.height,
-                    textureType: texture.type
+                    textureType: texture.type,
+                    encoding: texture.encoding,
+                    flipY: texture.flipY
                 });
                 let materialFound = false;
                 
                 this.mesh.traverse((child) => {
-                    if (child.isMesh) {
-                        console.log(`[Portal] Checking mesh ${child.name} in ${this.portalId}:`, {
-                            materialName: child.material?.name,
-                            hasMaterial: !!child.material,
-                            materialType: child.material?.type,
-                            currentMap: child.material?.map ? 'has map' : 'no map'
+                    if (child.isMesh && child.material && child.material.name === materialName) {
+                        console.log(`[Portal] Found matching material ${materialName} in ${this.portalId}:`, {
+                            meshName: child.name,
+                            materialName: child.material.name,
+                            isBasicMaterial: child.material instanceof THREE.MeshBasicMaterial,
+                            currentProperties: {
+                                transparent: child.material.transparent,
+                                opacity: child.material.opacity,
+                                side: child.material.side,
+                                hasTexture: !!child.material.map
+                            }
                         });
                         
-                        if (child.material && child.material.name === materialName) {
-                            console.log(`[Portal] Found matching material ${materialName} in ${this.portalId}`);
-                            child.material.map = texture;
-                            child.material.needsUpdate = true;
-                            materialFound = true;
-                            console.log(`[Portal] Applied texture to material ${materialName} in ${this.portalId}`);
-                        }
+                        // Update the texture on the existing basic material
+                        child.material.map = texture;
+                        child.material.needsUpdate = true;
+                        materialFound = true;
+                        
+                        console.log(`[Portal] Applied texture to flat material ${materialName} in ${this.portalId}:`, {
+                            meshName: child.name,
+                            materialName: child.material.name,
+                            textureApplied: !!child.material.map,
+                            materialUpdated: child.material.needsUpdate
+                        });
                     }
                 });
 
