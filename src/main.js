@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import { inject } from '@vercel/analytics';
+import posthog from 'posthog-js';
 import CharacterManager from './components/character/CharacterManager';
 import Sky from './components/environment/sky';
 import Ground from './components/environment/ground';
@@ -8,6 +10,15 @@ import { FollowCamera } from './components/character/camera';
 import { createEnvironmentElements } from './components/environment/environmentElements.js';
 import { PortalManager } from './components/portal/PortalManager';
 import { animateWater } from './components/environment/waterSystem.js';
+
+// Initialize Vercel Analytics
+inject();
+
+// Initialize PostHog
+posthog.init(import.meta.env.POSTHOG_KEY, {
+    api_host: 'https://us.i.posthog.com',
+    person_profiles: 'identified_only',
+});
 
 // Scene setup
 const scene = new THREE.Scene();
@@ -71,13 +82,25 @@ let followCamera;
 // Initialize portal manager
 const portalManager = new PortalManager(scene, null, {
     username: 'Guest',
-    color: 'blue',
     speed: 5
 });
+
+// Track portal interactions
+portalManager.onPortalEnter = (portalId) => {
+    posthog.capture('portal_entered', {
+        portal_id: portalId,
+        timestamp: new Date().toISOString()
+    });
+};
 
 // Initialize character and start animation loop
 characterManager.initialize().then(async (loadedCharacter) => {
     character = loadedCharacter;
+    
+    // Track character initialization
+    posthog.capture('character_initialized', {
+        timestamp: new Date().toISOString()
+    });
     
     // Initialize FollowCamera
     followCamera = new FollowCamera(character);
