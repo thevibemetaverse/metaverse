@@ -467,7 +467,7 @@ export default class CharacterManager {
         const urlParams = new URLSearchParams(window.location.search);
         
         // Get username from URL or use default
-        this.username = urlParams.get('username') || 'Guest';
+        this.username = urlParams.get('username') || 'metaverse-explorer';
         
         // Update playerState
         this.playerState = {
