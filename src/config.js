@@ -31,7 +31,7 @@ const config = {
      * - Empty string ('') uses relative URL in development, or localhost:8080 in production
      * - Set to specific URL like 'https://your-socket-server.com' for custom deployment
      */
-    socketUrl: '',
+    socketUrl: process.env.NODE_ENV === 'production' ? 'https://metaverse-production-821f.up.railway.app' : '',
   },
   
   // Environment settings
