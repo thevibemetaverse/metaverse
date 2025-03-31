@@ -130,6 +130,10 @@ export class MultiplayerManager {
 
         // Get username before connecting
         this.username = this.getUsername();
+        if (!this.username) {
+            console.error('[MultiplayerManager] Cannot connect without a username');
+            return;
+        }
         console.log('[MultiplayerManager] Connecting with username:', this.username);
 
         // Use provided serverUrl, fall back to relative URL in development, absolute URL in production
@@ -160,6 +164,10 @@ export class MultiplayerManager {
             withCredentials: true // Enable credentials for CORS
         });
 
+        this.setupSocketEventHandlers();
+    }
+
+    setupSocketEventHandlers() {
         this.socket.on('connect', () => {
             console.log('[MultiplayerManager] Connected to server');
             this.isConnected = true;
@@ -1326,15 +1334,12 @@ export class MultiplayerManager {
         const urlParams = new URLSearchParams(window.location.search);
         const username = urlParams.get('username');
         
-        // If username is provided in URL, use it
-        if (username) {
-            return username;
+        if (!username) {
+            console.error('[MultiplayerManager] No username found in URL parameters');
+            return null;
         }
         
-        // We should never reach this point because the main.js
-        // now handles showing a form to get the username before initializing
-        // this manager, but as a fallback:
-        return 'Anonymous' + Math.floor(Math.random() * 1000);
+        return username;
     }
 
     getAvatarUrl() {

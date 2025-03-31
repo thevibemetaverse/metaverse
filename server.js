@@ -30,41 +30,57 @@ const userPortalLikes = new Map(); // Maps playerId to Set of portalIds they've 
 app.use(express.static('public'));
 
 io.on('connection', (socket) => {
-    const playerId = generatePlayerId();
-    
-    // Clean up any existing player with this socket ID
-    const existingPlayerId = connectedSockets.get(socket.id);
-    if (existingPlayerId) {
-        console.log(`[Server] Cleaning up existing player ${existingPlayerId} for socket ${socket.id}`);
-        handlePlayerDisconnect(existingPlayerId);
-    }
-    
-    // Store the mapping
-    connectedSockets.set(socket.id, playerId);
-    players.set(playerId, { socket, id: playerId });
-    
-    // Initialize empty set of liked portals for this player
-    if (!userPortalLikes.has(playerId)) {
-        userPortalLikes.set(playerId, new Set());
-    }
-    
-    console.log(`[Server] New player connected: ${playerId} (Socket: ${socket.id})`);
+    console.log(`[Server] New socket connected: ${socket.id}`);
 
     socket.on('join', (data) => {
+        if (!data.username) {
+            console.error(`[Server] Received join request without username from socket ${socket.id}`);
+            socket.disconnect();
+            return;
+        }
+
+        const playerId = generatePlayerId();
+        
+        // Clean up any existing player with this socket ID
+        const existingPlayerId = connectedSockets.get(socket.id);
+        if (existingPlayerId) {
+            console.log(`[Server] Cleaning up existing player ${existingPlayerId} for socket ${socket.id}`);
+            handlePlayerDisconnect(existingPlayerId);
+        }
+        
+        // Store the mapping
+        connectedSockets.set(socket.id, playerId);
+        players.set(playerId, { socket, id: playerId });
+        
+        // Initialize empty set of liked portals for this player
+        if (!userPortalLikes.has(playerId)) {
+            userPortalLikes.set(playerId, new Set());
+        }
+        
+        console.log(`[Server] New player joined: ${playerId} (Socket: ${socket.id})`);
         handlePlayerJoin(playerId, data);
     });
 
     socket.on('playerUpdate', (data) => {
-        handlePlayerUpdate(playerId, data);
+        const playerId = connectedSockets.get(socket.id);
+        if (playerId) {
+            handlePlayerUpdate(playerId, data);
+        }
     });
 
     // Portal like event handler
     socket.on('likePortal', (data) => {
-        handlePortalLike(playerId, data.portalId);
+        const playerId = connectedSockets.get(socket.id);
+        if (playerId) {
+            handlePortalLike(playerId, data.portalId);
+        }
     });
 
     // Request for initial portal likes
     socket.on('getPortalLikes', () => {
+        const playerId = connectedSockets.get(socket.id);
+        if (!playerId) return;
+
         const likesData = {};
         portalLikes.forEach((count, portalId) => {
             likesData[portalId] = count;
@@ -77,10 +93,9 @@ io.on('connection', (socket) => {
     });
 
     socket.on('disconnect', () => {
-        console.log(`[Server] Player disconnected: ${playerId} (Socket: ${socket.id})`);
-        const mappedPlayerId = connectedSockets.get(socket.id);
-        if (mappedPlayerId === playerId) {
-            connectedSockets.delete(socket.id);
+        const playerId = connectedSockets.get(socket.id);
+        if (playerId) {
+            console.log(`[Server] Player disconnected: ${playerId} (Socket: ${socket.id})`);
             handlePlayerDisconnect(playerId);
         }
     });

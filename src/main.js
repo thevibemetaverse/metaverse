@@ -302,14 +302,25 @@ document.addEventListener('DOMContentLoaded', () => {
         // Start game directly if username is in URL
         startGame(username);
     } else {
+        // Show the username modal
+        const usernameModal = document.getElementById('username-modal');
+        if (usernameModal) {
+            usernameModal.classList.remove('hidden');
+        }
+        
         // Set up form submission
         const usernameForm = document.getElementById('submit-username');
         if (usernameForm) {
             usernameForm.addEventListener('submit', (event) => {
                 event.preventDefault();
                 const usernameInput = document.getElementById('username-input');
-                if (usernameInput && usernameInput.value.trim()) {
-                    startGame(usernameInput.value.trim());
+                const username = usernameInput?.value?.trim();
+                if (username) {
+                    // Update URL with username before starting game
+                    updateURLWithUsername(username);
+                    startGame(username);
+                } else {
+                    console.error('Username cannot be empty');
                 }
             });
         } else {
