@@ -117,8 +117,10 @@ function handlePlayerJoin(playerId, data) {
     // Store player info
     player.username = username;
     player.avatarUrl = data.avatarUrl;
-    player.position = { x: 0, y: 0, z: 0 };
-    player.rotation = { x: 0, y: 0, z: 0 };
+    
+    // Use position and rotation from client data if provided, otherwise default to origin
+    player.position = data.position || { x: 0, y: 0, z: 0 };
+    player.rotation = data.rotation || { x: 0, y: 0, z: 0 };
 
     // Send player ID and potentially modified username to the new player
     player.socket.emit('playerId', { 

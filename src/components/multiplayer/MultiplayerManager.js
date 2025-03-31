@@ -11,19 +11,45 @@ const AnimationState = {
 
 export class MultiplayerManager {
     constructor(scene) {
+        if (!scene) {
+            console.error('[MultiplayerManager] No scene provided!');
+            return;
+        }
+        
         this.scene = scene;
-        this.players = new Map(); // Map of player IDs to their data
-        this.socket = null;
-        this.playerId = null;
+        this.players = new Map();
+        this.pendingAvatars = new Set();
+        this.explorerModelPlayers = new Set();
+        this.safeReferences = new Set();  // Keep references to prevent GC
+        this.logicUpdates = 0;
+        this.frameCounter = 0;
+        this.logFrequency = 600; // How often to log detailed visibility info (in frames)
+        this.sceneChildren = [];
+        this.modelResetTimer = 0;
+        this.modelResetInterval = 10000; // Every 10 seconds
+        this.playerDisappearanceLog = new Map();
+        this.username = this.getUsername() || 'Guest';
+        this.movementThreshold = 0.01; // Minimum speed to be considered "moving"
+        this.explorerMovementThreshold = 0.005; // More sensitive threshold for explorer models to detect starting movement
+        this.explorerStopMovementThreshold = 0.001; // Very sensitive threshold for explorer models to detect stopping
+        this.nameLabelHeight = 2.5;  // Height above player for name label
         this.isConnected = false;
+        this.reconnectAttempts = 0;
+        this.maxReconnectAttempts = 5;
+        this.inactivityTimeout = 10000; // 10 seconds before removing disconnected player
+        this.networkTimeout = 15000;  // 15 seconds for network timeout
+        this.networkCheckFrequency = 5000; // Check every 5 seconds
+        this.networkMonitorRunning = false;
+        
+        this.debug = new URLSearchParams(window.location.search).get('debug') === 'true';
+        
+        // Create empty containers for the player
+        this.playerId = null;
+        this.socket = null;
         this.loader = new GLTFLoader();
         // Try different possible paths for the model
         this.modelPath = './assets/models/metaverse-explorer.glb';
-        this.nameLabelHeight = 4; // Height above player model
-        this.reconnectAttempts = 0;
-        this.maxReconnectAttempts = 5;
         this.reconnectDelay = 3000;
-        this.username = null; // Store username
         this.pendingAvatars = new Set(); // Track avatars being created
         this.localPlayerModel = null; // Reference to local player's model
         
@@ -34,7 +60,6 @@ export class MultiplayerManager {
         this.runAnimationNames = ['run', 'Run', 'RUNNING', 'running']; // Don't include mixamo.com as run
         
         // Movement thresholds
-        this.movementThreshold = 0.01; // Minimum speed to consider a player moving
         this.runThreshold = 5; // Minimum speed to consider a player running
         this.explorerMovementThreshold = 0.005; // More sensitive threshold for explorer models
         this.explorerStopMovementThreshold = 0.002; // Even more sensitive threshold for detecting stops
@@ -119,52 +144,29 @@ export class MultiplayerManager {
     }
 
     connect(serverUrl = '') {
-        // Clean up any existing connection
         if (this.socket) {
+            console.log('[MultiplayerManager] Already connected, disconnecting first');
             this.socket.disconnect();
-            this.cleanupAllPlayers();
         }
-
-        // Protect the scene from accidental clearing by external code
-        this.protectSceneFromClearing();
-
-        // Get username before connecting
-        this.username = this.getUsername();
+        
         if (!this.username) {
-            console.error('[MultiplayerManager] Cannot connect without a username');
+            console.error('[MultiplayerManager] No username set, cannot connect');
             return;
         }
-        console.log('[MultiplayerManager] Connecting with username:', this.username);
-
-        // Use provided serverUrl, fall back to relative URL in development, absolute URL in production
-        const url = serverUrl !== '' ? serverUrl : (import.meta.env.DEV ? '' : 'http://localhost:8080');
-        const fixedUrl = serverUrl !== '' ? serverUrl : (import.meta.env.DEV ? '' : 'http://localhost:8080');
-        console.log(`[MultiplayerManager] Using socket server URL: ${fixedUrl || 'relative'}`);
         
-        // Determine server URL - Use config URL if provided, otherwise use relative path in dev or localhost in prod
-        let serverURL = '';
-        if (serverUrl && serverUrl !== '') {
-            // Use explicitly provided URL
-            serverURL = serverUrl;
-        } else {
-            // In development, use relative path (empty string)
-            // In production, use explicit localhost URL
-            serverURL = import.meta.env.DEV ? '' : 'http://localhost:8080';
-        }
+        const url = serverUrl || window.location.origin;
+        console.log(`[MultiplayerManager] Connecting to server at ${url}`);
         
-        console.log(`[MultiplayerManager] Connecting to socket server: ${serverURL || 'relative URL'}`);
+        // Connect to server
+        this.socket = io(url);
         
-        this.socket = io(serverURL, {
-            reconnection: true,
-            reconnectionAttempts: this.maxReconnectAttempts,
-            reconnectionDelay: this.reconnectDelay,
-            reconnectionDelayMax: 5000,
-            timeout: 20000,
-            forceNew: true, // Force a new connection
-            withCredentials: true // Enable credentials for CORS
-        });
-
+        // Set up event handlers
         this.setupSocketEventHandlers();
+        
+        // Start monitoring network activity
+        this.monitorNetworkActivity();
+        
+        return this.socket;
     }
 
     setupSocketEventHandlers() {
@@ -176,10 +178,16 @@ export class MultiplayerManager {
             // Clean up any existing players before joining
             this.cleanupAllPlayers();
             
-            // Send initial player data with username
+            // Get the player's current position and rotation
+            const currentPosition = this.getCurrentPosition();
+            const currentRotation = this.getCurrentRotation();
+            
+            // Send initial player data with username, position and rotation
             this.socket.emit('join', {
                 username: this.username,
-                avatarUrl: this.getAvatarUrl()
+                avatarUrl: this.getAvatarUrl(),
+                position: currentPosition,
+                rotation: currentRotation
             });
         });
 
@@ -1353,6 +1361,36 @@ export class MultiplayerManager {
         return urlParams.get('avatar_url') || null;
     }
 
+    // Get the current player position
+    getCurrentPosition() {
+        const player = this.players.get(this.playerId);
+        if (player && player.mesh) {
+            return {
+                x: player.mesh.position.x,
+                y: player.mesh.position.y,
+                z: player.mesh.position.z
+            };
+        }
+        
+        // Default position if player not yet created
+        return { x: 0, y: 0, z: 0 };
+    }
+
+    // Get the current player rotation
+    getCurrentRotation() {
+        const player = this.players.get(this.playerId);
+        if (player && player.mesh) {
+            return {
+                x: player.mesh.rotation.x,
+                y: player.mesh.rotation.y,
+                z: player.mesh.rotation.z
+            };
+        }
+        
+        // Default rotation if player not yet created
+        return { x: 0, y: 0, z: 0 };
+    }
+
     update(deltaTime) {
         // Increment render frame counter for tracking
         this.renderFrameCount = (this.renderFrameCount || 0) + 1;
@@ -1453,24 +1491,19 @@ export class MultiplayerManager {
             // Skip if player is not fully initialized
             if (!player || !player.mesh) return;
             
-            // Don't remove players that aren't receiving updates - keep them visible but marked
+            // Check for disconnected players that should be removed
             const now = Date.now();
             const timeSinceLastUpdate = now - (player.lastUpdate || 0);
             
-            // Never clean up players that disappear - this is critical
-            // Only actually remove if explicitly told to by the server (playerLeft message)
+            // Remove players after inactivity timeout instead of just marking them as disconnected
             if (timeSinceLastUpdate > this.inactivityTimeout && !player.isDisconnected) {
-                this.logVisibility(id, `Player hasn't been updated in ${this.inactivityTimeout/1000} seconds, marking as disconnected (not removing)`, 'warn');
+                this.logVisibility(id, `Player hasn't been updated in ${this.inactivityTimeout/1000} seconds, removing`, 'warn');
                 
-                // Mark as disconnected but don't remove
-                player.isDisconnected = true;
+                // Remove disconnected player completely
+                this.removePlayerAvatar(id);
                 
-                // Add visual indicator
-                if (player.nameLabel && !player.disconnectIndicator) {
-                    const originalText = player.nameLabel.element.textContent;
-                    player.nameLabel.element.textContent = originalText + ' [Disconnected]';
-                    player.disconnectIndicator = true;
-                }
+                // Skip the rest of the update for this player since they're removed
+                return;
             }
             
             // Check for stale movement based on time since last update
@@ -1981,47 +2014,38 @@ export class MultiplayerManager {
 
     // Network monitoring to detect connection issues
     monitorNetworkActivity() {
-        const now = Date.now();
-        const timeSinceLastActivity = now - this.lastNetworkActivity;
+        if (this.networkMonitorRunning) return;
+        this.networkMonitorRunning = true;
         
-        // Log network status
-        this.log('NET', `Network monitor: ${timeSinceLastActivity/1000}s since last activity`, 'log');
-        
-        // Check for network timeout
-        if (timeSinceLastActivity > this.networkTimeoutThreshold) {
-            this.log('NET', `Network appears inactive for ${timeSinceLastActivity/1000}s, checking player states`, 'warn');
+        // Check all players for network inactivity
+        setInterval(() => {
+            // Skip if not connected to the server
+            if (!this.isConnected) return;
             
-            // Force player visibility and check for stale updates
+            // Check each player for inactivity
             this.players.forEach((player, id) => {
-                if (!player || !player.mesh) return;
+                // Never mark local player as inactive
+                if (player.isLocalPlayer) return;
                 
-                const timeSinceLastUpdate = now - (player.lastUpdate || 0);
-                this.logNetwork(id, `Player update status: ${timeSinceLastUpdate/1000}s since last update`, 'log');
+                // Get time since last update
+                const now = Date.now();
+                const lastUpdate = player.lastUpdate || 0;
+                const timeSinceLastUpdate = now - lastUpdate;
                 
                 // Force visibility for all players
-                player.mesh.visible = true;
-                
-                // Force scene presence
-                if (!player.mesh.parent) {
-                    this.logNetwork(id, `Restoring disconnected player to scene during network monitoring`, 'warn');
-                    this.scene.add(player.mesh);
+                if (player.mesh) {
+                    player.mesh.visible = true;
                 }
                 
-                // Mark all players as possibly disconnected but keep them visible
-                if (timeSinceLastUpdate > this.playerUpdateTimeoutThreshold) {
-                    // Don't remove player, just mark them and keep them visible
-                    this.logNetwork(id, `Player updates are stale (${timeSinceLastUpdate/1000}s) but keeping visible`, 'warn');
-                    player.isDisconnected = true;
+                // Network timeout handling - proper disconnection
+                if (timeSinceLastUpdate > this.networkTimeout && !player.isDisconnected) {
+                    this.logNetwork(id, `Player ${id} network timeout, removing player after ${timeSinceLastUpdate}ms without updates`, 'warn');
                     
-                    // Add visual indicator for disconnected state
-                    if (player.nameLabel && !player.disconnectIndicator) {
-                        const originalText = player.nameLabel.element.textContent;
-                        player.nameLabel.element.textContent = originalText + ' [Disconnected]';
-                        player.disconnectIndicator = true;
-                    }
+                    // Remove the player entirely after timeout
+                    this.removePlayerAvatar(id);
                 }
             });
-        }
+        }, this.networkCheckFrequency);
     }
 
     // New helper method to transition to idle animation
