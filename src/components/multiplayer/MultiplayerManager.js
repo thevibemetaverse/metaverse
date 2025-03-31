@@ -39,6 +39,9 @@ export class MultiplayerManager {
         this.explorerMovementThreshold = 0.005; // More sensitive threshold for explorer models
         this.explorerStopMovementThreshold = 0.002; // Even more sensitive threshold for detecting stops
         
+        // Idle transition setting
+        this.idleTransitionTimeout = 300; // Time in ms before transitioning to idle when stationary
+        
         // Visibility settings
         this.ensureVisibility = true; // Whether to force visibility in the update loop
         this.forceMatrixUpdate = true; // Whether to force matrix updates in the update loop
@@ -1487,9 +1490,9 @@ export class MultiplayerManager {
                     }
                     
                     // Double-check movement state during update loop
-                    // If player hasn't moved in 1 second but is still in RUNNING state, force idle
+                    // If player hasn't moved in the specified time but is still in RUNNING state, force idle
                     const timeSinceLastMovement = now - (player.lastMovementTime || 0);
-                    if (player.animationState === AnimationState.RUNNING && timeSinceLastMovement > 1000 && !player.forcingIdle) {
+                    if (player.animationState === AnimationState.RUNNING && timeSinceLastMovement > this.idleTransitionTimeout && !player.forcingIdle) {
                         this.logAnimation(id, `Explorer model force idle due to ${timeSinceLastMovement}ms without movement`, 'log');
                         player.forcingIdle = true;
                         // Force transition to idle
