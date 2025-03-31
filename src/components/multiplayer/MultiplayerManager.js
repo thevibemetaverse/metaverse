@@ -156,7 +156,8 @@ export class MultiplayerManager {
             reconnectionDelay: this.reconnectDelay,
             reconnectionDelayMax: 5000,
             timeout: 20000,
-            forceNew: true // Force a new connection
+            forceNew: true, // Force a new connection
+            withCredentials: true // Enable credentials for CORS
         });
 
         this.socket.on('connect', () => {
