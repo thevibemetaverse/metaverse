@@ -2,6 +2,13 @@ import * as THREE from 'three';
 import { io } from 'socket.io-client';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
+// Add animation states enum to match CharacterManager
+const AnimationState = {
+    IDLE: 'idle',
+    RUNNING: 'running',
+    JUMPING: 'jumping'
+};
+
 export class MultiplayerManager {
     constructor(scene) {
         this.scene = scene;
@@ -29,6 +36,8 @@ export class MultiplayerManager {
         // Movement thresholds
         this.movementThreshold = 0.01; // Minimum speed to consider a player moving
         this.runThreshold = 5; // Minimum speed to consider a player running
+        this.explorerMovementThreshold = 0.005; // More sensitive threshold for explorer models
+        this.explorerStopMovementThreshold = 0.002; // Even more sensitive threshold for detecting stops
         
         // Visibility settings
         this.ensureVisibility = true; // Whether to force visibility in the update loop
@@ -97,6 +106,13 @@ export class MultiplayerManager {
         if (typeof window !== 'undefined') {
             setInterval(() => this.monitorNetworkActivity(), this.networkMonitoringInterval);
         }
+
+        // Add model-specific animation handling
+        this.explorerModelPath = './assets/models/metaverse-explorer.glb';
+        this.jumpModelPath = './assets/models/metaverse-jump.glb';
+        
+        // Track players using the default explorer model
+        this.explorerModelPlayers = new Set();
     }
 
     connect(serverUrl = '') {
@@ -421,6 +437,28 @@ export class MultiplayerManager {
             player.isMoving = speed > this.movementThreshold;
             player.movementSpeed = speed;
             
+            // For explorer models, also check if there's any significant movement
+            // This is critical to detect when they've stopped moving
+            if (this.explorerModelPlayers.has(player.id)) {
+                // Use a more sensitive threshold for explorer models
+                const explorerThreshold = wasMoving ? this.explorerStopMovementThreshold : this.explorerMovementThreshold;
+                
+                // Log the speed and threshold for debugging
+                this.logAnimation(player.id, `Explorer model speed: ${speed.toFixed(4)}, threshold: ${explorerThreshold}, isMoving: ${player.isMoving}`, 'log');
+                
+                // Override the movement detection with more sensitive thresholds for explorer models
+                player.isMoving = speed > explorerThreshold;
+                
+                // Ensure we detect small movements for explorer models
+                if (speed < this.explorerStopMovementThreshold) {
+                    // If speed is very low, force it to be considered not moving
+                    if (player.isMoving) {
+                        this.logAnimation(player.id, `Explorer model force stopped: speed ${speed.toFixed(4)} below strict threshold`, 'log');
+                        player.isMoving = false;
+                    }
+                }
+            }
+            
             // Track last movement time - this is critical
             if (player.isMoving) {
                 player.lastMovementTime = Date.now();
@@ -428,11 +466,21 @@ export class MultiplayerManager {
                 player.hasStaleMovement = false;
             }
             
-            // IMPROVED: Better handling of movement state transitions
-            // Detect when player has stopped moving and transition to idle
-            if (wasMoving && !player.isMoving) {
-                this.logAnimation(data.id, `Player stopped moving, transitioning to idle`, 'log');
-                this.transitionToIdleAnimation(player);
+            // Special handling for metaverse-explorer model
+            if (this.explorerModelPlayers.has(player.id)) {
+                // Use state machine approach like CharacterManager
+                if (player.isMoving && (!player.animationState || player.animationState !== AnimationState.RUNNING)) {
+                    this.transitionMetaverseExplorerState(player, AnimationState.RUNNING);
+                } else if (!player.isMoving && player.animationState === AnimationState.RUNNING) {
+                    this.transitionMetaverseExplorerState(player, AnimationState.IDLE);
+                }
+            } else {
+                // IMPROVED: Better handling of movement state transitions for other models
+                // Detect when player has stopped moving and transition to idle
+                if (wasMoving && !player.isMoving) {
+                    this.logAnimation(data.id, `Player stopped moving, transitioning to idle`, 'log');
+                    this.transitionToIdleAnimation(player);
+                }
             }
             
             // Log movement state change (important for troubleshooting animation-related issues)
@@ -444,7 +492,12 @@ export class MultiplayerManager {
             player.lastRenderFrame = this.renderFrameCount || 0;
             
             // Handle animations based on movement
-            this.updatePlayerAnimation(player);
+            if (this.explorerModelPlayers.has(player.id)) {
+                // Skip standard animation update for explorer models
+                // They are handled by the state machine
+            } else {
+                this.updatePlayerAnimation(player);
+            }
             
             // Update matrix world to ensure proper rendering
             player.mesh.updateMatrixWorld(true);
@@ -804,6 +857,12 @@ export class MultiplayerManager {
             let modelPath = data.avatarUrl || this.modelPath;
             console.log(`[DIAGNOSTIC] Loading model for player ${data.id}, path: ${modelPath}, isLocalPlayer: ${isLocalPlayer}`);
             
+            // Check if this is the explorer model - used for enhanced animation handling
+            const isExplorerModel = modelPath.includes('metaverse-explorer.glb');
+            if (isExplorerModel) {
+                console.log(`[DIAGNOSTIC] Detected metaverse-explorer model for player ${data.id} - will use enhanced animation handling`);
+            }
+            
             // For local player, use the local model if available
             if (isLocalPlayer && this.localPlayerModel) {
                 console.log('[DIAGNOSTIC] Using local player model');
@@ -1014,6 +1073,24 @@ export class MultiplayerManager {
                 lastRenderFrame: 0 // Track last render frame
             });
             
+            // Mark explorer model players for special handling
+            if (isExplorerModel) {
+                this.explorerModelPlayers.add(data.id);
+                
+                // Initialize animation state for explorer models
+                const player = this.players.get(data.id);
+                if (player) {
+                    player.animationState = AnimationState.IDLE;
+                    player.previousAnimationState = AnimationState.IDLE;
+                    player.lastIdleTime = Date.now(); // Track when we last were idle
+                    player.lastRunningTime = 0; // Track when we last were running
+                    this.logAnimation(data.id, `Initialized explorer model animation state to IDLE`, 'log');
+                    
+                    // Force idle state for consistency
+                    this.handleExplorerIdleTransition(player);
+                }
+            }
+            
             // Force an initial matrix update
             mesh.updateMatrixWorld(true);
             nameLabel.updateMatrixWorld(true);
@@ -1091,6 +1168,12 @@ export class MultiplayerManager {
             // Stop animations
             if (player.mixer) {
                 player.mixer.stopAllAction();
+            }
+            
+            // Clean up any explorer model tracking
+            if (this.explorerModelPlayers.has(playerId)) {
+                this.explorerModelPlayers.delete(playerId);
+                console.log(`[MultiplayerManager] Removed player ${playerId} from explorer model tracking`);
             }
             
             // Clear from players map
@@ -1396,8 +1479,31 @@ export class MultiplayerManager {
             
             // Update animation with deltaTime if not paused
             if (player.mixer) {
-                if (player.currentAnimationAction && !player.currentAnimationAction.paused && !player.hasStaleMovement) {
-                    player.mixer.update(deltaTime);
+                if (this.explorerModelPlayers.has(id)) {
+                    // Special handling for explorer models
+                    // Always update the mixer, but only if we're in the RUNNING state
+                    if (player.animationState === AnimationState.RUNNING) {
+                        player.mixer.update(deltaTime);
+                    }
+                    
+                    // Double-check movement state during update loop
+                    // If player hasn't moved in 1 second but is still in RUNNING state, force idle
+                    const timeSinceLastMovement = now - (player.lastMovementTime || 0);
+                    if (player.animationState === AnimationState.RUNNING && timeSinceLastMovement > 1000 && !player.forcingIdle) {
+                        this.logAnimation(id, `Explorer model force idle due to ${timeSinceLastMovement}ms without movement`, 'log');
+                        player.forcingIdle = true;
+                        // Force transition to idle
+                        this.transitionMetaverseExplorerState(player, AnimationState.IDLE);
+                        // Reset forcing flag after a short delay
+                        setTimeout(() => {
+                            player.forcingIdle = false;
+                        }, 500);
+                    }
+                } else {
+                    // Standard handling for other models
+                    if (player.currentAnimationAction && !player.currentAnimationAction.paused && !player.hasStaleMovement) {
+                        player.mixer.update(deltaTime);
+                    }
                 }
             }
             
@@ -1440,23 +1546,8 @@ export class MultiplayerManager {
                     // Reset timers and monitors
                     this.playerDisappearanceLog.delete(id);
                     
-                    // Create a temporary placeholder
-                    if (!this.placeholderGeometry) {
-                        this.placeholderGeometry = new THREE.BoxGeometry(1, 2, 1);
-                    }
-                    const tempMaterial = new THREE.MeshBasicMaterial({ color: 0xff00ff });
-                    const tempMesh = new THREE.Mesh(this.placeholderGeometry, tempMaterial);
-                    tempMesh.position.copy(position);
-                    tempMesh.rotation.copy(rotation);
-                    this.scene.add(tempMesh);
-                    
                     // Force delay with setTimeout to avoid multiple recreation attempts
                     setTimeout(() => {
-                        // Remove temp mesh
-                        if (tempMesh.parent) {
-                            tempMesh.parent.remove(tempMesh);
-                        }
-                        
                         // Create new avatar at same position
                         this.createPlayerAvatar({
                             id: id,
@@ -1467,7 +1558,7 @@ export class MultiplayerManager {
                         });
                         
                         this.logModel(id, `Player model recreation completed`, 'log');
-                    }, 1000); // 1 second delay to avoid recursion
+                    }, 500); // 0.5 second delay to avoid recursion
                     
                     // Skip the rest of updates for this player
                     return;
@@ -1954,4 +2045,114 @@ export class MultiplayerManager {
     }
 
     // Add more category-specific methods as needed
+
+    // Add specialized transition method for metaverse-explorer model
+    transitionMetaverseExplorerState(player, newState) {
+        // Skip if we're already in this state
+        if (newState === player.animationState) {
+            return;
+        }
+        
+        this.logAnimation(player.id, `Transitioning metaverse-explorer from ${player.animationState} to ${newState}`, 'log');
+        
+        // Store previous state for potential return
+        player.previousAnimationState = player.animationState;
+        player.animationState = newState;
+        
+        // Update state timing
+        if (newState === AnimationState.IDLE) {
+            player.lastIdleTime = Date.now();
+        } else if (newState === AnimationState.RUNNING) {
+            player.lastRunningTime = Date.now();
+        }
+        
+        // Handle different state transitions
+        switch (newState) {
+            case AnimationState.RUNNING:
+                this.handleExplorerRunningTransition(player);
+                break;
+                
+            case AnimationState.IDLE:
+                this.handleExplorerIdleTransition(player);
+                break;
+        }
+    }
+    
+    // Special handling for metaverse-explorer idle transitions
+    handleExplorerIdleTransition(player) {
+        // Stop and cleanup all animations - mimics CharacterManager behavior
+        if (player.mixer) {
+            this.logAnimation(player.id, `Stopping all animations for explorer model idle transition`, 'log');
+            player.mixer.stopAllAction();
+            player.mixer.update(0);
+            
+            // Disable all animations but keep them stored
+            Object.values(player.animations).forEach(action => {
+                action.stop();
+                action.setEffectiveWeight(0);
+                action.enabled = false;
+                action.reset();
+            });
+            
+            // Clear current animation tracking
+            player.currentAnimation = null;
+            player.currentAnimationAction = null;
+            
+            this.logAnimation(player.id, `Metaverse explorer idle transition complete - all animations stopped`, 'log');
+        }
+    }
+    
+    // Special handling for metaverse-explorer running transitions
+    handleExplorerRunningTransition(player) {
+        if (!player.mixer) return;
+        
+        // Try to find the running animation (similar to CharacterManager)
+        const runAnimName = Object.keys(player.animations).find(name => 
+            name.toLowerCase().includes('run') || 
+            name.toLowerCase().includes('running') ||
+            name.toLowerCase().includes('mixamo.com')
+        );
+        
+        // First, stop and reset all animations
+        Object.values(player.animations).forEach(action => {
+            action.stop();
+            action.setEffectiveWeight(0);
+            action.enabled = false;
+            action.reset();
+        });
+
+        // Force update the mixer to ensure all animations are stopped
+        player.mixer.stopAllAction();
+        player.mixer.update(0);
+        
+        const runAction = player.animations[runAnimName];
+        if (runAction) {
+            // Setup running animation
+            runAction.reset();
+            runAction.time = 0;
+            runAction.setEffectiveTimeScale(1.0);
+            runAction.setEffectiveWeight(1);
+            runAction.loop = THREE.LoopRepeat;
+            runAction.enabled = true;
+            runAction.play();
+            
+            // Update tracking
+            player.currentAnimation = 'running';
+            player.currentAnimationAction = runAction;
+            
+            // Force update the mixer again after starting the running animation
+            player.mixer.update(0);
+            
+            this.logAnimation(player.id, `Metaverse explorer running animation started: ${runAnimName}`, 'log');
+        }
+    }
+
+    removePlayer(playerId) {
+        // ... existing code ...
+        // Remove from explorer model tracking if present
+        if (this.explorerModelPlayers.has(playerId)) {
+            this.explorerModelPlayers.delete(playerId);
+        }
+        // ... existing code ...
+    }
 } 
