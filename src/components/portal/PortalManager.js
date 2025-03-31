@@ -22,7 +22,6 @@ export class PortalManager {
         
         // Track which portals have been liked by this user
         this.likedPortals = new Set();
-        this.loadLikedPortalsFromStorage();
         
         // Mouse interaction for 3D buttons
         this.mouse = new THREE.Vector2();
@@ -50,36 +49,6 @@ export class PortalManager {
         console.log('[PortalManager] Initialized with scene, camera, and playerState');
     }
     
-    // Load the set of portals this user has already liked
-    loadLikedPortalsFromStorage() {
-        if (typeof window !== 'undefined' && window.localStorage) {
-            try {
-                const storedLikes = localStorage.getItem('likedPortals');
-                if (storedLikes) {
-                    const likedPortalIds = JSON.parse(storedLikes);
-                    if (Array.isArray(likedPortalIds)) {
-                        likedPortalIds.forEach(id => this.likedPortals.add(id));
-                        console.log(`[PortalManager] Loaded ${this.likedPortals.size} previously liked portals`);
-                    }
-                }
-            } catch (error) {
-                console.error('[PortalManager] Error loading liked portals from storage:', error);
-            }
-        }
-    }
-    
-    // Save the current set of liked portals to localStorage
-    saveLikedPortalsToStorage() {
-        if (typeof window !== 'undefined' && window.localStorage) {
-            try {
-                const likedPortalIds = Array.from(this.likedPortals);
-                localStorage.setItem('likedPortals', JSON.stringify(likedPortalIds));
-            } catch (error) {
-                console.error('[PortalManager] Error saving liked portals to storage:', error);
-            }
-        }
-    }
-    
     onMouseMove(event) {
         // Calculate mouse position in normalized device coordinates (-1 to +1)
         this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
@@ -87,6 +56,12 @@ export class PortalManager {
         
         // Check if mouse is over a like button
         this.checkButtonHover();
+    }
+    
+    // Save the current set of liked portals to localStorage - now empty for compatibility
+    saveLikedPortalsToStorage() {
+        // No longer saving to local storage
+        // This method remains for compatibility with existing code
     }
     
     onMouseClick(event) {
@@ -217,16 +192,14 @@ export class PortalManager {
             this.socket.on('playerLikedPortals', (likedPortals) => {
                 console.log(`[PortalManager] Received liked portals from server:`, likedPortals);
                 if (Array.isArray(likedPortals)) {
-                    // Update our local storage with the server's list
+                    // Clear existing likes and use only server data
+                    this.likedPortals.clear();
                     likedPortals.forEach(portalId => this.likedPortals.add(portalId));
                     
                     // Update UI for portals that have been liked
                     this.portals.forEach(portal => {
                         this.updateLikeButtonAppearance(portal.portalId);
                     });
-                    
-                    // Save to local storage for persistence
-                    this.saveLikedPortalsToStorage();
                 }
             });
             
@@ -412,9 +385,9 @@ export class PortalManager {
         const textGroup = this.likeTextMeshes.get(portalId);
         
         if (textGroup) {
-            // Remove old text meshes
-            while (textGroup.children.length > 1) { // Keep the background plane
-                const child = textGroup.children[textGroup.children.length - 1];
+            // Remove all previous children first
+            while (textGroup.children.length > 0) {
+                const child = textGroup.children[0];
                 textGroup.remove(child);
                 if (child.material) {
                     child.material.dispose();
@@ -448,6 +421,7 @@ export class PortalManager {
     // Handle portal like
     likePortal(portalId) {
         // Check if user has already liked this portal
+        console.log('MATT',this.likedPortals)
         if (this.likedPortals.has(portalId)) {
             console.log(`[PortalManager] Portal ${portalId} already liked by this user`);
             return;
@@ -463,7 +437,6 @@ export class PortalManager {
         
         // Mark this portal as liked by the user
         this.likedPortals.add(portalId);
-        this.saveLikedPortalsToStorage();
         
         // Update button appearance to show it's been liked
         this.updateLikeButtonAppearance(portalId);
