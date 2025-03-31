@@ -3,7 +3,7 @@ const app = express();
 const http = require('http').createServer(app);
 const io = require('socket.io')(http, {
     cors: {
-        origin: "https://thevibemetaverse.com",
+        origin: ["https://thevibemetaverse.com", "https://metaverse-delta.vercel.app"],
         methods: ["GET", "POST"],
         credentials: true
     }
@@ -11,7 +11,13 @@ const io = require('socket.io')(http, {
 
 // Add CORS headers for all routes
 app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', 'https://thevibemetaverse.com');
+    const allowedOrigins = ['https://thevibemetaverse.com', 'https://metaverse-delta.vercel.app'];
+    const origin = req.headers.origin;
+    
+    if (allowedOrigins.includes(origin)) {
+        res.header('Access-Control-Allow-Origin', origin);
+    }
+    
     res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
     res.header('Access-Control-Allow-Credentials', 'true');
