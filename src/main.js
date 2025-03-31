@@ -1,5 +1,3 @@
-import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { inject } from '@vercel/analytics';
 import posthog from 'posthog-js';
 import CharacterManager from './components/character/CharacterManager';
@@ -11,6 +9,8 @@ import { createEnvironmentElements } from './components/environment/environmentE
 import { PortalManager } from './components/portal/PortalManager';
 import { MultiplayerManager } from './components/multiplayer/MultiplayerManager';
 import { animateWater } from './components/environment/waterSystem.js';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import config from './config';
 
 // Function to get username from URL parameters
@@ -96,12 +96,89 @@ let followCamera;
 let portalManager;
 let multiplayerManager;
 
+// Animation loop control
+let animationRunning = false;
+
+// Animation loop
+function animate() {
+    requestAnimationFrame(animate);
+    
+    const deltaTime = 0.016; // Approximately 60 FPS
+    
+    // Only update components if they are initialized
+    if (characterManager && character) {
+        characterManager.update(deltaTime);
+    }
+    
+    // Update camera
+    if (followCamera) {
+        followCamera.update();
+    }
+    
+    // Update portals
+    if (portalManager) {
+        portalManager.update(deltaTime);
+    }
+
+    // Update multiplayer if feature is enabled and manager is initialized
+    if (config.features.multiplayer && multiplayerManager) {
+        multiplayerManager.update(deltaTime);
+        
+        // Send player position updates if character exists
+        if (character) {
+            multiplayerManager.updatePlayerPosition(
+                character.position,
+                character.rotation
+            );
+        }
+    }
+
+    // Update water animation
+    animateWater(scene.water, deltaTime);
+    
+    // Use the camera from followCamera if available, otherwise use a default camera
+    const renderCamera = followCamera 
+        ? followCamera.getCamera() 
+        : new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    
+    renderer.render(scene, renderCamera);
+}
+
+// Handle window resize
+window.addEventListener('resize', () => {
+    if (followCamera) {
+        followCamera.resize();
+    }
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// Handle cleanup on page unload
+window.addEventListener('beforeunload', () => {
+    if (config.features.multiplayer && multiplayerManager) {
+        multiplayerManager.dispose();
+    }
+});
+
 // Function to start the game
 function startGame(username) {
     console.log('[main] Starting game with username:', username);
+
+    // Initialize character manager first
+    characterManager = new CharacterManager(scene, renderer.domElement);
+    
+    // Ensure character manager has the correct username
+    if (characterManager.username !== username) {
+        console.log('[main] Setting character manager username:', username);
+        characterManager.username = username;
+        characterManager.playerState = {
+            ...characterManager.playerState || {},
+            username: username
+        };
+    }
+
     // Initialize portal manager
-    const portalManager = new PortalManager(scene, null, {
-        username: 'Guest',
+    portalManager = new PortalManager(scene, null, {
+        username: username,
         speed: 5
     });
 
@@ -153,20 +230,6 @@ function startGame(username) {
             usernameModal.classList.add('hidden');
         }
 
-        // Initialize character manager
-        characterManager = new CharacterManager(scene, renderer.domElement);
-
-
-        // Ensure character manager has the correct username
-        if (characterManager.username !== username) {
-            console.log('[main] Setting character manager username:', username);
-            characterManager.username = username;
-            characterManager.playerState = {
-                ...characterManager.playerState || {},
-                username: username
-            };
-        }
-
         // Add Vibe Jam link
         const jamLink = document.createElement('a');
         jamLink.href = 'https://jam.pieter.com';
@@ -189,17 +252,6 @@ function startGame(username) {
         `;
         document.body.appendChild(jamLink);
 
-        // Connect portal manager to character manager
-        console.log('[main] Connecting portal manager to character manager');
-        characterManager.setPortalManager(portalManager);
-
-        // Initialize portal manager
-        portalManager = new PortalManager(scene, null, {
-            username: username,
-            color: 'blue',
-            speed: 5
-        });
-
         // Initialize multiplayer manager if feature is enabled
         if (config.features.multiplayer) {
             console.log('[main] Initializing multiplayer manager (feature enabled)');
@@ -213,68 +265,14 @@ function startGame(username) {
         } else {
             console.log('[main] Multiplayer feature is disabled');
         }
-    }
-}
-
-// Animation loop control
-let animationRunning = false;
-
-// Animation loop
-function animate() {
-    requestAnimationFrame(animate);
-    
-    const deltaTime = 0.016; // Approximately 60 FPS
-    
-    // Update character manager
-    if (characterManager) {
-        characterManager.update(deltaTime);
-    }
-    
-    // Update camera
-    if (followCamera) {
-        followCamera.update();
-    }
-    
-    // Update portals
-    if (portalManager) {
-        portalManager.update(deltaTime);
-    }
-
-
-    // Update multiplayer if feature is enabled
-    if (config.features.multiplayer && multiplayerManager) {
-        multiplayerManager.update(deltaTime);
         
-        // Send player position updates
-        if (character) {
-            multiplayerManager.updatePlayerPosition(
-                character.position,
-                character.rotation
-            );
+        // Start animation loop if not already running
+        if (!animationRunning) {
+            animationRunning = true;
+            animate();
         }
-    }
-
-    // Update water animation
-    animateWater(scene.water, deltaTime);
-
-    
-    renderer.render(scene, followCamera ? followCamera.getCamera() : new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000));
+    });
 }
-
-// Handle window resize
-window.addEventListener('resize', () => {
-    if (followCamera) {
-        followCamera.resize();
-    }
-    renderer.setSize(window.innerWidth, window.innerHeight);
-});
-
-// Handle cleanup on page unload
-window.addEventListener('beforeunload', () => {
-    if (config.features.multiplayer && multiplayerManager) {
-        multiplayerManager.dispose();
-    }
-});
 
 // Check for username when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
