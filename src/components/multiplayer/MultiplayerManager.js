@@ -32,12 +32,12 @@ export class MultiplayerManager {
         this.movementThreshold = 0.01; // Minimum speed to be considered "moving"
         this.explorerMovementThreshold = 0.005; // More sensitive threshold for explorer models to detect starting movement
         this.explorerStopMovementThreshold = 0.001; // Very sensitive threshold for explorer models to detect stopping
-        this.nameLabelHeight = 2.5;  // Height above player for name label
+        this.nameLabelHeight = 3.6;  // Height above player for name label
         this.isConnected = false;
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = 5;
-        this.inactivityTimeout = 10000; // 10 seconds before removing disconnected player
-        this.networkTimeout = 15000;  // 15 seconds for network timeout
+        this.inactivityTimeout = 30000; // 30 seconds before removing disconnected player
+        this.networkTimeout = 25000;  // 25 seconds for network timeout
         this.networkCheckFrequency = 5000; // Check every 5 seconds
         this.networkMonitorRunning = false;
         
@@ -1108,6 +1108,12 @@ export class MultiplayerManager {
                     
                     // Force idle state for consistency
                     this.handleExplorerIdleTransition(player);
+                    
+                    // Force an immediate mixer update to apply the idle animation
+                    if (player.mixer && player.currentAnimationAction) {
+                        player.mixer.update(0);
+                        this.logAnimation(data.id, `Forced initial mixer update for explorer model`, 'log');
+                    }
                 }
             }
             
@@ -1115,7 +1121,46 @@ export class MultiplayerManager {
             mesh.updateMatrixWorld(true);
             nameLabel.updateMatrixWorld(true);
             
-            console.log(`[DIAGNOSTIC] Player ${data.id} avatar complete. In scene: ${!!mesh.parent}, visible: ${mesh.visible}`);
+            // Ensure player has animation state set - add this fallback for all player types
+            const player = this.players.get(data.id);
+            if (player) {
+                // Make sure all players have an animation state, not just explorer models
+                if (!player.animationState) {
+                    player.animationState = AnimationState.IDLE;
+                }
+                
+                // Make sure player always has currentAnimation set if animations are available
+                if (player.animations && Object.keys(player.animations).length > 0 && !player.currentAnimation) {
+                    // Try to find an idle animation first
+                    for (const animName of this.idleAnimationNames) {
+                        if (player.animations[animName]) {
+                            this.logAnimation(data.id, `Setting initial idle animation: ${animName}`, 'log');
+                            player.currentAnimation = animName;
+                            player.currentAnimationAction = player.animations[animName];
+                            player.currentAnimationAction.reset().play();
+                            break;
+                        }
+                    }
+                    
+                    // If no idle animation found, use the first available one
+                    if (!player.currentAnimation) {
+                        const firstAnim = Object.keys(player.animations)[0];
+                        if (firstAnim) {
+                            this.logAnimation(data.id, `Setting initial animation to first available: ${firstAnim}`, 'log');
+                            player.currentAnimation = 'generic-walk';
+                            player.currentAnimationAction = player.animations[firstAnim];
+                            player.currentAnimationAction.paused = !player.isMoving; // Pause if not moving
+                        }
+                    }
+                    
+                    // Force mixer update
+                    if (player.mixer && player.currentAnimationAction) {
+                        player.mixer.update(0);
+                    }
+                }
+            }
+            
+            console.log(`[DIAGNOSTIC] Player ${data.id} avatar complete. In scene: ${!!mesh.parent}, visible=${mesh.visible}`);
             
         } catch (error) {
             console.error(`[DIAGNOSTIC] Fatal error creating avatar for player ${data.id}:`, error);
@@ -1523,8 +1568,8 @@ export class MultiplayerManager {
             if (player.mixer) {
                 if (this.explorerModelPlayers.has(id)) {
                     // Special handling for explorer models
-                    // Always update the mixer, but only if we're in the RUNNING state
-                    if (player.animationState === AnimationState.RUNNING) {
+                    // Always update the mixer for both RUNNING and IDLE states
+                    if (player.animationState === AnimationState.RUNNING || player.animationState === AnimationState.IDLE) {
                         player.mixer.update(deltaTime);
                     }
                     
@@ -1553,12 +1598,55 @@ export class MultiplayerManager {
             const modelIsBroken = !player.mesh.parent || !player.mesh.visible || 
                                  (player.mixer && player.animations && 
                                   Object.keys(player.animations).length > 0 && 
-                                  !player.currentAnimation);
+                                  !player.currentAnimation && 
+                                  !player.animationState); // Only consider broken if no animationState either
                                   
             if ((shouldResetModels && id !== this.playerId) || modelIsBroken) {
                 // Only reset if truly broken (avoid unnecessary resets)
                 if (modelIsBroken) {
                     this.logVisibility(id, `Force recreating broken model for player. inScene=${!!player.mesh.parent}, visible=${player.mesh.visible}, hasAnimation=${!!(player.currentAnimation)}`, 'error');
+                    
+                    // Attempt to recover by setting a default animation if missing
+                    if (player.mixer && player.animations && Object.keys(player.animations).length > 0 && !player.currentAnimation) {
+                        // Try to find an idle animation first
+                        let recovered = false;
+                        for (const animName of this.idleAnimationNames) {
+                            if (player.animations[animName]) {
+                                this.logAnimation(player.id, `Attempting to recover missing animation by setting idle: ${animName}`, 'warn');
+                                player.currentAnimation = animName;
+                                player.currentAnimationAction = player.animations[animName];
+                                player.currentAnimationAction.reset().play();
+                                recovered = true;
+                                break;
+                            }
+                        }
+                        
+                        // If no idle animation, use the first available one
+                        if (!recovered) {
+                            const firstAnim = Object.keys(player.animations)[0];
+                            if (firstAnim) {
+                                this.logAnimation(player.id, `Attempting to recover missing animation by using first available: ${firstAnim}`, 'warn');
+                                player.currentAnimation = 'generic-walk';
+                                player.currentAnimationAction = player.animations[firstAnim];
+                                player.currentAnimationAction.reset().play();
+                                recovered = true;
+                            }
+                        }
+                        
+                        // Skip recreation if we successfully recovered the animation
+                        if (recovered) {
+                            this.logAnimation(player.id, `Successfully recovered animation state, skipping recreation`, 'log');
+                            
+                            // Force update the mixer to apply animation
+                            player.mixer.update(0);
+                            
+                            // Ensure model is visible
+                            player.mesh.visible = true;
+                            player.mesh.updateMatrixWorld(true);
+                            
+                            return;
+                        }
+                    }
                     
                     // Log the full state of the player for debugging
                     this.logModel(id, `Player state before recreation: ${JSON.stringify({
@@ -2127,11 +2215,61 @@ export class MultiplayerManager {
                 action.reset();
             });
             
-            // Clear current animation tracking
-            player.currentAnimation = null;
-            player.currentAnimationAction = null;
+            // Find an idle animation (similar to CharacterManager)
+            const idleAnimName = Object.keys(player.animations).find(name => 
+                name.toLowerCase().includes('idle')
+            );
             
-            this.logAnimation(player.id, `Metaverse explorer idle transition complete - all animations stopped`, 'log');
+            if (idleAnimName && player.animations[idleAnimName]) {
+                const idleAction = player.animations[idleAnimName];
+                // Setup idle animation
+                idleAction.reset();
+                idleAction.setEffectiveTimeScale(1.0);
+                idleAction.setEffectiveWeight(1);
+                idleAction.loop = THREE.LoopRepeat;
+                idleAction.enabled = true;
+                idleAction.play();
+                
+                // Update tracking
+                player.currentAnimation = 'idle';
+                player.currentAnimationAction = idleAction;
+                
+                // Force update the mixer after starting the idle animation
+                player.mixer.update(0);
+                
+                this.logAnimation(player.id, `Metaverse explorer idle animation started: ${idleAnimName}`, 'log');
+            } else {
+                this.logAnimation(player.id, `No idle animation found for explorer model`, 'warn');
+                // Clear current animation tracking
+                player.currentAnimation = null;
+                player.currentAnimationAction = null;
+            }
+            
+            // Ensure player and all its children are visible
+            if (player.mesh) {
+                player.mesh.visible = true;
+                player.mesh.traverse(child => {
+                    if (child.isMesh) {
+                        child.visible = true;
+                        if (child.material) {
+                            if (Array.isArray(child.material)) {
+                                child.material.forEach(mat => {
+                                    mat.transparent = mat.opacity < 1;
+                                    mat.needsUpdate = true;
+                                });
+                            } else {
+                                child.material.transparent = child.material.opacity < 1;
+                                child.material.needsUpdate = true;
+                            }
+                        }
+                    }
+                });
+                
+                // Force matrix update
+                player.mesh.updateMatrixWorld(true);
+                
+                this.logAnimation(player.id, `Forced visibility for idle explorer model and all children`, 'log');
+            }
         }
     }
     
