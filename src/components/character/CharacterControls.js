@@ -93,11 +93,11 @@ export default class CharacterControls {
                 break;
 
             case 'KeyA':
-                this.moveLeft = true;
+                this.moveRight = true;
                 break;
 
             case 'KeyD':
-                this.moveRight = true;
+                this.moveLeft = true;
                 break;
         }
     }
@@ -126,11 +126,11 @@ export default class CharacterControls {
                 break;
 
             case 'KeyA':
-                this.moveLeft = false;
+                this.moveRight = false;
                 break;
 
             case 'KeyD':
-                this.moveRight = false;
+                this.moveLeft = false;
                 break;
         }
     }
