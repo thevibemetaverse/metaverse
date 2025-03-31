@@ -145,15 +145,18 @@ export class PortalManager {
         // Check for intersections
         const intersects = this.clickRaycaster.intersectObjects(clickableMeshes);
         
-        // Reset all button star materials first
+        // Reset all button star materials to their original color
         this.likeButtonMeshes.forEach(mesh => {
-            if (mesh.material.userData && mesh.material.userData.originalColor) {
-                mesh.material.color.set(mesh.material.userData.originalColor);
+            if (mesh.material) {
+                // Default color is white if no original color is stored
+                const originalColor = mesh.material.userData?.originalColor || 0xFFFFFF;
+                mesh.material.color.set(originalColor);
             }
         });
         
         // Clear selected button
         this.selectedButton = null;
+        document.body.style.cursor = 'default';
         
         // Handle hover state
         if (intersects.length > 0) {
@@ -163,12 +166,18 @@ export class PortalManager {
             // Highlight the star button for this portal
             const starMesh = this.likeButtonMeshes.get(portalId);
             if (starMesh) {
+                // Store original color if not already saved
+                if (!starMesh.material.userData) {
+                    starMesh.material.userData = {};
+                }
+                if (!starMesh.material.userData.originalColor) {
+                    starMesh.material.userData.originalColor = starMesh.material.color.getHex();
+                }
+                
                 starMesh.material.color.set(0xFFFF00); // Bright yellow hover color
                 this.selectedButton = { portalId: portalId };
                 document.body.style.cursor = 'pointer';
             }
-        } else {
-            document.body.style.cursor = 'default';
         }
     }
     
