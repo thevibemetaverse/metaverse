@@ -220,7 +220,7 @@ export default class CharacterControls {
     
     createVirtualJoysticks() {
         // Create movement joystick container
-        const joystickSize = 100;
+        const joystickSize = 120;
         
         // Movement joystick (left side)
         const moveJoystickContainer = document.createElement('div');
