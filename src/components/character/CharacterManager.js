@@ -73,8 +73,8 @@ export default class CharacterManager {
             console.warn('[Manager] Character or Camera not ready for initial controls setup.');
         }
         
-        // Create username label
-        this.createUsernameLabel();
+        // We no longer create username label for local player
+        // It will be handled by MultiplayerManager only
         
         // Add separate listener for non-movement keys like Jump
         window.addEventListener('keydown', this.handleManagerKeyDown.bind(this));
@@ -398,6 +398,20 @@ export default class CharacterManager {
                 action.enabled = false;
                 action.reset();
             });
+
+            // Start with idle animation
+            const idleAnimName = Object.keys(this.animations).find(name => 
+                name.toLowerCase().includes('idle')
+            );
+            if (idleAnimName && this.animations[idleAnimName]) {
+                const idleAction = this.animations[idleAnimName];
+                idleAction.reset();
+                idleAction.setEffectiveTimeScale(1.0);
+                idleAction.setEffectiveWeight(1);
+                idleAction.loop = THREE.LoopRepeat;
+                idleAction.enabled = true;
+                idleAction.play();
+            }
         } else {
             this.characterMixer = null;
         }
@@ -485,6 +499,9 @@ export default class CharacterManager {
             team: urlParams.get('team') || null
         };
         
+        // Set avatarUrl for model loading
+        this.avatarUrl = this.playerState.avatarUrl;
+        
         // Update portal manager's playerState if it exists
         if (this.portalManager) {
             this.portalManager.playerState = this.playerState;
@@ -500,16 +517,39 @@ export default class CharacterManager {
             // Load the model
             const gltf = await this.loadModel(modelUrl);
             
+            // Store the full GLTF object for multiplayer use
+            this.gltfData = gltf;
+            
             // Set up the character
             this.character = gltf.scene;
             this.character.name = 'playerCharacter';
-            
+          
+            // Store the model URL with the character for multiplayer use
+            this.character.userData.modelPath = modelUrl;
+            this.character.userData.avatarUrl = this.avatarUrl;
+          
             // Set initial position and rotation
             this.character.position.set(0, 0, 60); // Spawn at origin
             this.character.rotation.y = Math.PI - (15 * Math.PI / 180); // 180 degrees minus 15 degrees clockwise
             
             // Center the model and set scale
             this.character.scale.set(1, 1, 1);
+            
+            // Make sure the mesh is visible and properly configured
+            this.character.visible = true;
+            this.character.traverse((child) => {
+                if (child.isMesh) {
+                    child.visible = true;
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                    // Ensure materials are properly configured
+                    if (child.material) {
+                        child.material.transparent = false;
+                        child.material.opacity = 1;
+                        child.material.needsUpdate = true;
+                    }
+                }
+            });
             
             // Setup animations if available
             this.setupAnimations(gltf);
@@ -593,43 +633,10 @@ export default class CharacterManager {
     }
 
     createUsernameLabel() {
-        if (!this.character) {
-            console.warn('Cannot create username label: character is null');
-            return;
-        }
-
-        // Create canvas for username
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
-        canvas.width = 256;
-        canvas.height = 64;
-        
-        // Style the canvas
-        context.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        context.fillRect(0, 0, canvas.width, canvas.height);
-        context.font = 'bold 28px Arial';
-        context.textAlign = 'center';
-        context.fillStyle = 'white';
-        context.fillText(this.username, canvas.width / 2, canvas.height / 2 + 8);
-        
-        // Create sprite with canvas texture
-        const texture = new THREE.CanvasTexture(canvas);
-        const material = new THREE.SpriteMaterial({ 
-            map: texture,
-            transparent: true,
-            depthTest: false
-        });
-        const sprite = new THREE.Sprite(material);
-        
-        // Position the sprite above the character
-        sprite.position.y = 3.5;
-        sprite.scale.set(2, 0.5, 1);
-        
-        // Make the sprite always face the camera
-        sprite.material.depthWrite = false;
-        sprite.renderOrder = 999;
-        
-        this.character.add(sprite);
+        // This method is now a no-op to prevent local username label creation
+        // Username labels for all players (including local) are handled by MultiplayerManager
+        console.log('[CharacterManager] Skipping username label creation for local player');
+        return;
     }
 
     update(deltaTime) {
