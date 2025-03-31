@@ -323,77 +323,30 @@ export class PortalManager {
         buttonPosition.y += 7.5; // Position higher above the portal
         likeButtonGroup.position.copy(buttonPosition);
         
-        // Create a star shape instead of a heart
-        const starShape = new THREE.Shape();
-        
-        // Star properties
-        const outerRadius = 1;
-        const innerRadius = 0.4;
-        const numPoints = 5;
-        
-        // Create the star shape
-        for (let i = 0; i < numPoints * 2; i++) {
-            const radius = i % 2 === 0 ? outerRadius : innerRadius;
-            const angle = (Math.PI / numPoints) * i;
-            const x = Math.sin(angle) * radius;
-            const y = Math.cos(angle) * radius;
-            
-            if (i === 0) {
-                starShape.moveTo(x, y);
-            } else {
-                starShape.lineTo(x, y);
-            }
-        }
-        // Close the shape
-        starShape.closePath();
-        
-        // Use an ExtrudeGeometry to create a solid 3D star
-        const extrudeSettings = {
-            depth: 0.15,          // Thickness
-            bevelEnabled: true,   // Add a bevel for a smoother look
-            bevelThickness: 0.04, // How deep the bevel extends
-            bevelSize: 0.03,      // Distance the bevel extends
-            bevelSegments: 5      // Segments for smoother bevel
-        };
-        
-        const starGeometry = new THREE.ExtrudeGeometry(starShape, extrudeSettings);
-        
-        // Rotate the star to face forward
-        starGeometry.rotateZ(Math.PI / 2);
-        
-        const starMaterial = new THREE.MeshBasicMaterial({ 
-            color: 0xFFD700, // Gold color for the star
+        // Create a plane for the counter image
+        const geometry = new THREE.PlaneGeometry(1, 1); // Adjust size as needed
+        const texture = new THREE.TextureLoader().load('/assets/images/counter.png');
+        const material = new THREE.MeshBasicMaterial({ 
+            map: texture,
+            transparent: true,
             side: THREE.DoubleSide
         });
         
-        // Store original color for hover effect
-        starMaterial.userData = { originalColor: 0xFFD700 };
-        
-        const starMesh = new THREE.Mesh(starGeometry, starMaterial);
-        
-        // Scale the star to fit properly
-        starMesh.scale.set(0.7, 0.7, 0.7);
+        const counterMesh = new THREE.Mesh(geometry, material);
         
         // Store the portal ID in the mesh's userData
-        starMesh.userData.portalId = portal.portalId;
+        counterMesh.userData.portalId = portal.portalId;
         
-        // Add star to button group
-        likeButtonGroup.add(starMesh);
+        // Add counter mesh to button group
+        likeButtonGroup.add(counterMesh);
         
-        // Create a circular background for the button (larger for better touch targets)
-        const bgGeometry = new THREE.CircleGeometry(0.8, 32);
-        const bgMaterial = new THREE.MeshBasicMaterial({ 
-            color: 0xffffff,
-            side: THREE.DoubleSide,
-            transparent: true,
-            opacity: 0.7
-        });
+
         const bgMesh = new THREE.Mesh(bgGeometry, bgMaterial);
         
         // Make the background clickable too by adding the portal ID
         bgMesh.userData.portalId = portal.portalId;
         
-        bgMesh.position.z = -0.1; // Place further behind the heart
+        bgMesh.position.z = -0.1; // Place behind the counter image
         likeButtonGroup.add(bgMesh);
         
         // Create a group for text positioning
@@ -418,7 +371,7 @@ export class PortalManager {
         this.scene.add(likeButtonGroup);
         
         // Store references for later updates
-        this.likeButtonMeshes.set(portal.portalId, starMesh);
+        this.likeButtonMeshes.set(portal.portalId, counterMesh);
         this.portalLikeButtons.set(portal.portalId, likeButtonGroup);
         this.likeTextMeshes.set(portal.portalId, textGroup);
         
@@ -430,8 +383,7 @@ export class PortalManager {
         
         // Initialize with correct appearance based on liked status
         if (this.likedPortals.has(portal.portalId)) {
-            starMaterial.color.set(0xff2266);
-            starMaterial.userData.originalColor = 0xff2266;
+            counterMesh.material.opacity = 1.0;
         }
         
         // Set initial text
@@ -496,21 +448,15 @@ export class PortalManager {
     
     // Update the appearance of a like button based on whether it's been liked
     updateLikeButtonAppearance(portalId) {
-        const heartMesh = this.likeButtonMeshes.get(portalId);
-        if (!heartMesh) return;
+        const counterMesh = this.likeButtonMeshes.get(portalId);
+        if (!counterMesh) return;
         
         if (this.likedPortals.has(portalId)) {
-            // User has liked this portal - show a brighter gold star
-            heartMesh.material.color.set(0xFFC125); // Bright gold
-            if (heartMesh.material.userData) {
-                heartMesh.material.userData.originalColor = 0xFFC125;
-            }
+            // User has liked this portal - show brighter
+            counterMesh.material.opacity = 1.0;
         } else {
-            // Not liked yet - show standard gold star
-            heartMesh.material.color.set(0xFFD700); // Regular gold
-            if (heartMesh.material.userData) {
-                heartMesh.material.userData.originalColor = 0xFFD700;
-            }
+            // Not liked yet - show slightly dimmer
+            counterMesh.material.opacity = 0.8;
         }
     }
     
