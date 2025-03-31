@@ -16,17 +16,36 @@ export default class CharacterControls {
         this.rotateLeft = false;
         this.rotateRight = false;
         
-        // Character speed
-        this.moveSpeed = 9;
-        this.rotateSpeed = 3; // Speed of rotation in radians per second
-        
-        // Mobile controls state
+        // Detect platform and browser
         this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        console.log('[Controls] Mobile detection:', {
+        this.isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+        this.isSafari = /Safari/i.test(navigator.userAgent) && !/Chrome/i.test(navigator.userAgent);
+        
+        // Platform-specific speed adjustments
+        this.moveSpeedBase = 9;
+        this.rotateSpeedBase = 3; // Speed of rotation in radians per second
+        
+        // Adjust speeds based on platform
+        if (this.isIOS && this.isSafari) {
+            // iOS Safari needs speed boost to match other browsers
+            this.moveSpeed = this.moveSpeedBase * 1.35;
+            this.rotateSpeed = this.rotateSpeedBase * 1.5;
+            console.log('[Controls] iOS Safari detected, applying speed multipliers');
+        } else {
+            this.moveSpeed = this.moveSpeedBase;
+            this.rotateSpeed = this.rotateSpeedBase;
+        }
+        
+        console.log('[Controls] Platform detection:', {
             userAgent: navigator.userAgent,
-            isMobile: this.isMobile
+            isMobile: this.isMobile,
+            isIOS: this.isIOS,
+            isSafari: this.isSafari,
+            moveSpeed: this.moveSpeed,
+            rotateSpeed: this.rotateSpeed
         });
         
+        // Mobile controls state
         this.moveJoystickActive = false;
         this.lookJoystickActive = false;
         this.moveJoystickTouchId = null;

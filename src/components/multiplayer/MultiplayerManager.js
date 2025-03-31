@@ -298,6 +298,7 @@ export class MultiplayerManager {
             // IMPORTANT: Use proper rotation quaternion approach to avoid gimbal lock issues
             const newPosition = new THREE.Vector3(data.position.x, data.position.y, data.position.z);
             
+            // IMPROVED: Enhanced rotation handling to ensure consistency across platforms
             // Create a proper quaternion for rotation to ensure accurate orientation
             // We receive Euler angles from the server, so convert them to a quaternion
             const newRotation = new THREE.Euler(
@@ -307,8 +308,11 @@ export class MultiplayerManager {
                 'YXZ' // Using YXZ order which is typical for character controls
             );
             
+            // Detect the source platform if available in data
+            const isIOSSafari = data.platform === 'ios-safari';
+            
             // Debug rotation values
-            this.logPosition(data.id, `Received rotation: (${data.rotation.x.toFixed(2)}, ${data.rotation.y.toFixed(2)}, ${data.rotation.z.toFixed(2)})`, 'log');
+            this.logPosition(data.id, `Received rotation: (${data.rotation.x.toFixed(2)}, ${data.rotation.y.toFixed(2)}, ${data.rotation.z.toFixed(2)}) from ${isIOSSafari ? 'iOS Safari' : 'other platform'}`, 'log');
             
             // First ensure mesh is still in the scene
             if (!player.mesh.parent) {
@@ -327,8 +331,35 @@ export class MultiplayerManager {
             // Apply position updates
             player.mesh.position.copy(newPosition);
             
-            // Apply rotation updates - make sure we're setting the rotation directly
-            player.mesh.rotation.set(newRotation.x, newRotation.y, newRotation.z, newRotation.order);
+            // Apply rotation updates with platform-specific handling
+            if (isIOSSafari) {
+                // Apply minor smoothing for iOS Safari rotation to address jittery movement
+                // Use a lerp (linear interpolation) to smooth iOS Safari rotation
+                if (player.previousRotation) {
+                    const smoothFactor = 0.5; // Balance between responsiveness and smoothness
+                    const smoothedRotationY = THREE.MathUtils.lerp(
+                        player.previousRotation.y, 
+                        newRotation.y, 
+                        smoothFactor
+                    );
+                    
+                    // Apply the smoothed Y rotation but keep original X and Z values
+                    player.mesh.rotation.set(
+                        newRotation.x,
+                        smoothedRotationY,
+                        newRotation.z,
+                        newRotation.order
+                    );
+                    
+                    this.logPosition(data.id, `Applied iOS Safari rotation smoothing: ${player.previousRotation.y.toFixed(4)} -> ${smoothedRotationY.toFixed(4)}`, 'log');
+                } else {
+                    // First update, set rotation directly
+                    player.mesh.rotation.set(newRotation.x, newRotation.y, newRotation.z, newRotation.order);
+                }
+            } else {
+                // For other platforms, apply rotation directly
+                player.mesh.rotation.set(newRotation.x, newRotation.y, newRotation.z, newRotation.order);
+            }
             
             // Log the rotation change
             const rotDiff = Math.abs(prevRotation.y - newRotation.y);
@@ -1176,6 +1207,14 @@ export class MultiplayerManager {
                     childContainer.updateMatrixWorld(true);
                 }
                 
+                // Detect platform to send with update
+                const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+                const isSafari = /Safari/i.test(navigator.userAgent) && !/Chrome/i.test(navigator.userAgent);
+                const platform = isIOS && isSafari ? 'ios-safari' : 
+                                 isIOS ? 'ios-other' :
+                                 /Android/i.test(navigator.userAgent) ? 'android' :
+                                 /Chrome/i.test(navigator.userAgent) ? 'chrome' : 'other';
+                
                 // Send update to server with properly formatted rotation
                 // Make sure we're sending the actual rotation values from the mesh
                 this.socket.emit('playerUpdate', {
@@ -1189,7 +1228,8 @@ export class MultiplayerManager {
                         y: player.mesh.rotation.y,
                         z: player.mesh.rotation.z
                     },
-                    avatarUrl: this.getAvatarUrl() // Add avatarUrl to player updates
+                    avatarUrl: this.getAvatarUrl(), // Add avatarUrl to player updates
+                    platform: platform // Add platform information
                 });
             }
         }
