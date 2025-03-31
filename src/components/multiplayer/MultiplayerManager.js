@@ -1349,8 +1349,19 @@ export class MultiplayerManager {
     createNameLabel(username) {
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
-        canvas.width = 256;
-        canvas.height = 64;
+        
+        // Set a fixed font size
+        context.font = 'bold 32px Arial';
+        
+        // Measure text width to determine canvas size
+        const textMetrics = context.measureText(username);
+        const textWidth = textMetrics.width;
+        const textHeight = 32; // Fixed height for text
+        
+        // Set canvas size based on text width plus padding
+        const padding = 20; // Padding on each side
+        canvas.width = textWidth + (padding * 2);
+        canvas.height = 64; // Fixed height for the label
         
         // Draw background with better visibility
         context.fillStyle = 'rgba(0, 0, 0, 0.7)';
@@ -1372,6 +1383,7 @@ export class MultiplayerManager {
         });
         const sprite = new THREE.Sprite(spriteMaterial);
         
+        // Keep text size constant by using a fixed scale
         sprite.scale.set(2, 0.5, 1);
         return sprite;
     }
