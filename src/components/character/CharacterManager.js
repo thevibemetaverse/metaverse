@@ -86,10 +86,12 @@ export default class CharacterManager {
     // Separate key handler for manager-level actions (e.g., Jump)
     handleManagerKeyDown(event) {
         // Jump on space bar press if not already jumping
+        /* Temporarily disabled for multiplayer compatibility
         if (event.code === 'Space' && this.currentState !== AnimationState.JUMPING) {
             console.log('[Manager] Space pressed - attempting to jump');
             this.transitionToState(AnimationState.JUMPING);
         }
+        */
         // Add other manager-level keybindings here if needed
     }
 
