@@ -303,10 +303,12 @@ function startGame(username) {
 document.addEventListener('DOMContentLoaded', () => {
     // Get username from URL if available
     const username = getUsernameFromURL();
+    const urlParams = new URLSearchParams(window.location.search);
+    const isPortal = urlParams.get('portal') === 'true';
     
-    if (username) {
-        // Start game directly if username is in URL
-        startGame(username);
+    if (username || isPortal) {
+        // Start game directly if username is in URL or if portal=true
+        startGame(username || 'metaverse-explorer');
     } else {
         // Show the username modal
         const usernameModal = document.getElementById('username-modal');
