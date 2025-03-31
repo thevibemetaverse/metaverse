@@ -221,6 +221,29 @@ function startGame(username) {
         console.log('[main] Connecting portal manager to character manager');
         characterManager.setPortalManager(portalManager);
 
+        // Initialize multiplayer manager if feature is enabled
+        if (config.features.multiplayer) {
+            console.log('[main] Initializing multiplayer manager (feature enabled)');
+            multiplayerManager = new MultiplayerManager(scene);
+
+            // Ensure multiplayer manager has the correct username
+            if (multiplayerManager.username !== username) {
+                console.log('[main] Setting multiplayer manager username:', username);
+                multiplayerManager.username = username;
+            }
+            
+            // Share the character model with the multiplayer manager
+            if (characterManager.gltfData && characterManager.gltfData.scene) {
+                console.log('[main] Sharing character model with multiplayer manager');
+                multiplayerManager.setLocalPlayerModel(characterManager.gltfData.scene);
+            }
+            
+            // Call connect method to establish socket connection
+            multiplayerManager.connect(config.server.socketUrl);
+        } else {
+            console.log('[main] Multiplayer feature is disabled');
+        }
+        
         // Update URL with username
         updateURLWithUsername(username);
 
@@ -251,20 +274,6 @@ function startGame(username) {
             border: 1px solid #fff;
         `;
         document.body.appendChild(jamLink);
-
-        // Initialize multiplayer manager if feature is enabled
-        if (config.features.multiplayer) {
-            console.log('[main] Initializing multiplayer manager (feature enabled)');
-            multiplayerManager = new MultiplayerManager(scene);
-
-            // Ensure multiplayer manager has the correct username
-            if (multiplayerManager.username !== username) {
-                console.log('[main] Setting multiplayer manager username:', username);
-                multiplayerManager.username = username;
-            }
-        } else {
-            console.log('[main] Multiplayer feature is disabled');
-        }
         
         // Start animation loop if not already running
         if (!animationRunning) {

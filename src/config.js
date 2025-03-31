@@ -21,7 +21,7 @@ const config = {
      * - No connection to multiplayer server is made
      * - Reduced network usage and processing overhead
      */
-    multiplayer: false,
+    multiplayer: true,
   },
   
   // Server configuration

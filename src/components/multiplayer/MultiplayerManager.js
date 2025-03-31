@@ -115,7 +115,23 @@ export class MultiplayerManager {
 
         // Use provided serverUrl, fall back to relative URL in development, absolute URL in production
         const url = serverUrl !== '' ? serverUrl : (import.meta.env.DEV ? '' : 'http://localhost:8080');
-        this.socket = io(url, {
+        const fixedUrl = serverUrl !== '' ? serverUrl : (import.meta.env.DEV ? '' : 'http://localhost:8080');
+        console.log(`[MultiplayerManager] Using socket server URL: ${fixedUrl || 'relative'}`);
+        
+        // Determine server URL - Use config URL if provided, otherwise use relative path in dev or localhost in prod
+        let serverURL = '';
+        if (serverUrl && serverUrl !== '') {
+            // Use explicitly provided URL
+            serverURL = serverUrl;
+        } else {
+            // In development, use relative path (empty string)
+            // In production, use explicit localhost URL
+            serverURL = import.meta.env.DEV ? '' : 'http://localhost:8080';
+        }
+        
+        console.log(`[MultiplayerManager] Connecting to socket server: ${serverURL || 'relative URL'}`);
+        
+        this.socket = io(serverURL, {
             reconnection: true,
             reconnectionAttempts: this.maxReconnectAttempts,
             reconnectionDelay: this.reconnectDelay,
