@@ -1,5 +1,5 @@
 /**
- * Application configuration and feature flags
+ * Application configuration and feature flags and server configuration
  * 
  * This file contains configuration settings for the metaverse application,
  * including feature flags that can be toggled to enable or disable functionality.
