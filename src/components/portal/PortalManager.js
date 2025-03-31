@@ -323,8 +323,8 @@ export class PortalManager {
         buttonPosition.y += 7.5; // Position higher above the portal
         likeButtonGroup.position.copy(buttonPosition);
         
-        // Create a plane for the counter image
-        const geometry = new THREE.PlaneGeometry(1, 1); // Adjust size as needed
+        // Create a plane for the counter image - make it bigger by adjusting size
+        const geometry = new THREE.PlaneGeometry(3, 3); // Increased from (1, 1) to (2, 2)
         const texture = new THREE.TextureLoader().load('/assets/images/counter.png');
         const material = new THREE.MeshBasicMaterial({ 
             map: texture,
@@ -334,24 +334,18 @@ export class PortalManager {
         
         const counterMesh = new THREE.Mesh(geometry, material);
         
+        // Move the counter down by adjusting its position
+        counterMesh.position.y = 0; // Adjust this value to move it up (-) or down (+)
+        
         // Store the portal ID in the mesh's userData
         counterMesh.userData.portalId = portal.portalId;
         
         // Add counter mesh to button group
         likeButtonGroup.add(counterMesh);
         
-
-        const bgMesh = new THREE.Mesh(bgGeometry, bgMaterial);
-        
-        // Make the background clickable too by adding the portal ID
-        bgMesh.userData.portalId = portal.portalId;
-        
-        bgMesh.position.z = -0.1; // Place behind the counter image
-        likeButtonGroup.add(bgMesh);
-        
         // Create a group for text positioning
         const textGroup = new THREE.Group();
-        textGroup.position.set(0, -0.9, 0); // Position below the heart
+        textGroup.position.set(.2, .2, 0); // Changed from -0.9 to -0.4 to move text up
         
         // Create text background for better visibility
         const textBgGeometry = new THREE.PlaneGeometry(1.2, 0.6);
@@ -383,7 +377,9 @@ export class PortalManager {
         
         // Initialize with correct appearance based on liked status
         if (this.likedPortals.has(portal.portalId)) {
-            counterMesh.material.opacity = 1.0;
+            material.opacity = 1.0;
+        } else {
+            material.opacity = 0.8;
         }
         
         // Set initial text
@@ -401,7 +397,7 @@ export class PortalManager {
         // Draw text on canvas
         context.fillStyle = '#ffffff';
         context.fillRect(0, 0, canvas.width, canvas.height);
-        context.font = 'bold 48px Arial'; // Increased from 40px
+        context.font = 'bold 75px Comic Sans MS'; 
         context.textAlign = 'center';
         context.textBaseline = 'middle';
         context.fillStyle = '#000000';
