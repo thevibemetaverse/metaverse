@@ -147,6 +147,12 @@ export class MultiplayerManager {
         if (this.socket) {
             console.log('[MultiplayerManager] Already connected, disconnecting first');
             this.socket.disconnect();
+            
+            // Clear any existing heartbeat interval
+            if (this.heartbeatInterval) {
+                clearInterval(this.heartbeatInterval);
+                this.heartbeatInterval = null;
+            }
         }
         
         if (!this.username) {
@@ -166,6 +172,44 @@ export class MultiplayerManager {
         // Start monitoring network activity
         this.monitorNetworkActivity();
         
+        // Setup heartbeat to keep connection alive and reset all timeouts
+        this.heartbeatInterval = setInterval(() => {
+            if (this.socket && this.isConnected) {
+                // Send a heartbeat ping to the server
+                this.socket.emit('heartbeat', { timestamp: Date.now() });
+                
+                // Update last network activity time
+                this.lastNetworkActivity = Date.now();
+                
+                // Update all players' last update time to prevent timeouts
+                this.players.forEach((player) => {
+                    if (!player.isLocalPlayer) {
+                        // Reset the last update time to prevent disconnection
+                        player.lastUpdate = Date.now();
+                        
+                        // If player was marked as disconnected, restore them
+                        if (player.isDisconnected) {
+                            player.isDisconnected = false;
+                            
+                            // Remove disconnected indicator if present
+                            if (player.nameLabel && player.disconnectIndicator) {
+                                const text = player.nameLabel.element.textContent;
+                                player.nameLabel.element.textContent = text.replace(' [Disconnected]', '');
+                                player.disconnectIndicator = false;
+                            }
+                            
+                            // Resume animations if they were paused
+                            if (player.mixer && player.currentAnimationAction && player.currentAnimationAction.paused) {
+                                player.currentAnimationAction.paused = false;
+                            }
+                        }
+                    }
+                });
+                
+                this.logNetwork(this.playerId, 'Sent heartbeat ping to server and reset all player timeouts', 'log');
+            }
+        }, 15000); // Send heartbeat every 15 seconds (reduced from 30 seconds)
+        
         return this.socket;
     }
 
@@ -174,6 +218,7 @@ export class MultiplayerManager {
             console.log('[MultiplayerManager] Connected to server');
             this.isConnected = true;
             this.reconnectAttempts = 0;
+            this.lastNetworkActivity = Date.now(); // Update activity timestamp on connect
             
             // Clean up any existing players before joining
             this.cleanupAllPlayers();
@@ -189,6 +234,17 @@ export class MultiplayerManager {
                 position: currentPosition,
                 rotation: currentRotation
             });
+        });
+
+        // Add handler for heartbeat response
+        this.socket.on('heartbeat', (data) => {
+            // Update last network activity
+            this.lastNetworkActivity = Date.now();
+            
+            // Reset all player timeouts on heartbeat response
+            this.resetAllPlayerTimeouts();
+            
+            this.logNetwork(this.playerId, 'Received heartbeat from server', 'log');
         });
 
         this.socket.on('playerId', (data) => {
@@ -210,6 +266,9 @@ export class MultiplayerManager {
                 rotation: { x: 0, y: 0, z: 0 },
                 avatarUrl: this.getAvatarUrl()
             });
+            
+            // Update last network activity
+            this.lastNetworkActivity = Date.now();
         });
 
         this.socket.on('playerJoined', (data) => {
@@ -225,15 +284,23 @@ export class MultiplayerManager {
             if (this.players.has(data.id)) return;
             
             this.handlePlayerJoined(data);
+            
+            // Update last network activity
+            this.lastNetworkActivity = Date.now();
         });
 
         this.socket.on('playerLeft', (data) => {
             console.log('[MultiplayerManager] Received playerLeft event:', data);
             this.handlePlayerLeft(data);
+            
+            // Update last network activity
+            this.lastNetworkActivity = Date.now();
         });
 
         this.socket.on('playerUpdate', (data) => {
             this.handlePlayerUpdate(data);
+            
+            // Update last network activity - already handled in handlePlayerUpdate
         });
 
         this.socket.on('disconnect', () => {
@@ -247,6 +314,7 @@ export class MultiplayerManager {
             console.log('[MultiplayerManager] Reconnected to server');
             this.isConnected = true;
             this.reconnectAttempts = 0;
+            this.lastNetworkActivity = Date.now(); // Update activity timestamp on reconnect
             
             // Clean up existing players before rejoining
             this.cleanupAllPlayers();
@@ -290,6 +358,9 @@ export class MultiplayerManager {
     handlePlayerUpdate(data) {
         if (data.id === this.playerId) return;
         
+        // Update the last network activity time whenever we receive any player update
+        this.lastNetworkActivity = Date.now();
+        
         try {
             let player = this.players.get(data.id);
             
@@ -309,8 +380,8 @@ export class MultiplayerManager {
             // Skip if player not fully loaded yet
             if (!player || !player.mesh) return;
 
-            // Track player updates
-            player.lastUpdateReceived = Date.now();
+            // Always update the lastUpdate timestamp to track activity
+            player.lastUpdate = Date.now();
             player.isDisconnected = false; // Reset disconnected state
             
             // If player was marked as disconnected, remove indicator
@@ -1471,18 +1542,20 @@ export class MultiplayerManager {
                         if (player.mesh && removedIds.includes(player.mesh.id)) {
                             this.logVisibility(playerId, `Player mesh was removed from scene! ID: ${player.mesh.id}`, 'error');
                             
-                            // ADDED: Immediately attempt to re-add player to scene
+                            // If the player mesh was removed, re-add it to the scene
                             this.scene.add(player.mesh);
                             player.mesh.updateMatrix();
                             player.mesh.updateMatrixWorld(true);
+                            player.mesh.visible = true;
                         }
                         if (player.nameLabel && removedIds.includes(player.nameLabel.id)) {
                             this.logVisibility(playerId, `Player nameLabel was removed from scene! ID: ${player.nameLabel.id}`, 'error');
                             
-                            // ADDED: Immediately attempt to re-add nameLabel to scene
+                            // If the nameLabel was removed, re-add it to the scene
                             this.scene.add(player.nameLabel);
                             player.nameLabel.updateMatrix();
                             player.nameLabel.updateMatrixWorld(true);
+                            player.nameLabel.visible = true;
                         }
                     });
                 }
@@ -1500,9 +1573,26 @@ export class MultiplayerManager {
             this.logScene(`Scene composition: ${JSON.stringify(objectTypes)}`, 'log');
         }
         
-        // ADDED: Always check for players that should be in scene but aren't
-        // This ensures players are always visible, even after scene manipulations
+        // Always check for players that should be in scene but aren't
         this.players.forEach((player, id) => {
+            // Skip local player since it's managed elsewhere
+            if (player.isLocalPlayer) return;
+            
+            // Reset last update time periodically to prevent timeout
+            // This ensures players stay in the scene even without updates
+            if (this.frameCounter % 300 === 0) { // Roughly every 5 seconds at 60fps
+                player.lastUpdate = Date.now();
+                
+                if (player.isDisconnected) {
+                    player.isDisconnected = false;
+                    if (player.nameLabel && player.disconnectIndicator) {
+                        const text = player.nameLabel.element.textContent;
+                        player.nameLabel.element.textContent = text.replace(' [Disconnected]', '');
+                        player.disconnectIndicator = false;
+                    }
+                }
+            }
+            
             if (player.mesh && !player.mesh.parent) {
                 this.logVisibility(id, `Player mesh not in scene during update loop, re-adding`, 'warn');
                 this.scene.add(player.mesh);
@@ -1525,7 +1615,7 @@ export class MultiplayerManager {
             if (player.mesh && player.nameLabel && (player.mesh.visible !== player.nameLabel.visible)) {
                 this.logVisibility(id, `Player has mismatched visibility: mesh=${player.mesh.visible}, nameLabel=${player.nameLabel.visible}`, 'warn');
                 
-                // ADDED: Force both to be visible
+                // Force both to be visible
                 player.mesh.visible = true;
                 player.nameLabel.visible = true;
             }
@@ -1536,19 +1626,29 @@ export class MultiplayerManager {
             // Skip if player is not fully initialized
             if (!player || !player.mesh) return;
             
-            // Check for disconnected players that should be removed
+            // Get current time for calculations
             const now = Date.now();
-            const timeSinceLastUpdate = now - (player.lastUpdate || 0);
             
-            // Remove players after inactivity timeout instead of just marking them as disconnected
+            // NEVER remove players during update loop, regardless of inactivity
+            // Instead, just manage their animation state and visual indicators
+            const timeSinceLastUpdate = now - (player.lastUpdate || 0);
             if (timeSinceLastUpdate > this.inactivityTimeout && !player.isDisconnected) {
-                this.logVisibility(id, `Player hasn't been updated in ${this.inactivityTimeout/1000} seconds, removing`, 'warn');
+                this.logVisibility(id, `Player hasn't been updated in ${this.inactivityTimeout/1000} seconds, marking as disconnected`, 'warn');
                 
-                // Remove disconnected player completely
-                this.removePlayerAvatar(id);
+                // Mark player as disconnected but KEEP them in the scene
+                player.isDisconnected = true;
                 
-                // Skip the rest of the update for this player since they're removed
-                return;
+                // Add visual disconnection indicator
+                if (player.nameLabel && !player.disconnectIndicator) {
+                    const text = player.nameLabel.element.textContent;
+                    player.nameLabel.element.textContent = `${text} [Disconnected]`;
+                    player.disconnectIndicator = true;
+                }
+                
+                // Pause animations
+                if (player.mixer && player.currentAnimationAction && !player.currentAnimationAction.paused) {
+                    player.currentAnimationAction.paused = true;
+                }
             }
             
             // Check for stale movement based on time since last update
@@ -2102,13 +2202,35 @@ export class MultiplayerManager {
 
     // Network monitoring to detect connection issues
     monitorNetworkActivity() {
-        if (this.networkMonitorRunning) return;
+        // Clear any existing monitoring interval before setting up a new one
+        if (this.networkMonitorInterval) {
+            clearInterval(this.networkMonitorInterval);
+        }
+        
+        // Set the starting time for monitoring
+        this.lastNetworkActivity = Date.now();
         this.networkMonitorRunning = true;
         
-        // Check all players for network inactivity
-        setInterval(() => {
+        // Set up the monitoring interval
+        this.networkMonitorInterval = setInterval(() => {
             // Skip if not connected to the server
             if (!this.isConnected) return;
+            
+            // Check for global network inactivity
+            const now = Date.now();
+            const timeSinceLastActivity = now - this.lastNetworkActivity;
+            
+            // If no network activity for too long, try to reconnect
+            if (timeSinceLastActivity > 45000) { // 45 seconds without any network activity
+                this.logNetwork(this.playerId, `No network activity for ${timeSinceLastActivity}ms, attempting reconnection`, 'warn');
+                
+                // Force a reconnection attempt
+                if (this.socket) {
+                    this.socket.disconnect();
+                    this.socket.connect();
+                    this.lastNetworkActivity = Date.now(); // Reset the timer after reconnection attempt
+                }
+            }
             
             // Check each player for inactivity
             this.players.forEach((player, id) => {
@@ -2125,12 +2247,25 @@ export class MultiplayerManager {
                     player.mesh.visible = true;
                 }
                 
-                // Network timeout handling - proper disconnection
+                // Instead of removing players, just mark them as disconnected for visual indication
                 if (timeSinceLastUpdate > this.networkTimeout && !player.isDisconnected) {
-                    this.logNetwork(id, `Player ${id} network timeout, removing player after ${timeSinceLastUpdate}ms without updates`, 'warn');
+                    this.logNetwork(id, `Player ${id} network timeout after ${timeSinceLastUpdate}ms without updates. Marking as disconnected but keeping in scene.`, 'warn');
                     
-                    // Remove the player entirely after timeout
-                    this.removePlayerAvatar(id);
+                    player.isDisconnected = true;
+                    
+                    // Add visual indicator of disconnection
+                    if (player.nameLabel && !player.disconnectIndicator) {
+                        const currentText = player.nameLabel.element.textContent;
+                        if (!currentText.includes('[Disconnected]')) {
+                            player.nameLabel.element.textContent = `${currentText} [Disconnected]`;
+                            player.disconnectIndicator = true;
+                        }
+                    }
+                    
+                    // Pause any animations
+                    if (player.mixer && player.currentAnimationAction) {
+                        player.currentAnimationAction.paused = true;
+                    }
                 }
             });
         }, this.networkCheckFrequency);
@@ -2325,5 +2460,35 @@ export class MultiplayerManager {
             this.explorerModelPlayers.delete(playerId);
         }
         // ... existing code ...
+    }
+
+    // Helper function to reset all player timeout counters
+    resetAllPlayerTimeouts() {
+        const now = Date.now();
+        this.players.forEach((player) => {
+            if (!player.isLocalPlayer) {
+                // Update the last update time to prevent disconnection
+                player.lastUpdate = now;
+                
+                // If player was marked as disconnected, restore them
+                if (player.isDisconnected) {
+                    player.isDisconnected = false;
+                    
+                    // Remove disconnected indicator if present
+                    if (player.nameLabel && player.disconnectIndicator) {
+                        const text = player.nameLabel.element.textContent;
+                        player.nameLabel.element.textContent = text.replace(' [Disconnected]', '');
+                        player.disconnectIndicator = false;
+                    }
+                    
+                    // Resume animations if they were paused
+                    if (player.mixer && player.currentAnimationAction && player.currentAnimationAction.paused) {
+                        player.currentAnimationAction.paused = false;
+                    }
+                }
+            }
+        });
+        
+        this.logNetwork(this.playerId, `Reset timeout counters for all ${this.players.size} players`, 'log');
     }
 } 

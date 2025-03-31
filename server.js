@@ -32,6 +32,27 @@ app.use(express.static('public'));
 io.on('connection', (socket) => {
     console.log(`[Server] New socket connected: ${socket.id}`);
 
+    // Handle heartbeat ping from clients
+    socket.on('heartbeat', (data) => {
+        // Find player ID associated with this socket
+        const playerId = connectedSockets.get(socket.id);
+        const logPrefix = playerId ? `Player ${playerId}` : `Socket ${socket.id}`;
+        
+        console.log(`[Server] Heartbeat received from ${logPrefix}`);
+        
+        // Reset player's last activity timestamp if found
+        if (playerId && players.has(playerId)) {
+            const player = players.get(playerId);
+            player.lastActivity = Date.now();
+        }
+        
+        // Respond to client heartbeat to confirm connection is alive
+        socket.emit('heartbeat', { 
+            timestamp: Date.now(),
+            serverTime: new Date().toISOString()
+        });
+    });
+
     socket.on('join', (data) => {
         if (!data.username) {
             console.error(`[Server] Received join request without username from socket ${socket.id}`);
