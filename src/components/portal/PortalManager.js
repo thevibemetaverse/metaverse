@@ -320,22 +320,21 @@ export class PortalManager {
         // Position the button above the portal
         const buttonPosition = new THREE.Vector3();
         buttonPosition.copy(portal.position);
-        buttonPosition.y += 7.5; // Position higher above the portal
+        buttonPosition.y += 7.8; // Position higher above the portal
         likeButtonGroup.position.copy(buttonPosition);
         
-        // Create a plane for the counter image - make it bigger by adjusting size
-        const geometry = new THREE.PlaneGeometry(3, 3); // Increased from (1, 1) to (2, 2)
+        // Create a plane for the counter image
+        const geometry = new THREE.PlaneGeometry(3, 3);
         const texture = new THREE.TextureLoader().load('/assets/images/counter.png');
         const material = new THREE.MeshBasicMaterial({ 
             map: texture,
             transparent: true,
-            side: THREE.DoubleSide
+            side: THREE.DoubleSide,
+            depthWrite: false
         });
         
         const counterMesh = new THREE.Mesh(geometry, material);
-        
-        // Move the counter down by adjusting its position
-        counterMesh.position.y = 0; // Adjust this value to move it up (-) or down (+)
+        counterMesh.position.z = -0.01; // Move counter slightly back
         
         // Store the portal ID in the mesh's userData
         counterMesh.userData.portalId = portal.portalId;
@@ -345,18 +344,7 @@ export class PortalManager {
         
         // Create a group for text positioning
         const textGroup = new THREE.Group();
-        textGroup.position.set(.2, .2, 0); // Changed from -0.9 to -0.4 to move text up
-        
-        // Create text background for better visibility
-        const textBgGeometry = new THREE.PlaneGeometry(1.2, 0.6);
-        const textBgMaterial = new THREE.MeshBasicMaterial({
-            color: 0xffffff,
-            transparent: true,
-            opacity: 0.7,
-            side: THREE.DoubleSide
-        });
-        const textBg = new THREE.Mesh(textBgGeometry, textBgMaterial);
-        textGroup.add(textBg);
+        textGroup.position.set(.2, .2, 0.02); // Move text forward
         
         // Add text group to button group
         likeButtonGroup.add(textGroup);
@@ -388,30 +376,31 @@ export class PortalManager {
     
     // Create text mesh for showing the count
     createTextMesh(text) {
-        // Use a simple approach with a canvas texture
         const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
-        canvas.width = 128;
-        canvas.height = 64;
+        const context = canvas.getContext('2d', { alpha: true });
+        canvas.width = 256;
+        canvas.height = 128;
         
-        // Draw text on canvas
-        context.fillStyle = '#ffffff';
-        context.fillRect(0, 0, canvas.width, canvas.height);
-        context.font = 'bold 75px Comic Sans MS'; 
+        // Clear the canvas to ensure transparency
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw text on transparent background
+        context.font = 'bold 72px Comic Sans MS';
         context.textAlign = 'center';
         context.textBaseline = 'middle';
         context.fillStyle = '#000000';
         context.fillText(text, canvas.width / 2, canvas.height / 2);
         
-        // Create texture from canvas
         const texture = new THREE.CanvasTexture(canvas);
+        texture.needsUpdate = true;
         
-        // Create a plane with the texture
-        const geometry = new THREE.PlaneGeometry(1.2, 0.6); // Slightly larger for better visibility
+        const geometry = new THREE.PlaneGeometry(1.8, 0.9);
         const material = new THREE.MeshBasicMaterial({
             map: texture,
             transparent: true,
-            side: THREE.DoubleSide
+            side: THREE.DoubleSide,
+            alphaTest: 0.01,
+            depthWrite: false
         });
         
         return new THREE.Mesh(geometry, material);
