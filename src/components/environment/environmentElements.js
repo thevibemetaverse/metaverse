@@ -116,6 +116,17 @@ async function createEnvironmentElements(scene) {
     console.log('Runway loaded:', runway);
     if (runway) environment.add(runway);
 
+    // Load Vibermart
+    console.log('About to load Vibermart...');
+    const vibermart = await loadGLTFModel(
+      '/assets/models/vibermart.glb',
+      new THREE.Vector3(-25, 5, 55), // Same x as runway, further back in z
+      new THREE.Vector3(10, 10, 10), // You may need to adjust this scale
+      new THREE.Euler(0, Math.PI/2, 0) // Same rotation as runway
+    );
+    console.log('Vibermart loaded:', vibermart);
+    if (vibermart) environment.add(vibermart);
+
     // Load Eiffel Tower
     console.log('About to load Eiffel Tower...');
     const eiffelTower = await loadGLTFModel(

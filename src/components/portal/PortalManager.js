@@ -802,8 +802,8 @@ export class PortalManager {
                             modelPath: '/assets/models/portal/portal-new.gltf'
                         },
                         {
-                            position: new THREE.Vector3(70, 0, 40),
-                            rotation: new THREE.Euler(0, 0, 0),
+                            position: new THREE.Vector3(-16, 0, 52),
+                            rotation: new THREE.Euler(0, Math.PI/2, 0),
                             destination: "https://thevibemetaverse.vercel.app/api/portal/foodvibers",
                             portalId: "foodvibers",
                             title: "Food Vibers Portal",
@@ -811,7 +811,7 @@ export class PortalManager {
                             modelPath: '/assets/models/portal/portal-new.gltf'
                         },
                         {
-                            position: new THREE.Vector3(75, 0, 20),
+                            position: new THREE.Vector3(55, 0, 20),
                             rotation: new THREE.Euler(0, 0, 0),
                             destination: "https://thevibemetaverse.vercel.app/api/portal/red-panda-vibes",
                             portalId: "red-panda-vibes",
