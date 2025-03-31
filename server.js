@@ -99,13 +99,19 @@ function handlePlayerUpdate(playerId, data) {
     // Store player position and rotation
     player.position = data.position;
     player.rotation = data.rotation;
+    
+    // Update avatarUrl if provided
+    if (data.avatarUrl) {
+        player.avatarUrl = data.avatarUrl;
+    }
 
     // Broadcast update to other players immediately
     broadcastToOthers(playerId, {
         type: 'playerUpdate',
         id: playerId,
         position: data.position,
-        rotation: data.rotation
+        rotation: data.rotation,
+        avatarUrl: player.avatarUrl // Include avatarUrl in broadcast
     });
 }
 

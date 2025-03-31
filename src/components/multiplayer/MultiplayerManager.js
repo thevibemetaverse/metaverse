@@ -155,7 +155,8 @@ export class MultiplayerManager {
                 id: this.playerId,
                 username: this.username,
                 position: { x: 0, y: 0, z: 0 },
-                rotation: { x: 0, y: 0, z: 0 }
+                rotation: { x: 0, y: 0, z: 0 },
+                avatarUrl: this.getAvatarUrl()
             });
         });
 
@@ -954,6 +955,7 @@ export class MultiplayerManager {
                 mesh,
                 nameLabel,
                 modelPath,
+                avatarUrl: data.avatarUrl, // Store the avatarUrl with the player
                 mixer,
                 animations,
                 lastUpdate: Date.now(),
@@ -1010,6 +1012,7 @@ export class MultiplayerManager {
             mesh: mesh,
             nameLabel: nameLabel,
             isLocalPlayer: isLocalPlayer,
+            avatarUrl: data.avatarUrl, // Store the avatarUrl with the player
             lastUpdate: Date.now()
         });
         
@@ -1169,7 +1172,8 @@ export class MultiplayerManager {
                         x: player.mesh.rotation.x,
                         y: player.mesh.rotation.y,
                         z: player.mesh.rotation.z
-                    }
+                    },
+                    avatarUrl: this.getAvatarUrl() // Add avatarUrl to player updates
                 });
             }
         }
@@ -1191,6 +1195,12 @@ export class MultiplayerManager {
     }
 
     getAvatarUrl() {
+        // If we have a custom avatar URL from the local player model, use that first
+        if (this.customAvatarUrl) {
+            return this.customAvatarUrl;
+        }
+        
+        // Fall back to URL parameters
         const urlParams = new URLSearchParams(window.location.search);
         return urlParams.get('avatar_url') || null;
     }
@@ -1537,10 +1547,27 @@ export class MultiplayerManager {
         this.safeReferences.clear();
     }
 
-    // Add method to set local player model
+    // Enhanced method to set local player model
     setLocalPlayerModel(model) {
+        // Store the model for future use
         this.localPlayerModel = model;
-        console.log('[MultiplayerManager] Local player model set');
+        
+        // Extract and store the avatarUrl from the model's userData
+        if (model && model.userData) {
+            if (model.userData.avatarUrl) {
+                console.log('[MultiplayerManager] Local player using custom avatar URL:', model.userData.avatarUrl);
+                this.customAvatarUrl = model.userData.avatarUrl;
+            } else if (model.userData.modelPath) {
+                console.log('[MultiplayerManager] Local player using model path:', model.userData.modelPath);
+                this.customAvatarUrl = model.userData.modelPath;
+            }
+        }
+        
+        // If the model doesn't have animations attached directly, but they exist in the characterManager,
+        // we need to make sure they're accessible when the local player is created
+        // This is handled by obtaining animations from the CharacterManager
+        
+        console.log('[MultiplayerManager] Local player model set successfully');
     }
 
     loadModel(path) {

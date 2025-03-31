@@ -492,6 +492,9 @@ export default class CharacterManager {
             team: urlParams.get('team') || null
         };
         
+        // Set avatarUrl for model loading
+        this.avatarUrl = this.playerState.avatarUrl;
+        
         // Update portal manager's playerState if it exists
         if (this.portalManager) {
             this.portalManager.playerState = this.playerState;
@@ -507,9 +510,16 @@ export default class CharacterManager {
             // Load the model
             const gltf = await this.loadModel(modelUrl);
             
+            // Store the full GLTF object for multiplayer use
+            this.gltfData = gltf;
+            
             // Set up the character
             this.character = gltf.scene;
             this.character.name = 'playerCharacter';
+            
+            // Store the model URL with the character for multiplayer use
+            this.character.userData.modelPath = modelUrl;
+            this.character.userData.avatarUrl = this.avatarUrl;
             
             // Center the model and set scale
             this.character.scale.set(1, 1, 1);
