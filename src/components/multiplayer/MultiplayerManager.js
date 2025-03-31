@@ -113,8 +113,8 @@ export class MultiplayerManager {
         this.username = this.getUsername();
         console.log('[MultiplayerManager] Connecting with username:', this.username);
 
-        // Use relative URL in development, absolute URL in production
-        const url = serverUrl || (import.meta.env.DEV ? '' : 'http://localhost:8080');
+        // Use provided serverUrl, fall back to relative URL in development, absolute URL in production
+        const url = serverUrl !== '' ? serverUrl : (import.meta.env.DEV ? '' : 'http://localhost:8080');
         this.socket = io(url, {
             reconnection: true,
             reconnectionAttempts: this.maxReconnectAttempts,

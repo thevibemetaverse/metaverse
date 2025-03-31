@@ -8,6 +8,7 @@ import { FollowCamera } from './components/character/camera';
 import { createEnvironmentElements } from './components/environment/environmentelements.js';
 import { PortalManager } from './components/portal/PortalManager';
 import { MultiplayerManager } from './components/multiplayer/MultiplayerManager';
+import config from './config';
 
 // Function to get username from URL parameters
 function getUsernameFromURL() {
@@ -116,13 +117,18 @@ function startGame(username) {
         speed: 5
     });
 
-    // Initialize multiplayer manager
-    multiplayerManager = new MultiplayerManager(scene);
-    
-    // Ensure multiplayer manager has the correct username
-    if (multiplayerManager.username !== username) {
-        console.log('[main] Setting multiplayer manager username:', username);
-        multiplayerManager.username = username;
+    // Initialize multiplayer manager if feature is enabled
+    if (config.features.multiplayer) {
+        console.log('[main] Initializing multiplayer manager (feature enabled)');
+        multiplayerManager = new MultiplayerManager(scene);
+        
+        // Ensure multiplayer manager has the correct username
+        if (multiplayerManager.username !== username) {
+            console.log('[main] Setting multiplayer manager username:', username);
+            multiplayerManager.username = username;
+        }
+    } else {
+        console.log('[main] Multiplayer feature is disabled');
     }
 
     // Initialize character and start animation loop
@@ -151,13 +157,16 @@ function startGame(username) {
         console.log('[main] Connecting portal manager to character manager');
         characterManager.setPortalManager(portalManager);
 
-        // Set the local player model in multiplayer manager
-        console.log('[main] Setting local player model in multiplayer manager');
-        multiplayerManager.setLocalPlayerModel(character);
+        // Set up multiplayer if feature is enabled
+        if (config.features.multiplayer && multiplayerManager) {
+            // Set the local player model in multiplayer manager
+            console.log('[main] Setting local player model in multiplayer manager');
+            multiplayerManager.setLocalPlayerModel(character);
 
-        // Connect to multiplayer server after character is fully initialized
-        console.log('[main] Connecting to multiplayer server');
-        multiplayerManager.connect();
+            // Connect to multiplayer server after character is fully initialized
+            console.log('[main] Connecting to multiplayer server');
+            multiplayerManager.connect(config.server.socketUrl);
+        }
         
         // Start animation loop if not already running
         if (!animationRunning) {
@@ -193,8 +202,8 @@ function animate() {
         portalManager.update(deltaTime);
     }
 
-    // Update multiplayer
-    if (multiplayerManager) {
+    // Update multiplayer if feature is enabled
+    if (config.features.multiplayer && multiplayerManager) {
         multiplayerManager.update(deltaTime);
         
         // Send player position updates
@@ -219,7 +228,7 @@ window.addEventListener('resize', () => {
 
 // Handle cleanup on page unload
 window.addEventListener('beforeunload', () => {
-    if (multiplayerManager) {
+    if (config.features.multiplayer && multiplayerManager) {
         multiplayerManager.dispose();
     }
 });
