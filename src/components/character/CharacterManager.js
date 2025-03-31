@@ -336,6 +336,13 @@ export default class CharacterManager {
         this.character = gltf.scene;
         this.character.name = 'playerCharacter';
         
+        // Set initial position and rotation
+        this.character.position.set(0, 0, 0); // Spawn at origin
+        this.character.rotation.y = Math.PI - (15 * Math.PI / 180); // 180 degrees minus 15 degrees clockwise
+        
+        // Center the model and set scale
+        this.character.scale.set(1, 1, 1);
+        
         // Store the model path for later reference
         this.character.userData.modelPath = gltf.userData?.modelPath || this.modelPaths.default;
         
@@ -488,7 +495,7 @@ export default class CharacterManager {
             username: this.username,
             color: urlParams.get('color') || 'blue',
             speed: parseFloat(urlParams.get('speed')) || 5,
-            avatarUrl: urlParams.get('avatar_url') || null,
+            avatarUrl: urlParams.get('avatar_url') || 'https://metaverse-delta.vercel.app/assets/models/metaverse-explorer.glb',
             team: urlParams.get('team') || null
         };
         
@@ -516,10 +523,14 @@ export default class CharacterManager {
             // Set up the character
             this.character = gltf.scene;
             this.character.name = 'playerCharacter';
-            
+          
             // Store the model URL with the character for multiplayer use
             this.character.userData.modelPath = modelUrl;
             this.character.userData.avatarUrl = this.avatarUrl;
+          
+            // Set initial position and rotation
+            this.character.position.set(0, 0, 60); // Spawn at origin
+            this.character.rotation.y = Math.PI - (15 * Math.PI / 180); // 180 degrees minus 15 degrees clockwise
             
             // Center the model and set scale
             this.character.scale.set(1, 1, 1);
@@ -569,7 +580,8 @@ export default class CharacterManager {
         
         this.character = new THREE.Mesh(geometry, material);
         this.character.name = 'playerCharacter';
-        this.character.position.y = 1; // Place on ground
+        this.character.position.set(0, 1, -50); // Place on ground with y=1 for height
+        this.character.rotation.y = Math.PI - (15 * Math.PI / 180); // 180 degrees minus 15 degrees clockwise
         this.character.castShadow = true;
         
         // Add to scene

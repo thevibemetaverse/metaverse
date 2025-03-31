@@ -3,6 +3,8 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader.js';
+import { createWater } from './waterSystem.js';
+import { create2DImage } from './imageSystem.js';
 
 // Model loaders
 const loadingManager = new THREE.LoadingManager();
@@ -61,6 +63,13 @@ async function createEnvironmentElements(scene) {
   scene.add(environment);
 
   try {
+    // Create water first (so it's at the bottom)
+    console.log('Creating water...');
+    const water = createWater(scene);
+    console.log('Water created:', water);
+    // Store water in scene for animation
+    scene.water = water;
+
     // Load BBQ Sauce
     console.log('About to load BBQ Sauce...');
     const bbqSauce = await loadGLTFModel(
@@ -76,12 +85,36 @@ async function createEnvironmentElements(scene) {
     console.log('About to load Office Computer...');
     const officeComputer = await loadGLTFModel(
       '/assets/models/office_computer.glb',
-      new THREE.Vector3(-25, 0, 15),
+      new THREE.Vector3(15, 0, 55),
       new THREE.Vector3(0.04, 0.04, 0.04),
-      new THREE.Euler(0, Math.PI + Math.PI / 7, 0)
+      new THREE.Euler(0, 0, 0)
     );
     console.log('Office Computer loaded:', officeComputer);
-    if (officeComputer) environment.add(officeComputer);
+    if (officeComputer) {
+      environment.add(officeComputer);
+      
+      // Add solsys image next to the computer
+      const computerImagePosition = new THREE.Vector3(20, 7, 55); // Position to the right of computer
+      const logoImage2 = create2DImage(
+        '/assets/images/solsys.png',
+        computerImagePosition,
+        15, // Smaller size to fit near desk
+        8,
+        new THREE.Euler(0, -Math.PI/2, 0) // Rotate 90 degrees clockwise around Z axis
+      );
+      environment.add(logoImage2);
+    }
+
+    // Load Runway
+    console.log('About to load Runway...');
+    const runway = await loadGLTFModel(
+      '/assets/models/runway.glb',
+      new THREE.Vector3(-15, .1, 10),
+      new THREE.Vector3(.02, .02, .02),
+      new THREE.Euler(0, .8*Math.PI, 0) 
+    );
+    console.log('Runway loaded:', runway);
+    if (runway) environment.add(runway);
 
     // Load Eiffel Tower
     console.log('About to load Eiffel Tower...');
@@ -92,7 +125,20 @@ async function createEnvironmentElements(scene) {
       new THREE.Euler(0, 0, 0)
     );
     console.log('Eiffel Tower loaded:', eiffelTower);
-    if (eiffelTower) environment.add(eiffelTower);
+    if (eiffelTower) {
+      environment.add(eiffelTower);
+      
+      // First logo remains at its current position
+      const logoPosition = new THREE.Vector3(65, 30, -60);
+      const logoImage = create2DImage(
+        '/assets/images/affordihome.png',
+        logoPosition,
+        40,
+        25,
+        new THREE.Euler(0, 0, 0)
+      );
+      environment.add(logoImage);
+    }
 
     // Load Sagrada Familia
     console.log('About to load Sagrada Familia...');

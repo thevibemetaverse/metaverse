@@ -1,13 +1,16 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import { inject } from '@vercel/analytics';
+import posthog from 'posthog-js';
 import CharacterManager from './components/character/CharacterManager';
 import Sky from './components/environment/sky';
 import Ground from './components/environment/ground';
 import HillsGenerator from './components/environment/hills';
 import { FollowCamera } from './components/character/camera';
-import { createEnvironmentElements } from './components/environment/environmentelements.js';
+import { createEnvironmentElements } from './components/environment/environmentElements.js';
 import { PortalManager } from './components/portal/PortalManager';
 import { MultiplayerManager } from './components/multiplayer/MultiplayerManager';
+import { animateWater } from './components/environment/waterSystem.js';
 import config from './config';
 
 // Function to get username from URL parameters
@@ -22,6 +25,15 @@ function updateURLWithUsername(username) {
     url.searchParams.set('username', username);
     window.history.replaceState({}, '', url);
 }
+
+// Initialize Vercel Analytics
+inject();
+
+// Initialize PostHog
+posthog.init(import.meta.env.POSTHOG_KEY, {
+    api_host: 'https://us.i.posthog.com',
+    person_profiles: 'identified_only',
+});
 
 // Scene setup
 const scene = new THREE.Scene();
@@ -87,95 +99,121 @@ let multiplayerManager;
 // Function to start the game
 function startGame(username) {
     console.log('[main] Starting game with username:', username);
-    
-    // Update URL with username
-    updateURLWithUsername(username);
-    
-    // Hide the username modal
-    const usernameModal = document.getElementById('username-modal');
-    if (usernameModal) {
-        usernameModal.classList.add('hidden');
-    }
-    
-    // Initialize character manager
-    characterManager = new CharacterManager(scene, renderer.domElement);
-    
-    // Ensure character manager has the correct username
-    if (characterManager.username !== username) {
-        console.log('[main] Setting character manager username:', username);
-        characterManager.username = username;
-        characterManager.playerState = {
-            ...characterManager.playerState || {},
-            username: username
-        };
-    }
-    
     // Initialize portal manager
-    portalManager = new PortalManager(scene, null, {
-        username: username,
-        color: 'blue',
+    const portalManager = new PortalManager(scene, null, {
+        username: 'Guest',
         speed: 5
     });
 
-    // Initialize multiplayer manager if feature is enabled
-    if (config.features.multiplayer) {
-        console.log('[main] Initializing multiplayer manager (feature enabled)');
-        multiplayerManager = new MultiplayerManager(scene);
-        
-        // Ensure multiplayer manager has the correct username
-        if (multiplayerManager.username !== username) {
-            console.log('[main] Setting multiplayer manager username:', username);
-            multiplayerManager.username = username;
-        }
-    } else {
-        console.log('[main] Multiplayer feature is disabled');
-    }
+    // Track portal interactions
+    portalManager.onPortalEnter = (portalId) => {
+        posthog.capture('portal_entered', {
+            portal_id: portalId,
+            timestamp: new Date().toISOString()
+        });
+    };
 
     // Initialize character and start animation loop
     characterManager.initialize().then(async (loadedCharacter) => {
         character = loadedCharacter;
-        
+
+        // Track character initialization
+        posthog.capture('character_initialized', {
+            timestamp: new Date().toISOString()
+        });
+
         // Initialize FollowCamera
         followCamera = new FollowCamera(character);
         const camera = followCamera.getCamera();
-        
+
         // Set the camera in character manager
         characterManager.setCamera(camera);
-        
+      
         // Set the camera in portal manager
         portalManager.camera = camera;
-        
+
         // Initialize portals
         console.log('[main] Initializing portals');
         await portalManager.initializeDefaultPortals();
-        
+
         // Create Pieter portal in line with other portals
         console.log('[main] Creating Pieter portal');
         portalManager.createPieterPortal();
-        
+
         // Connect portal manager to character manager
         console.log('[main] Connecting portal manager to character manager');
         characterManager.setPortalManager(portalManager);
 
-        // Set up multiplayer if feature is enabled
-        if (config.features.multiplayer && multiplayerManager) {
-            // Set the local player model in multiplayer manager
-            console.log('[main] Setting local player model in multiplayer manager');
-            multiplayerManager.setLocalPlayerModel(character);
+        // Update URL with username
+        updateURLWithUsername(username);
 
-            // Connect to multiplayer server after character is fully initialized
-            console.log('[main] Connecting to multiplayer server');
-            multiplayerManager.connect(config.server.socketUrl);
+        // Hide the username modal
+        const usernameModal = document.getElementById('username-modal');
+        if (usernameModal) {
+            usernameModal.classList.add('hidden');
         }
-        
-        // Start animation loop if not already running
-        if (!animationRunning) {
-            animationRunning = true;
-            animate();
+
+        // Initialize character manager
+        characterManager = new CharacterManager(scene, renderer.domElement);
+
+
+        // Ensure character manager has the correct username
+        if (characterManager.username !== username) {
+            console.log('[main] Setting character manager username:', username);
+            characterManager.username = username;
+            characterManager.playerState = {
+                ...characterManager.playerState || {},
+                username: username
+            };
         }
-    }).catch(error => {
-        console.error('Failed to initialize character:', error);
-    });
+
+        // Add Vibe Jam link
+        const jamLink = document.createElement('a');
+        jamLink.href = 'https://jam.pieter.com';
+        jamLink.target = '_blank';
+        jamLink.textContent = '🕹️ Vibe Jam 2025';
+        jamLink.style.cssText = `
+            font-family: 'system-ui', sans-serif;
+            position: fixed;
+            bottom: -1px;
+            right: -1px;
+            padding: 7px;
+            font-size: 14px;
+            font-weight: bold;
+            background: #fff;
+            color: #000;
+            text-decoration: none;
+            border-top-left-radius: 12px;
+            z-index: 10000;
+            border: 1px solid #fff;
+        `;
+        document.body.appendChild(jamLink);
+
+        // Connect portal manager to character manager
+        console.log('[main] Connecting portal manager to character manager');
+        characterManager.setPortalManager(portalManager);
+
+        // Initialize portal manager
+        portalManager = new PortalManager(scene, null, {
+            username: username,
+            color: 'blue',
+            speed: 5
+        });
+
+        // Initialize multiplayer manager if feature is enabled
+        if (config.features.multiplayer) {
+            console.log('[main] Initializing multiplayer manager (feature enabled)');
+            multiplayerManager = new MultiplayerManager(scene);
+
+            // Ensure multiplayer manager has the correct username
+            if (multiplayerManager.username !== username) {
+                console.log('[main] Setting multiplayer manager username:', username);
+                multiplayerManager.username = username;
+            }
+        } else {
+            console.log('[main] Multiplayer feature is disabled');
+        }
+    }
 }
 
 // Animation loop control
@@ -202,6 +240,7 @@ function animate() {
         portalManager.update(deltaTime);
     }
 
+
     // Update multiplayer if feature is enabled
     if (config.features.multiplayer && multiplayerManager) {
         multiplayerManager.update(deltaTime);
@@ -214,6 +253,10 @@ function animate() {
             );
         }
     }
+
+    // Update water animation
+    animateWater(scene.water, deltaTime);
+
     
     renderer.render(scene, followCamera ? followCamera.getCamera() : new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000));
 }
