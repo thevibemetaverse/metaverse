@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Portal } from './Portal.js';
+import config from '../../config.js';
 
 export class PortalManager {
     constructor(scene, camera, playerState) {
@@ -13,7 +14,249 @@ export class PortalManager {
         // Cache for future API responses
         this.portalDataCache = new Map();
         
+        // Portal likes storage
+        this.portalLikes = new Map();
+        this.portalLikeButtons = new Map();
+        this.likeButtonMeshes = new Map();
+        this.likeTextMeshes = new Map();
+        
+        // Track which portals have been liked by this user
+        this.likedPortals = new Set();
+        this.loadLikedPortalsFromStorage();
+        
+        // Mouse interaction for 3D buttons
+        this.mouse = new THREE.Vector2();
+        this.clickRaycaster = new THREE.Raycaster();
+        this.selectedButton = null;
+        
+        // Socket reference for multiplayer communication
+        this.socket = null;
+        
+        // Setup mouse and touch event listeners for 3D button interaction
+        if (typeof window !== 'undefined') {
+            window.addEventListener('mousemove', this.onMouseMove.bind(this));
+            window.addEventListener('click', this.onMouseClick.bind(this));
+            
+            // Add touch events for mobile devices
+            window.addEventListener('touchstart', this.onTouchStart.bind(this), { passive: false });
+            window.addEventListener('touchmove', this.onTouchMove.bind(this), { passive: false });
+            window.addEventListener('touchend', this.onTouchEnd.bind(this), { passive: false });
+        }
+        
+        // Keep track of touch interaction state
+        this.touchInteracting = false;
+        this.lastTouchPosition = { x: 0, y: 0 };
+        
         console.log('[PortalManager] Initialized with scene, camera, and playerState');
+    }
+    
+    // Load the set of portals this user has already liked
+    loadLikedPortalsFromStorage() {
+        if (typeof window !== 'undefined' && window.localStorage) {
+            try {
+                const storedLikes = localStorage.getItem('likedPortals');
+                if (storedLikes) {
+                    const likedPortalIds = JSON.parse(storedLikes);
+                    if (Array.isArray(likedPortalIds)) {
+                        likedPortalIds.forEach(id => this.likedPortals.add(id));
+                        console.log(`[PortalManager] Loaded ${this.likedPortals.size} previously liked portals`);
+                    }
+                }
+            } catch (error) {
+                console.error('[PortalManager] Error loading liked portals from storage:', error);
+            }
+        }
+    }
+    
+    // Save the current set of liked portals to localStorage
+    saveLikedPortalsToStorage() {
+        if (typeof window !== 'undefined' && window.localStorage) {
+            try {
+                const likedPortalIds = Array.from(this.likedPortals);
+                localStorage.setItem('likedPortals', JSON.stringify(likedPortalIds));
+            } catch (error) {
+                console.error('[PortalManager] Error saving liked portals to storage:', error);
+            }
+        }
+    }
+    
+    onMouseMove(event) {
+        // Calculate mouse position in normalized device coordinates (-1 to +1)
+        this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+        this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+        
+        // Check if mouse is over a like button
+        this.checkButtonHover();
+    }
+    
+    onMouseClick(event) {
+        // Check if a button is clicked
+        if (this.selectedButton) {
+            const portalId = this.selectedButton.portalId;
+            this.likePortal(portalId);
+        }
+    }
+    
+    onTouchStart(event) {
+        // Prevent default behavior (scrolling, zooming)
+        event.preventDefault();
+        
+        if (event.touches.length === 1) {
+            // Track that we're in a touch interaction
+            this.touchInteracting = true;
+            this.updateTouchPosition(event.touches[0]);
+            this.checkButtonHover(); // Check for button intersection
+        }
+    }
+    
+    onTouchMove(event) {
+        // Prevent default behavior (scrolling, zooming)
+        event.preventDefault();
+        
+        if (event.touches.length === 1 && this.touchInteracting) {
+            this.updateTouchPosition(event.touches[0]);
+            this.checkButtonHover(); // Update button hover state
+        }
+    }
+    
+    onTouchEnd(event) {
+        // Prevent default behavior
+        event.preventDefault();
+        
+        // If we were touching a button, trigger a like
+        if (this.touchInteracting && this.selectedButton) {
+            const portalId = this.selectedButton.portalId;
+            this.likePortal(portalId);
+        }
+        
+        // Reset touch state
+        this.touchInteracting = false;
+        this.selectedButton = null;
+        
+        // Reset cursor when touch ends
+        document.body.style.cursor = 'default';
+    }
+    
+    updateTouchPosition(touch) {
+        // Convert touch coordinates to normalized device coordinates (-1 to +1)
+        this.mouse.x = (touch.clientX / window.innerWidth) * 2 - 1;
+        this.mouse.y = -(touch.clientY / window.innerHeight) * 2 + 1;
+        
+        // Store the last touch position
+        this.lastTouchPosition.x = touch.clientX;
+        this.lastTouchPosition.y = touch.clientY;
+    }
+    
+    checkButtonHover() {
+        if (!this.camera) return;
+        
+        // Update the raycaster with the camera and mouse position
+        this.clickRaycaster.setFromCamera(this.mouse, this.camera);
+        
+        // Create a list of all interactive elements (stars and backgrounds)
+        const clickableMeshes = [];
+        
+        // Add both star meshes and their background circles as clickable elements
+        this.portalLikeButtons.forEach((buttonGroup, portalId) => {
+            if (buttonGroup) {
+                buttonGroup.children.forEach(child => {
+                    if (child.userData && child.userData.portalId) {
+                        clickableMeshes.push(child);
+                    }
+                });
+            }
+        });
+        
+        // Check for intersections
+        const intersects = this.clickRaycaster.intersectObjects(clickableMeshes);
+        
+        // Reset all button star materials first
+        this.likeButtonMeshes.forEach(mesh => {
+            if (mesh.material.userData && mesh.material.userData.originalColor) {
+                mesh.material.color.set(mesh.material.userData.originalColor);
+            }
+        });
+        
+        // Clear selected button
+        this.selectedButton = null;
+        
+        // Handle hover state
+        if (intersects.length > 0) {
+            const clickedMesh = intersects[0].object;
+            const portalId = clickedMesh.userData.portalId;
+            
+            // Highlight the star button for this portal
+            const starMesh = this.likeButtonMeshes.get(portalId);
+            if (starMesh) {
+                starMesh.material.color.set(0xFFFF00); // Bright yellow hover color
+                this.selectedButton = { portalId: portalId };
+                document.body.style.cursor = 'pointer';
+            }
+        } else {
+            document.body.style.cursor = 'default';
+        }
+    }
+    
+    // Set socket reference from multiplayer manager
+    setSocket(socket) {
+        this.socket = socket;
+        
+        // Set up socket event listeners for likes
+        if (this.socket) {
+            this.socket.on('portalLikeUpdate', (data) => {
+                this.updatePortalLikeCount(data.portalId, data.likeCount);
+            });
+            
+            this.socket.on('initialPortalLikes', (likesData) => {
+                Object.entries(likesData).forEach(([portalId, count]) => {
+                    this.updatePortalLikeCount(portalId, count);
+                });
+            });
+            
+            // Handle previously liked portals from server
+            this.socket.on('playerLikedPortals', (likedPortals) => {
+                console.log(`[PortalManager] Received liked portals from server:`, likedPortals);
+                if (Array.isArray(likedPortals)) {
+                    // Update our local storage with the server's list
+                    likedPortals.forEach(portalId => this.likedPortals.add(portalId));
+                    
+                    // Update UI for portals that have been liked
+                    this.portals.forEach(portal => {
+                        this.updateLikeButtonAppearance(portal.portalId);
+                    });
+                    
+                    // Save to local storage for persistence
+                    this.saveLikedPortalsToStorage();
+                }
+            });
+            
+            // Request initial like counts from server
+            this.socket.emit('getPortalLikes');
+        }
+    }
+    
+    // Initialize portal likes from config
+    initializePortalLikes() {
+        // First ensure all portals have a default count of 0
+        this.portals.forEach(portal => {
+            if (!this.portalLikes.has(portal.portalId)) {
+                this.portalLikes.set(portal.portalId, 0);
+            }
+        });
+        
+        // Then apply overrides from config
+        if (config.portals && config.portals.initialLikes) {
+            Object.entries(config.portals.initialLikes).forEach(([portalId, count]) => {
+                this.portalLikes.set(portalId, count);
+                this.updateLikeButtonText(portalId);
+            });
+        }
+        
+        // Update UI for all portals
+        this.portals.forEach(portal => {
+            this.updateLikeButtonText(portal.portalId);
+            this.updateLikeButtonAppearance(portal.portalId);
+        });
     }
     
     async addPortal(portalConfig) {
@@ -30,6 +273,22 @@ export class PortalManager {
             
             this.scene.add(portalMesh);
             this.portals.push(portal);
+            
+            // Create 3D like button for this portal
+            this.create3DLikeButton(portal);
+            
+            // Initialize like count for this portal (from config or default to 0)
+            if (!this.portalLikes.has(portalConfig.portalId)) {
+                this.portalLikes.set(portalConfig.portalId, 0);
+            }
+            
+            // Apply config override if exists
+            if (config.portals && config.portals.initialLikes && config.portals.initialLikes[portalConfig.portalId]) {
+                this.portalLikes.set(portalConfig.portalId, config.portals.initialLikes[portalConfig.portalId]);
+            }
+            
+            // Update button text with initial count
+            this.updateLikeButtonText(portalConfig.portalId);
             
             // Update texture after a short delay to ensure the portal is fully loaded
             setTimeout(() => {
@@ -53,6 +312,482 @@ export class PortalManager {
         }
     }
     
+    // Create 3D like button for a portal
+    create3DLikeButton(portal) {
+        // Create a group to hold the like button and text
+        const likeButtonGroup = new THREE.Group();
+        
+        // Position the button above the portal
+        const buttonPosition = new THREE.Vector3();
+        buttonPosition.copy(portal.position);
+        buttonPosition.y += 7.5; // Position higher above the portal
+        likeButtonGroup.position.copy(buttonPosition);
+        
+        // Create a star shape instead of a heart
+        const starShape = new THREE.Shape();
+        
+        // Star properties
+        const outerRadius = 1;
+        const innerRadius = 0.4;
+        const numPoints = 5;
+        
+        // Create the star shape
+        for (let i = 0; i < numPoints * 2; i++) {
+            const radius = i % 2 === 0 ? outerRadius : innerRadius;
+            const angle = (Math.PI / numPoints) * i;
+            const x = Math.sin(angle) * radius;
+            const y = Math.cos(angle) * radius;
+            
+            if (i === 0) {
+                starShape.moveTo(x, y);
+            } else {
+                starShape.lineTo(x, y);
+            }
+        }
+        // Close the shape
+        starShape.closePath();
+        
+        // Use an ExtrudeGeometry to create a solid 3D star
+        const extrudeSettings = {
+            depth: 0.15,          // Thickness
+            bevelEnabled: true,   // Add a bevel for a smoother look
+            bevelThickness: 0.04, // How deep the bevel extends
+            bevelSize: 0.03,      // Distance the bevel extends
+            bevelSegments: 5      // Segments for smoother bevel
+        };
+        
+        const starGeometry = new THREE.ExtrudeGeometry(starShape, extrudeSettings);
+        
+        // Rotate the star to face forward
+        starGeometry.rotateZ(Math.PI / 2);
+        
+        const starMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0xFFD700, // Gold color for the star
+            side: THREE.DoubleSide
+        });
+        
+        // Store original color for hover effect
+        starMaterial.userData = { originalColor: 0xFFD700 };
+        
+        const starMesh = new THREE.Mesh(starGeometry, starMaterial);
+        
+        // Scale the star to fit properly
+        starMesh.scale.set(0.7, 0.7, 0.7);
+        
+        // Store the portal ID in the mesh's userData
+        starMesh.userData.portalId = portal.portalId;
+        
+        // Add star to button group
+        likeButtonGroup.add(starMesh);
+        
+        // Create a circular background for the button (larger for better touch targets)
+        const bgGeometry = new THREE.CircleGeometry(0.8, 32);
+        const bgMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0xffffff,
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.7
+        });
+        const bgMesh = new THREE.Mesh(bgGeometry, bgMaterial);
+        
+        // Make the background clickable too by adding the portal ID
+        bgMesh.userData.portalId = portal.portalId;
+        
+        bgMesh.position.z = -0.1; // Place further behind the heart
+        likeButtonGroup.add(bgMesh);
+        
+        // Create a group for text positioning
+        const textGroup = new THREE.Group();
+        textGroup.position.set(0, -0.9, 0); // Position below the heart
+        
+        // Create text background for better visibility
+        const textBgGeometry = new THREE.PlaneGeometry(1.2, 0.6);
+        const textBgMaterial = new THREE.MeshBasicMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0.7,
+            side: THREE.DoubleSide
+        });
+        const textBg = new THREE.Mesh(textBgGeometry, textBgMaterial);
+        textGroup.add(textBg);
+        
+        // Add text group to button group
+        likeButtonGroup.add(textGroup);
+        
+        // Add the button group to the scene
+        this.scene.add(likeButtonGroup);
+        
+        // Store references for later updates
+        this.likeButtonMeshes.set(portal.portalId, starMesh);
+        this.portalLikeButtons.set(portal.portalId, likeButtonGroup);
+        this.likeTextMeshes.set(portal.portalId, textGroup);
+        
+        // Ensure the like button always faces the camera
+        likeButtonGroup.userData = {
+            isLikeButton: true,
+            portalId: portal.portalId
+        };
+        
+        // Initialize with correct appearance based on liked status
+        if (this.likedPortals.has(portal.portalId)) {
+            starMaterial.color.set(0xff2266);
+            starMaterial.userData.originalColor = 0xff2266;
+        }
+        
+        // Set initial text
+        this.updateLikeButtonText(portal.portalId);
+    }
+    
+    // Create text mesh for showing the count
+    createTextMesh(text) {
+        // Use a simple approach with a canvas texture
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.width = 128;
+        canvas.height = 64;
+        
+        // Draw text on canvas
+        context.fillStyle = '#ffffff';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.font = 'bold 48px Arial'; // Increased from 40px
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        context.fillStyle = '#000000';
+        context.fillText(text, canvas.width / 2, canvas.height / 2);
+        
+        // Create texture from canvas
+        const texture = new THREE.CanvasTexture(canvas);
+        
+        // Create a plane with the texture
+        const geometry = new THREE.PlaneGeometry(1.2, 0.6); // Slightly larger for better visibility
+        const material = new THREE.MeshBasicMaterial({
+            map: texture,
+            transparent: true,
+            side: THREE.DoubleSide
+        });
+        
+        return new THREE.Mesh(geometry, material);
+    }
+    
+    // Update button text for a specific portal
+    updateLikeButtonText(portalId) {
+        const count = this.portalLikes.get(portalId) || 0;
+        const textGroup = this.likeTextMeshes.get(portalId);
+        
+        if (textGroup) {
+            // Remove old text meshes
+            while (textGroup.children.length > 1) { // Keep the background plane
+                const child = textGroup.children[textGroup.children.length - 1];
+                textGroup.remove(child);
+                if (child.material) {
+                    child.material.dispose();
+                }
+                if (child.geometry) {
+                    child.geometry.dispose();
+                }
+            }
+            
+            // Create new text mesh
+            const textMesh = this.createTextMesh(count.toString());
+            textMesh.position.z = 0.01; // Place slightly in front of background
+            textGroup.add(textMesh);
+        }
+    }
+    
+    // Update the appearance of a like button based on whether it's been liked
+    updateLikeButtonAppearance(portalId) {
+        const heartMesh = this.likeButtonMeshes.get(portalId);
+        if (!heartMesh) return;
+        
+        if (this.likedPortals.has(portalId)) {
+            // User has liked this portal - show a brighter gold star
+            heartMesh.material.color.set(0xFFC125); // Bright gold
+            if (heartMesh.material.userData) {
+                heartMesh.material.userData.originalColor = 0xFFC125;
+            }
+        } else {
+            // Not liked yet - show standard gold star
+            heartMesh.material.color.set(0xFFD700); // Regular gold
+            if (heartMesh.material.userData) {
+                heartMesh.material.userData.originalColor = 0xFFD700;
+            }
+        }
+    }
+    
+    // Handle portal like
+    likePortal(portalId) {
+        // Check if user has already liked this portal
+        if (this.likedPortals.has(portalId)) {
+            console.log(`[PortalManager] Portal ${portalId} already liked by this user`);
+            return;
+        }
+        
+        // Play like animation
+        this.playLikeAnimation(portalId);
+        
+        // Update local count temporarily for responsive UI
+        const currentCount = this.portalLikes.get(portalId) || 0;
+        this.portalLikes.set(portalId, currentCount + 1);
+        this.updateLikeButtonText(portalId);
+        
+        // Mark this portal as liked by the user
+        this.likedPortals.add(portalId);
+        this.saveLikedPortalsToStorage();
+        
+        // Update button appearance to show it's been liked
+        this.updateLikeButtonAppearance(portalId);
+        
+        // Send like event to server if socket connection exists
+        if (this.socket) {
+            this.socket.emit('likePortal', { portalId });
+        }
+    }
+    
+    // Play animation when a portal is liked
+    playLikeAnimation(portalId) {
+        const starMesh = this.likeButtonMeshes.get(portalId);
+        const buttonGroup = this.portalLikeButtons.get(portalId);
+        
+        if (!starMesh || !buttonGroup) return;
+        
+        // Store original properties
+        const originalScale = starMesh.scale.clone();
+        const originalColor = starMesh.material.color.clone();
+        const duration = 0.8; // seconds (longer animation)
+        let time = 0;
+        
+        // Create particles for the effect
+        this.createLikeParticles(buttonGroup.position, portalId);
+        
+        // Animate the star
+        const animate = () => {
+            time += 0.016; // ~60fps
+            
+            if (time < duration) {
+                const progress = time / duration;
+                
+                // Scale animation - pulse effect
+                const scale = 1 + Math.sin(progress * Math.PI) * 0.6;
+                starMesh.scale.set(
+                    originalScale.x * scale,
+                    originalScale.y * scale,
+                    originalScale.z * scale
+                );
+                
+                // Color animation - flash effect
+                const colorFactor = Math.sin(progress * Math.PI * 2);
+                // Make it flash between gold and bright yellow
+                const color = new THREE.Color().lerpColors(
+                    new THREE.Color(0xFFD700), // Gold
+                    new THREE.Color(0xFFFF00), // Bright yellow
+                    Math.abs(colorFactor)
+                );
+                starMesh.material.color.copy(color);
+                
+                requestAnimationFrame(animate);
+            } else {
+                // Reset to original scale and color
+                starMesh.scale.copy(originalScale);
+                starMesh.material.color.copy(originalColor);
+            }
+        };
+        
+        animate();
+    }
+    
+    // Create particles effect when liking a portal
+    createLikeParticles(position, portalId) {
+        // Number of particles
+        const particleCount = 12;
+        
+        // Create a group for particles
+        const particleGroup = new THREE.Group();
+        particleGroup.position.copy(position);
+        
+        // Create a star shape for the particles (matching main star)
+        const starShape = new THREE.Shape();
+        
+        // Star properties
+        const outerRadius = 1;
+        const innerRadius = 0.4;
+        const numPoints = 5;
+        
+        // Create the star shape
+        for (let i = 0; i < numPoints * 2; i++) {
+            const radius = i % 2 === 0 ? outerRadius : innerRadius;
+            const angle = (Math.PI / numPoints) * i;
+            const x = Math.sin(angle) * radius;
+            const y = Math.cos(angle) * radius;
+            
+            if (i === 0) {
+                starShape.moveTo(x, y);
+            } else {
+                starShape.lineTo(x, y);
+            }
+        }
+        // Close the shape
+        starShape.closePath();
+        
+        // Create particles
+        const particles = [];
+        for (let i = 0; i < particleCount; i++) {
+            // For particles, use a simple ExtrudeGeometry with minimal settings
+            const extrudeSettings = {
+                depth: 0.05,
+                bevelEnabled: true,
+                bevelThickness: 0.02,
+                bevelSize: 0.01,
+                bevelSegments: 3
+            };
+            
+            const particleGeometry = new THREE.ExtrudeGeometry(starShape, extrudeSettings);
+            
+            // Rotate the star to face forward
+            particleGeometry.rotateZ(Math.PI / 2);
+            
+            const particleMaterial = new THREE.MeshBasicMaterial({
+                color: 0xFFD700, // Gold color for the star
+                transparent: true,
+                opacity: 0.8,
+                side: THREE.DoubleSide
+            });
+            
+            const particle = new THREE.Mesh(particleGeometry, particleMaterial);
+            
+            // Set initial position
+            particle.position.set(0, 0, 0);
+            
+            // Set random scale (smaller than the main heart)
+            const scale = 0.15 + Math.random() * 0.15;
+            particle.scale.set(scale, scale, scale);
+            
+            // Set random velocity
+            const velocity = new THREE.Vector3(
+                (Math.random() - 0.5) * 0.08, // x velocity
+                Math.random() * 0.08,          // y velocity (upward biased)
+                (Math.random() - 0.5) * 0.08  // z velocity
+            );
+            
+            // Store velocity with the particle
+            particle.userData.velocity = velocity;
+            
+            // Add to group
+            particleGroup.add(particle);
+            particles.push(particle);
+        }
+        
+        // Add particle group to the scene
+        this.scene.add(particleGroup);
+        
+        // Animate particles
+        const duration = 1.5; // seconds
+        let time = 0;
+        
+        const animateParticles = () => {
+            time += 0.016; // ~60fps
+            
+            if (time < duration) {
+                const progress = time / duration;
+                
+                // Update particle positions and rotations
+                particles.forEach(particle => {
+                    // Apply velocity
+                    const velocity = particle.userData.velocity;
+                    particle.position.x += velocity.x;
+                    particle.position.y += velocity.y;
+                    particle.position.z += velocity.z;
+                    
+                    // Add some rotation (slower to match the new 3D shape)
+                    particle.rotation.z += 0.01;
+                    
+                    // Fade out over time
+                    if (progress > 0.7) {
+                        const opacity = 0.8 * (1 - (progress - 0.7) / 0.3);
+                        particle.material.opacity = opacity;
+                    }
+                });
+                
+                requestAnimationFrame(animateParticles);
+            } else {
+                // Cleanup particles
+                this.scene.remove(particleGroup);
+                particles.forEach(particle => {
+                    if (particle.geometry) particle.geometry.dispose();
+                    if (particle.material) particle.material.dispose();
+                });
+            }
+        };
+        
+        animateParticles();
+    }
+    
+    // Update portal like count (used when receiving server updates)
+    updatePortalLikeCount(portalId, count) {
+        this.portalLikes.set(portalId, count);
+        this.updateLikeButtonText(portalId);
+    }
+    
+    update(deltaTime) {
+        // Update portals
+        this.portals.forEach(portal => {
+            portal.update(deltaTime);
+        });
+        
+        // Make sure like buttons face the camera
+        if (this.camera) {
+            this.portalLikeButtons.forEach((buttonGroup) => {
+                if (buttonGroup && buttonGroup.children.length > 0) {
+                    buttonGroup.quaternion.copy(this.camera.quaternion);
+                }
+            });
+        }
+        
+        // Check for button hover
+        this.checkButtonHover();
+    }
+    
+    dispose() {
+        // Clean up portals
+        this.removeAllPortals();
+        
+        // Clean up like buttons
+        this.portalLikeButtons.forEach(buttonGroup => {
+            if (buttonGroup) {
+                // Remove from scene
+                this.scene.remove(buttonGroup);
+                
+                // Dispose of geometries and materials
+                buttonGroup.traverse(child => {
+                    if (child.geometry) {
+                        child.geometry.dispose();
+                    }
+                    if (child.material) {
+                        if (Array.isArray(child.material)) {
+                            child.material.forEach(material => material.dispose());
+                        } else {
+                            child.material.dispose();
+                        }
+                    }
+                });
+            }
+        });
+        
+        this.portalLikeButtons.clear();
+        this.likeButtonMeshes.clear();
+        this.likeTextMeshes.clear();
+        
+        // Remove event listeners
+        if (typeof window !== 'undefined') {
+            window.removeEventListener('mousemove', this.onMouseMove.bind(this));
+            window.removeEventListener('click', this.onMouseClick.bind(this));
+            
+            // Remove touch event listeners
+            window.removeEventListener('touchstart', this.onTouchStart.bind(this));
+            window.removeEventListener('touchmove', this.onTouchMove.bind(this));
+            window.removeEventListener('touchend', this.onTouchEnd.bind(this));
+        }
+    }
+
     async initializeDefaultPortals() {
         console.log('[PortalManager] Starting default portals initialization');
         console.log('[PortalManager] Current scene children count:', this.scene.children.length);
@@ -368,18 +1103,6 @@ export class PortalManager {
         
         return destinationURL;
     }
-    
-    update(deltaTime) {
-        // Update all portals
-        for (const portal of this.portals) {
-            portal.update(deltaTime);
-        }
-    }
-    
-    dispose() {
-        // Remove all portals
-        this.removeAllPortals();
-    }
 
     updateAllPortalTextures(materialName, texturePath) {
         console.log(`[PortalManager] Updating textures for all portals`);
@@ -457,6 +1180,53 @@ export class PortalManager {
 
         const particleSystem = new THREE.Points(particles, particleMaterial);
         portalGroup.add(particleSystem);
+        
+        // Create a like button for this portal too
+        const portalConfig = {
+            position: portalGroup.position,
+            portalId: "pieter-portal",
+            title: "Pieter Portal",
+            description: "Special green portal"
+        };
+        
+        // Add a simple Portal object to our portals array
+        const pieterPortal = {
+            position: portalGroup.position,
+            rotation: portalGroup.rotation,
+            portalId: "pieter-portal",
+            title: "Pieter Portal",
+            description: "Special green portal",
+            mesh: portalGroup,
+            isActive: true,
+            prepare: () => {},
+            update: () => {},
+            prepareDestinationURL: (playerState) => {
+                return "https://thevibemetaverse.vercel.app/api/portal/pieter-portal";
+            },
+            activate: () => {
+                return "https://thevibemetaverse.vercel.app/api/portal/pieter-portal";
+            }
+        };
+        
+        // Add portal to tracking
+        this.portals.push(pieterPortal);
+        
+        // Create like button for this portal
+        this.create3DLikeButton(pieterPortal);
+        
+        // Initialize like count (default to 0)
+        if (!this.portalLikes.has("pieter-portal")) {
+            this.portalLikes.set("pieter-portal", 0);
+        }
+        
+        // Apply config override if exists
+        if (config.portals && config.portals.initialLikes && config.portals.initialLikes["pieter-portal"]) {
+            this.portalLikes.set("pieter-portal", config.portals.initialLikes["pieter-portal"]);
+        }
+        
+        // Update the button text
+        this.updateLikeButtonText("pieter-portal");
+        this.updateLikeButtonAppearance("pieter-portal");
 
         // Add portal group to scene
         this.scene.add(portalGroup);

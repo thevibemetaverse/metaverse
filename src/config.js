@@ -39,6 +39,16 @@ const config = {
     skyColor: 0x87CEEB,
     groundColor: 0x4CAF50,
   },
+  
+  // Portal settings
+  portals: {
+    /**
+     * Initial like counts for portals
+     * Keys are portalId values, values are the starting like count
+     * If a portal id is not in this object, its initial count will be 0
+     */
+    initialLikes: {}
+  }
 };
 
 export default config; 

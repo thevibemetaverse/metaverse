@@ -240,6 +240,16 @@ function startGame(username) {
             
             // Call connect method to establish socket connection
             multiplayerManager.connect(config.server.socketUrl);
+            
+            // Wait a moment for the socket connection to be established
+            setTimeout(() => {
+                // Set socket from multiplayer manager to portal manager
+                if (multiplayerManager.socket && portalManager) {
+                    console.log('[main] Connecting portal manager to socket for like functionality');
+                    portalManager.setSocket(multiplayerManager.socket);
+                    portalManager.initializePortalLikes();
+                }
+            }, 1000);
         } else {
             console.log('[main] Multiplayer feature is disabled');
         }

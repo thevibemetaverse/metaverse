@@ -7,6 +7,10 @@ const players = new Map();
 const usernames = new Set(); // Track used usernames
 const connectedSockets = new Map(); // Map socket IDs to player IDs
 
+// Memory-based storage for portal likes
+const portalLikes = new Map(); // Maps portalId to like count
+const userPortalLikes = new Map(); // Maps playerId to Set of portalIds they've liked
+
 // Serve static files from the public directory
 app.use(express.static('public'));
 
@@ -23,6 +27,12 @@ io.on('connection', (socket) => {
     // Store the mapping
     connectedSockets.set(socket.id, playerId);
     players.set(playerId, { socket, id: playerId });
+    
+    // Initialize empty set of liked portals for this player
+    if (!userPortalLikes.has(playerId)) {
+        userPortalLikes.set(playerId, new Set());
+    }
+    
     console.log(`[Server] New player connected: ${playerId} (Socket: ${socket.id})`);
 
     socket.on('join', (data) => {
@@ -31,6 +41,24 @@ io.on('connection', (socket) => {
 
     socket.on('playerUpdate', (data) => {
         handlePlayerUpdate(playerId, data);
+    });
+
+    // Portal like event handler
+    socket.on('likePortal', (data) => {
+        handlePortalLike(playerId, data.portalId);
+    });
+
+    // Request for initial portal likes
+    socket.on('getPortalLikes', () => {
+        const likesData = {};
+        portalLikes.forEach((count, portalId) => {
+            likesData[portalId] = count;
+        });
+        socket.emit('initialPortalLikes', likesData);
+        
+        // Send this player's liked portals
+        const playerLikedPortals = Array.from(userPortalLikes.get(playerId) || []);
+        socket.emit('playerLikedPortals', playerLikedPortals);
     });
 
     socket.on('disconnect', () => {
@@ -157,6 +185,39 @@ setInterval(() => {
         }
     });
 }, 5000); // Check every 5 seconds
+
+// Handle portal like
+function handlePortalLike(playerId, portalId) {
+    // Initialize portal likes if not present
+    if (!portalLikes.has(portalId)) {
+        portalLikes.set(portalId, 0);
+    }
+    
+    // Initialize player's liked portals if not present
+    if (!userPortalLikes.has(playerId)) {
+        userPortalLikes.set(playerId, new Set());
+    }
+    
+    // Check if player has already liked this portal
+    const playerLikedPortals = userPortalLikes.get(playerId);
+    if (playerLikedPortals.has(portalId)) {
+        console.log(`[Server] Player ${playerId} already liked portal ${portalId}`);
+        return; // Player already liked this portal
+    }
+    
+    // Record that this player liked the portal
+    playerLikedPortals.add(portalId);
+    
+    // Increment like count
+    portalLikes.set(portalId, portalLikes.get(portalId) + 1);
+    console.log(`[Server] Portal ${portalId} liked by player ${playerId}. New count: ${portalLikes.get(portalId)}`);
+    
+    // Broadcast updated like count to all players
+    io.emit('portalLikeUpdate', {
+        portalId: portalId,
+        likeCount: portalLikes.get(portalId) || 0
+    });
+}
 
 const PORT = process.env.PORT || 8080;
 http.listen(PORT, () => {
