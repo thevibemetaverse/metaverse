@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { io } from 'socket.io-client';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import PlayerCountDisplay from '../environment/PlayerCountDisplay.js';
 
 // Add animation states enum to match CharacterManager
 const AnimationState = {
@@ -40,6 +41,8 @@ export class MultiplayerManager {
         this.networkTimeout = 25000;  // 25 seconds for network timeout
         this.networkCheckFrequency = 5000; // Check every 5 seconds
         this.networkMonitorRunning = false;
+        this.playerCount = 0;
+        this.playerCountDisplay = null;
         
         this.debug = new URLSearchParams(window.location.search).get('debug') === 'true';
         
@@ -245,6 +248,17 @@ export class MultiplayerManager {
             this.resetAllPlayerTimeouts();
             
             this.logNetwork(this.playerId, 'Received heartbeat from server', 'log');
+        });
+
+        // Add handler for player count
+        this.socket.on('playerCount', (data) => {
+            this.playerCount = data.count;
+            console.log(`[MultiplayerManager] Player count updated: ${this.playerCount}`);
+            
+            // Update player count display if it exists
+            if (this.playerCountDisplay) {
+                this.playerCountDisplay.updatePlayerCount(this.playerCount);
+            }
         });
 
         this.socket.on('playerId', (data) => {
@@ -2490,5 +2504,19 @@ export class MultiplayerManager {
         });
         
         this.logNetwork(this.playerId, `Reset timeout counters for all ${this.players.size} players`, 'log');
+    }
+
+    // Initialize the player count display
+    initPlayerCountDisplay(position) {
+        if (!this.scene) {
+            console.error('[MultiplayerManager] Cannot create player count display, no scene available');
+            return;
+        }
+        
+        const displayPosition = position || new THREE.Vector3(15, 7, 60);
+        this.playerCountDisplay = new PlayerCountDisplay(this.scene, this.socket, displayPosition);
+        console.log('[MultiplayerManager] Player count display initialized');
+        
+        return this.playerCountDisplay;
     }
 } 

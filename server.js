@@ -35,6 +35,13 @@ const userPortalLikes = new Map(); // Maps playerId to Set of portalIds they've 
 // Serve static files from the public directory
 app.use(express.static('public'));
 
+// Function to emit current player count to all clients
+function broadcastPlayerCount() {
+    const count = players.size;
+    io.emit('playerCount', { count });
+    console.log(`[Server] Broadcasting player count: ${count}`);
+}
+
 io.on('connection', (socket) => {
     console.log(`[Server] New socket connected: ${socket.id}`);
 
@@ -86,6 +93,9 @@ io.on('connection', (socket) => {
         
         console.log(`[Server] New player joined: ${playerId} (Socket: ${socket.id})`);
         handlePlayerJoin(playerId, data);
+        
+        // Broadcast updated player count
+        broadcastPlayerCount();
     });
 
     socket.on('playerUpdate', (data) => {
@@ -119,11 +129,20 @@ io.on('connection', (socket) => {
         socket.emit('playerLikedPortals', playerLikedPortals);
     });
 
+    // Handle request for player count
+    socket.on('getPlayerCount', () => {
+        console.log(`[Server] Player count requested from socket ${socket.id}`);
+        socket.emit('playerCount', { count: players.size });
+    });
+
     socket.on('disconnect', () => {
         const playerId = connectedSockets.get(socket.id);
         if (playerId) {
             console.log(`[Server] Player disconnected: ${playerId} (Socket: ${socket.id})`);
             handlePlayerDisconnect(playerId);
+            
+            // Broadcast updated player count after disconnect
+            broadcastPlayerCount();
         }
     });
 });

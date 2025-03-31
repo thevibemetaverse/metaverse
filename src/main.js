@@ -248,8 +248,14 @@ function startGame(username) {
                     console.log('[main] Connecting portal manager to socket for like functionality');
                     portalManager.setSocket(multiplayerManager.socket);
                     portalManager.initializePortalLikes();
+                    
+                    // Create player count display near the desk
+                    console.log('[main] Creating player count display near desk');
+                    // Position on the opposite side of the office computer at coordinates (15, 0, 55)
+                    const playerCountPosition = new THREE.Vector3(16, 7, 65);
+                    multiplayerManager.initPlayerCountDisplay(playerCountPosition);
                 }
-            }, 1000);
+            }, 2000);
         } else {
             console.log('[main] Multiplayer feature is disabled');
         }
