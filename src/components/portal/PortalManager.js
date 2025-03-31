@@ -853,6 +853,15 @@ export class PortalManager {
             },
                         // BACK ROW GROUP (z=40)
                         {
+                            position: new THREE.Vector3(40, 0, 40),
+                            rotation: new THREE.Euler(0, 0, 0),
+                            destination: "https://thevibemetaverse.vercel.app/api/portal/vibesurvival",
+                            portalId: "vibesurvival",
+                            title: "Survival",
+                            description: "First portal in airport row",
+                            modelPath: '/assets/models/portal/portal-new.gltf'
+                        },
+                        {
                             position: new THREE.Vector3(55, 0, 40),
                             rotation: new THREE.Euler(0, 0, 0),
                             destination: "https://thevibemetaverse.vercel.app/api/portal/auto-boss",
