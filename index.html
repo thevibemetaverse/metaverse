@@ -34,7 +34,7 @@
         }
         #username-form {
             background-color: rgba(34, 34, 34, 0.9);
-            padding: 2.5rem;
+            padding: 2rem;
             border-radius: 16px;
             text-align: center;
             color: white;
@@ -45,6 +45,8 @@
                         0 0 2px rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(8px);
             border: 1px solid rgba(255, 255, 255, 0.1);
+            margin: 0 8px;
+            box-sizing: border-box;
         }
         #username-form h2 {
             margin-top: 0;
@@ -79,6 +81,19 @@
         }
         .hidden {
             display: none !important;
+        }
+        @media (max-width: 480px) {
+            #username-form {
+                padding: 1.5rem;
+                margin: 0 8px;
+                max-width: calc(100% - 16px);
+            }
+            #username-form h2 {
+                font-size: 1.5rem;
+            }
+            #username-form input {
+                font-size: 16px; /* Prevents zoom on mobile */
+            }
         }
     </style>
 </head>
