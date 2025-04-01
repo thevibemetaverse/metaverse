@@ -358,59 +358,39 @@ export class PortalManager {
     
     // Create name image for a portal
     createPortalName(portal) {
-        // Create canvas for combining image and text
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d', { alpha: true });
-        canvas.width = 512;
-        canvas.height = 512;
+        // Create name image as a separate object
+        const nameGeometry = new THREE.PlaneGeometry(5, 3);
+        const nameTexture = new THREE.TextureLoader().load('/assets/images/name.png');
+        const nameMaterial = new THREE.MeshBasicMaterial({ 
+            map: nameTexture,
+            transparent: true,
+            side: THREE.DoubleSide,
+            depthWrite: false
+        });
         
-        // Load the name background image
-        const nameTexture = new THREE.TextureLoader().load('/assets/images/name.png', (image) => {
-            // Draw the background image
-            context.drawImage(image, 0, 0, canvas.width, canvas.height);
-            
-            // Draw text on top of the image
-            context.font = 'bold 48px Comic Sans MS';
-            context.textAlign = 'center';
-            context.textBaseline = 'middle';
-            context.fillStyle = '#000000';
-            context.fillText(portal.title, canvas.width / 2, canvas.height / 2);
-            
-            // Create the final texture with both image and text
-            const finalTexture = new THREE.CanvasTexture(canvas);
-            finalTexture.needsUpdate = true;
-            
-            // Create name mesh with the combined texture
-            const nameGeometry = new THREE.PlaneGeometry(3, 3);
-            const nameMaterial = new THREE.MeshBasicMaterial({ 
-                map: finalTexture,
-                transparent: true,
-                side: THREE.DoubleSide,
-                depthWrite: false
-            });
-            
-            const nameMesh = new THREE.Mesh(nameGeometry, nameMaterial);
-            
-            // Position the name mesh relative to the portal
-            const portalPosition = portal.position.clone();
-            nameMesh.position.copy(portalPosition);
-            nameMesh.position.y += 6; // Position above the portal
-            nameMesh.position.z += .2;
-            
-            // Use the portal's rotation to align the name with the portal
-            nameMesh.rotation.copy(portal.rotation);
-            
-            // Add name mesh directly to the scene
-            this.scene.add(nameMesh);
+        const nameMesh = new THREE.Mesh(nameGeometry, nameMaterial);
+        
+        // Position the name mesh relative to the portal
+        const portalPosition = portal.position.clone();
+        nameMesh.position.copy(portalPosition);
+        nameMesh.position.y += 6; // Position above the portal
+        nameMesh.position.z += .2;
+        
+        // Use the portal's rotation to align the name with the portal
+        nameMesh.rotation.copy(portal.rotation);
+        
+        // Create text mesh for "hello world"
+        const textMesh = this.createTextMesh("hello world");
+        textMesh.position.z = 0.01; // Place slightly in front of the name image
+        nameMesh.add(textMesh); // Add text as a child of the name mesh
+        
+        // Add name mesh directly to the scene
+        this.scene.add(nameMesh);
 
-            // Debug logging
-            console.log(`[PortalManager] Created name with text for portal ${portal.portalId}:`, {
-                portalPosition: portalPosition.toArray(),
-                portalRotation: portal.rotation.toArray(),
-                namePosition: nameMesh.position.toArray(),
-                nameRotation: nameMesh.rotation.toArray(),
-                title: portal.title
-            });
+        // Debug logging
+        console.log(`[PortalManager] Created name image for portal ${portal.portalId}:`, {
+            portalPosition: portalPosition.toArray(),
+            namePosition: nameMesh.position.toArray()
         });
     }
     
@@ -418,14 +398,24 @@ export class PortalManager {
     createTextMesh(text) {
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d', { alpha: true });
-        canvas.width = 256;
-        canvas.height = 128;
+        canvas.width = 512;
+        canvas.height = 256;
         
         // Clear the canvas to ensure transparency
         context.clearRect(0, 0, canvas.width, canvas.height);
         
+        // Start with a large font size
+        let fontSize = 120;
+        let textWidth;
+        
+        // Keep reducing font size until text fits
+        do {
+            context.font = `bold ${fontSize}px Comic Sans MS`;
+            textWidth = context.measureText(text).width;
+            fontSize -= 10;
+        } while (textWidth > canvas.width * 0.9 && fontSize > 20); // Leave 10% margin on each side
+        
         // Draw text on transparent background
-        context.font = 'bold 72px Comic Sans MS';
         context.textAlign = 'center';
         context.textBaseline = 'middle';
         context.fillStyle = '#000000';
@@ -434,7 +424,7 @@ export class PortalManager {
         const texture = new THREE.CanvasTexture(canvas);
         texture.needsUpdate = true;
         
-        const geometry = new THREE.PlaneGeometry(1.8, 0.9);
+        const geometry = new THREE.PlaneGeometry(4.5, 2.5);
         const material = new THREE.MeshBasicMaterial({
             map: texture,
             transparent: true,
