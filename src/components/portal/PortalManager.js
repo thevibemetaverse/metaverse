@@ -391,12 +391,6 @@ export class PortalManager {
         // Add name mesh directly to the scene
         this.scene.add(nameMesh);
 
-        // Debug logging
-        console.log(`[PortalManager] Created name image for portal ${portal.portalId}:`, {
-            portalPosition: portalPosition.toArray(),
-            namePosition: nameMesh.position.toArray(),
-            title: portal.title
-        });
     }
     
     // Create text mesh for showing the count
@@ -410,7 +404,7 @@ export class PortalManager {
         context.clearRect(0, 0, canvas.width, canvas.height);
         
         // Start with a large font size
-        let fontSize = 120;
+        let fontSize = 72;
         let textWidth;
         
         // Keep reducing font size until text fits
