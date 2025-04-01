@@ -374,10 +374,14 @@ export class PortalManager {
         const portalPosition = portal.position.clone();
         nameMesh.position.copy(portalPosition);
         nameMesh.position.y += 6; // Position above the portal
-        nameMesh.position.z += .22;
         
-        // Use the portal's rotation to align the name with the portal
+        // Apply rotation first
         nameMesh.rotation.copy(portal.rotation);
+        
+        // Then offset in local space based on portal's rotation
+        const offset = new THREE.Vector3(0, 0, 0.22);
+        offset.applyEuler(portal.rotation);
+        nameMesh.position.add(offset);
         
         // Create text mesh for the portal's title
         const textMesh = this.createTextMesh(portal.title);
