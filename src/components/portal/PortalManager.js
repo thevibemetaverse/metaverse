@@ -1154,14 +1154,7 @@ export class PortalManager {
             const portalPosition = portal.mesh.position;
             const distance = playerPosition.distanceTo(portalPosition);
             
-            // Log collision check for debugging
-            console.log(`[PortalManager] Checking collision with portal ${portal.portalId}:`, {
-                distance,
-                threshold: collisionDistance,
-                playerPos: playerPosition.toArray(),
-                portalPos: portalPosition.toArray(),
-                isActive: portal.isActive
-            });
+
             
             if (distance < collisionDistance) {
                 console.log(`[PortalManager] Collision detected with portal ${portal.portalId}`);
