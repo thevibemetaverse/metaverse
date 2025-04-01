@@ -391,6 +391,32 @@ export class PortalManager {
         // Add name mesh directly to the scene
         this.scene.add(nameMesh);
 
+        // Create info sign on the ground
+        const infoGeometry = new THREE.PlaneGeometry(3.5, 4); // Increased from (3, 3) to (4.5, 4) for x and y stretch
+        const infoTexture = new THREE.TextureLoader().load('/assets/images/info.png');
+        const infoMaterial = new THREE.MeshBasicMaterial({
+            map: infoTexture,
+            transparent: true,
+            side: THREE.DoubleSide,
+            depthWrite: false
+        });
+
+        const infoMesh = new THREE.Mesh(infoGeometry, infoMaterial);
+        
+        // Position the info sign on the ground to the left of the portal
+        const infoPosition = portal.position.clone();
+        // Calculate the left direction based on portal's rotation (negative right vector)
+        const rightVector = new THREE.Vector3(-1.4, .4, .05); // Changed from (1, 0, 0) to (-1, 0, 0)
+        rightVector.applyEuler(portal.rotation);
+        rightVector.multiplyScalar(4); // Move 4 units to the left
+        
+        infoPosition.add(rightVector);
+        infoMesh.position.copy(infoPosition);
+    
+
+        
+        // Add info mesh to the scene
+        this.scene.add(infoMesh);
     }
     
     // Create text mesh for showing the count
