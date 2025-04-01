@@ -734,7 +734,7 @@ export default class CharacterManager {
                 canTransition: this.currentState !== AnimationState.JUMPING
             };
 
-            // Compare current state to last logged state
+            // Compare current state to last logged state 
             const stateChanged = JSON.stringify(currentUpdateState) !== JSON.stringify(this._lastLoggedUpdateState);
 
             // Update state if changed
