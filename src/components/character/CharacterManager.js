@@ -695,34 +695,7 @@ export default class CharacterManager {
                     this.lastPortalCheck = currentTime;
                     
                     const playerPosition = this.character.position;
-                    console.log('[CharacterManager] Portal check cycle:', {
-                        time: currentTime,
-                        playerPosition: playerPosition.toArray(),
-                        hasPortalManager: !!this.portalManager,
-                        portalCount: this.portalManager.portals.length
-                    });
-                    
-                    const portal = this.portalManager.checkCollision(playerPosition);
-                    
-                    if (portal) {
-                        // Only trigger if it's a new portal collision
-                        if (this.lastPortalCollision !== portal.portalId) {
-                            console.log('[CharacterManager] New portal collision detected:', portal.portalId);
-                            this.lastPortalCollision = portal.portalId;
-                            
-                            // Get the destination URL from the portal
-                            const destinationURL = portal.prepareDestinationURL(this.playerState);
-                            console.log('[CharacterManager] Redirecting to:', destinationURL);
-                            
-                            // Add a small delay before redirecting to ensure smooth transition
-                            setTimeout(() => {
-                                window.location.href = destinationURL;
-                            }, 500);
-                        }
-                    } else {
-                        // Reset last portal collision if no collision detected
-                        this.lastPortalCollision = null;
-                    }
+                    this.portalManager.checkCollision(playerPosition);
                 }
             } else if (!this.portalCheckEnabled) {
                 console.log('[CharacterManager] Portal checks disabled. State:', {
