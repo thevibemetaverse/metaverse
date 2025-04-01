@@ -103,6 +103,17 @@ async function createEnvironmentElements(scene) {
         new THREE.Euler(0, -Math.PI/2, 0) // Rotate 90 degrees clockwise around Z axis
       );
       environment.add(logoImage2);
+
+      // Add image on the other side of the desk
+      const oppositeImagePosition = new THREE.Vector3(15, 7, 48); // Position to the left of computer
+      const oppositeImage = create2DImage(
+        '/assets/images/active-users.jpg',
+        oppositeImagePosition,
+        9, // Same size as other image
+        4,
+        new THREE.Euler(0, -Math.PI/3, 0) // Rotate 90 degrees counterclockwise around Z axis
+      );
+      environment.add(oppositeImage);
     }
 
     // Load Runway
