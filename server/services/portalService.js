@@ -10,13 +10,6 @@ class PortalService {
 
     async initialize() {
         try {
-            // Load portal likes from database
-            const portalLikesCollection = mongodbService.getCollection('portalLikes');
-            const likes = await portalLikesCollection.find({}).toArray();
-            likes.forEach(like => {
-                this.portalLikes.set(like.portalId, like.count);
-            });
-
             // Load user likes from database
             const userLikesCollection = mongodbService.getCollection('userLikes');
             const userLikes = await userLikesCollection.find({}).toArray();
@@ -50,16 +43,8 @@ class PortalService {
             // Update in-memory cache
             userLikes.add(portalId);
             this.userPortalLikes.set(userId, userLikes);
-            this.portalLikes.set(portalId, (this.portalLikes.get(portalId) || 0) + 1);
 
             // Update database
-            const portalLikesCollection = mongodbService.getCollection('portalLikes');
-            await portalLikesCollection.updateOne(
-                { portalId },
-                { $set: { count: this.portalLikes.get(portalId) } },
-                { upsert: true }
-            );
-
             const userLikesCollection = mongodbService.getCollection('userLikes');
             await userLikesCollection.updateOne(
                 { userId },
@@ -102,7 +87,14 @@ class PortalService {
     }
 
     getPortalLikeCount(portalId) {
-        return this.portalLikes.get(portalId) || 0;
+        // Count likes from userLikes collection instead of portalLikes
+        let count = 0;
+        for (const userLikes of this.userPortalLikes.values()) {
+            if (userLikes.has(portalId)) {
+                count++;
+            }
+        }
+        return count;
     }
 
     getDailyVisitorCount() {
