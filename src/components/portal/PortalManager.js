@@ -375,13 +375,15 @@ export class PortalManager {
         nameMesh.position.copy(portalPosition);
         nameMesh.position.y += 6; // Position above the portal
         
-        // Apply rotation first
-        nameMesh.rotation.copy(portal.rotation);
+        // Create a direction vector pointing forward from the portal
+        const forwardVector = new THREE.Vector3(0, 0, 1);
+        forwardVector.applyEuler(portal.rotation);
         
-        // Then offset in local space based on portal's rotation
-        const offset = new THREE.Vector3(0, 0, 0.22);
-        offset.applyEuler(portal.rotation);
-        nameMesh.position.add(offset);
+        // Move the name mesh in front of the portal
+        nameMesh.position.add(forwardVector.multiplyScalar(0.22));
+        
+        // Set the rotation to match the portal's Y rotation
+        nameMesh.rotation.y = portal.rotation.y;
         
         // Create text mesh for the portal's title
         const textMesh = this.createTextMesh(portal.title);
@@ -403,45 +405,53 @@ export class PortalManager {
 
         const infoMesh = new THREE.Mesh(infoGeometry, infoMaterial);
         
-        // Position the info sign on the ground to the left of the portal
+        // Position the info sign relative to the portal
         const infoPosition = portal.position.clone();
-        // Calculate the left direction based on portal's rotation (negative right vector)
-        const rightVector = new THREE.Vector3(-1.4, .4, .05);
-        rightVector.applyEuler(portal.rotation);
-        rightVector.multiplyScalar(4);
         
-        infoPosition.add(rightVector);
+        // Calculate the right vector relative to the portal's orientation
+        const rightVector = new THREE.Vector3(1, 0, 0);
+        rightVector.applyEuler(portal.rotation);
+        
+        // Move the info sign to the side of the portal
+        const sideOffset = 6; // Distance from portal
+        infoPosition.add(rightVector.multiplyScalar(-sideOffset)); // Negative to place on left side
+        
+        // Add slight height offset
+        infoPosition.y += 1.9;
+        
         infoMesh.position.copy(infoPosition);
-
+        
+        // Set the rotation to match the portal's Y rotation
+        infoMesh.rotation.y = portal.rotation.y;
+        
         // Create and add multiplayer status emoji
         const multiplayerBool = this.createTextMesh(portal.multiplayer ? "✅" : "❌");
-        multiplayerBool.position.x = -1.2; // Slightly in front of the info sign
-        multiplayerBool.position.z = -.01; // Slightly in front of the info sign
-        multiplayerBool.position.y = 1.2; // Position text towards the top of the sign
-        multiplayerBool.scale.set(0.6, 0.6, 0.6); // Make the text smaller
+        multiplayerBool.position.x = -1.2;
+        multiplayerBool.position.z = -.01;
+        multiplayerBool.position.y = 1.2;
+        multiplayerBool.scale.set(0.6, 0.6, 0.6);
         infoMesh.add(multiplayerBool);
 
         const multiplayerText = this.createTextMesh("Multiplayer");
-        multiplayerText.position.x = 0.15; // Slightly in front of the info sign
-        multiplayerText.position.z = 0.01; // Slightly in front of the info sign
-        multiplayerText.position.y = 1.2; // Position text towards the top of the sign
-        multiplayerText.scale.set(0.6, 0.6, 0.6); // Make the text smaller
+        multiplayerText.position.x = 0.15;
+        multiplayerText.position.z = 0.01;
+        multiplayerText.position.y = 1.2;
+        multiplayerText.scale.set(0.6, 0.6, 0.6);
         infoMesh.add(multiplayerText);
         
         // Create and add avatar teleport status emoji
         const avatarBool = this.createTextMesh(portal.avatarTeleport ? "✅" : "❌");
-        avatarBool.position.x = -1.2; // Slightly in front of the info sign
-        avatarBool.position.z = -.01; // Slightly in front of the info sign
-        avatarBool.position.y = .6; // Position text towards the top of the sign
-        avatarBool.scale.set(0.6, 0.6, 0.6); // Make the text smaller
+        avatarBool.position.x = -1.2;
+        avatarBool.position.z = -.01;
+        avatarBool.position.y = .6;
+        avatarBool.scale.set(0.6, 0.6, 0.6);
         infoMesh.add(avatarBool);
 
-        // Create and add "world" text
         const avatarText = this.createTextMesh("Avatar teleport");
-        avatarText.position.x = .15; // Slightly in front of the info sign
-        avatarText.position.z = 0.01; // Slightly in front of the info sign
-        avatarText.position.y = 0.6; // Position text below "hello"
-        avatarText.scale.set(0.6 , 0.6, 0.6); // Make the text smaller
+        avatarText.position.x = .15;
+        avatarText.position.z = 0.01;
+        avatarText.position.y = 0.6;
+        avatarText.scale.set(0.6, 0.6, 0.6);
         infoMesh.add(avatarText);
         
         // Add info mesh to the scene
