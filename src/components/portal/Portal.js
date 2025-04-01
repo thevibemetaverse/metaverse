@@ -102,7 +102,9 @@ export class Portal {
         portalId = "portal-default",
         title = "Default Portal",
         description = "A portal to another world",
-        modelPath = '/assets/models/portal/portal-new.gltf'
+        modelPath = '/assets/models/portal/portal-new.gltf',
+        multiplayer = false,
+        avatarTeleport = false
     }) {
         this.position = position;
         this.rotation = rotation;
@@ -112,6 +114,8 @@ export class Portal {
         this.title = title;
         this.description = description;
         this.modelPath = modelPath;
+        this.multiplayer = multiplayer;
+        this.avatarTeleport = avatarTeleport;
         this.usageCount = 0;
         this.mesh = null;
         this.isActive = true;
