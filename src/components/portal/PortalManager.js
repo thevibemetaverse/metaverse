@@ -414,14 +414,31 @@ export class PortalManager {
         infoMesh.position.copy(infoPosition);
 
         // Create and add "hello" text
+        const multiplayerBool = this.createTextMesh("✅");
+        multiplayerBool.position.x = -1.2; // Slightly in front of the info sign
+        multiplayerBool.position.z = -.01; // Slightly in front of the info sign
+        multiplayerBool.position.y = 1.2; // Position text towards the top of the sign
+        multiplayerBool.scale.set(0.6, 0.6, 0.6); // Make the text smaller
+        infoMesh.add(multiplayerBool);
+
         const multiplayerText = this.createTextMesh("Multiplayer");
+        multiplayerText.position.x = 0.15; // Slightly in front of the info sign
         multiplayerText.position.z = 0.01; // Slightly in front of the info sign
         multiplayerText.position.y = 1.2; // Position text towards the top of the sign
         multiplayerText.scale.set(0.6, 0.6, 0.6); // Make the text smaller
         infoMesh.add(multiplayerText);
+        
+        // Create and add "hello" text
+        const avatarBool = this.createTextMesh("✅");
+        avatarBool.position.x = -1.2; // Slightly in front of the info sign
+        avatarBool.position.z = -.01; // Slightly in front of the info sign
+        avatarBool.position.y = .6; // Position text towards the top of the sign
+        avatarBool.scale.set(0.6, 0.6, 0.6); // Make the text smaller
+        infoMesh.add(avatarBool);
 
         // Create and add "world" text
         const avatarText = this.createTextMesh("Avatar teleport");
+        avatarText.position.x = .15; // Slightly in front of the info sign
         avatarText.position.z = 0.01; // Slightly in front of the info sign
         avatarText.position.y = 0.6; // Position text below "hello"
         avatarText.scale.set(0.6 , 0.6, 0.6); // Make the text smaller
