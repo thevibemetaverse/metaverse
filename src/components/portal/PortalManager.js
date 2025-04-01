@@ -413,8 +413,8 @@ export class PortalManager {
         infoPosition.add(rightVector);
         infoMesh.position.copy(infoPosition);
 
-        // Create and add "hello" text
-        const multiplayerBool = this.createTextMesh("✅");
+        // Create and add multiplayer status emoji
+        const multiplayerBool = this.createTextMesh(portal.multiplayer ? "✅" : "❌");
         multiplayerBool.position.x = -1.2; // Slightly in front of the info sign
         multiplayerBool.position.z = -.01; // Slightly in front of the info sign
         multiplayerBool.position.y = 1.2; // Position text towards the top of the sign
@@ -428,8 +428,8 @@ export class PortalManager {
         multiplayerText.scale.set(0.6, 0.6, 0.6); // Make the text smaller
         infoMesh.add(multiplayerText);
         
-        // Create and add "hello" text
-        const avatarBool = this.createTextMesh("✅");
+        // Create and add avatar teleport status emoji
+        const avatarBool = this.createTextMesh(portal.avatarTeleport ? "✅" : "❌");
         avatarBool.position.x = -1.2; // Slightly in front of the info sign
         avatarBool.position.z = -.01; // Slightly in front of the info sign
         avatarBool.position.y = .6; // Position text towards the top of the sign
@@ -831,7 +831,7 @@ export class PortalManager {
                 description: "Portal in misc area",
                 modelPath: '/assets/models/portal/portal-new.gltf',
                 multiplayer: true,
-                avatarTeleport: true
+                avatarTeleport: false
             },
             {
                 position: new THREE.Vector3(18, -.2*Math.PI, 20),
@@ -841,8 +841,8 @@ export class PortalManager {
                 title: "Jet Ski",
                 description: "Portal floating on the water",
                 modelPath: '/assets/models/portal/portal-new.gltf',
-                multiplayer: true,
-                avatarTeleport: true
+                multiplayer: false,
+                avatarTeleport: false
             },
             {
                 position: new THREE.Vector3(33, 0, 18),
@@ -852,8 +852,8 @@ export class PortalManager {
                 title: "Vibe Racer",
                 description: "Portal near the water",
                 modelPath: '/assets/models/portal/portal-new.gltf',
-                multiplayer: true,
-                avatarTeleport: true
+                multiplayer: false,
+                avatarTeleport: false
             },
             {
                 position: new THREE.Vector3(47, 0, 12),
@@ -864,7 +864,7 @@ export class PortalManager {
                 description: "Portal in misc area",
                 modelPath: '/assets/models/portal/portal-new.gltf',
                 multiplayer: true,
-                avatarTeleport: true
+                avatarTeleport: false
             },
             {
                 position: new THREE.Vector3(62, 0, 2),
@@ -875,7 +875,7 @@ export class PortalManager {
                 description: "Portal in misc area",
                 modelPath: '/assets/models/portal/portal-new.gltf',
                 multiplayer: true,
-                avatarTeleport: true
+                avatarTeleport: false
             },
             // BACK ROW GROUP (z=40)
             {
@@ -887,7 +887,7 @@ export class PortalManager {
                 description: "First portal in airport row",
                 modelPath: '/assets/models/portal/portal-new.gltf',
                 multiplayer: true,
-                avatarTeleport: true
+                avatarTeleport: false
             },
             {
                 position: new THREE.Vector3(40, 0, 40),
@@ -897,7 +897,7 @@ export class PortalManager {
                 title: "Survival",
                 description: "First portal in airport row",
                 modelPath: '/assets/models/portal/portal-new.gltf',
-                multiplayer: true,
+                multiplayer: false,
                 avatarTeleport: true
             },
             {
@@ -908,7 +908,7 @@ export class PortalManager {
                 title: "Auto Boss",
                 description: "First portal in airport row",
                 modelPath: '/assets/models/portal/portal-new.gltf',
-                multiplayer: true,
+                multiplayer: false,
                 avatarTeleport: true
             },
             {
@@ -919,8 +919,8 @@ export class PortalManager {
                 title: "Rooster Vibes",
                 description: "First portal in airport row",
                 modelPath: '/assets/models/portal/portal-new.gltf',
-                multiplayer: true,
-                avatarTeleport: true
+                multiplayer: false,
+                avatarTeleport: false
             },
             {
                 position: new THREE.Vector3(85, 0, 40),
@@ -931,7 +931,7 @@ export class PortalManager {
                 description: "Last portal in airport row",
                 modelPath: '/assets/models/portal/portal-new.gltf',
                 multiplayer: true,
-                avatarTeleport: true
+                avatarTeleport: false
             },
             {
                 position: new THREE.Vector3(100, 0, 40),
@@ -941,8 +941,8 @@ export class PortalManager {
                 title: "Ronan's Run",
                 description: "Portal in the row",
                 modelPath: '/assets/models/portal/portal-new.gltf',
-                multiplayer: true,
-                avatarTeleport: true
+                multiplayer: false,
+                avatarTeleport: false
             },
             {
                 position: new THREE.Vector3(55, 0, 20),
@@ -952,7 +952,7 @@ export class PortalManager {
                 title: "Red Panda Vibes",
                 description: "Portal in the row",
                 modelPath: '/assets/models/portal/portal-new.gltf',
-                multiplayer: true,
+                multiplayer: false,
                 avatarTeleport: true
             },
             {
@@ -964,7 +964,7 @@ export class PortalManager {
                 description: "Portal in the row",
                 modelPath: '/assets/models/portal/portal-new.gltf',
                 multiplayer: true,
-                avatarTeleport: true
+                avatarTeleport: false
             },
             {
                 position: new THREE.Vector3(85, 0, 20),
@@ -975,7 +975,7 @@ export class PortalManager {
                 description: "Portal in the back row",
                 modelPath: '/assets/models/portal/portal-new.gltf',
                 multiplayer: true,
-                avatarTeleport: true
+                avatarTeleport: false
             },
             {
                 position: new THREE.Vector3(100, 0, 20),
@@ -985,8 +985,8 @@ export class PortalManager {
                 title: "Space Runner ",
                 description: "Portal in the back row",
                 modelPath: '/assets/models/portal/portal-new.gltf',
-                multiplayer: true,
-                avatarTeleport: true
+                multiplayer: false,
+                avatarTeleport: false
             },
 
             // Airport runways
@@ -999,7 +999,7 @@ export class PortalManager {
                 description: "Portal in the front row",
                 modelPath: '/assets/models/portal/portal-new.gltf',
                 multiplayer: true,
-                avatarTeleport: true
+                avatarTeleport: false
             },
             {
                 position: new THREE.Vector3(-28, 0, 28),
@@ -1010,7 +1010,7 @@ export class PortalManager {
                 description: "Portal in the front row",
                 modelPath: '/assets/models/portal/portal-new.gltf',
                 multiplayer: true,
-                avatarTeleport: true
+                avatarTeleport: false
             },
 
             // Special Location Portals
@@ -1023,7 +1023,7 @@ export class PortalManager {
                 description: "Center portal in airport row",
                 modelPath: '/assets/models/portal/portal-new.gltf',
                 multiplayer: true,
-                avatarTeleport: true
+                avatarTeleport: false
             },
 
             // Special "Enter" portal - only shown if portal=true in URL
