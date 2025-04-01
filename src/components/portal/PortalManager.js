@@ -379,8 +379,8 @@ export class PortalManager {
         // Use the portal's rotation to align the name with the portal
         nameMesh.rotation.copy(portal.rotation);
         
-        // Create text mesh for "hello world"
-        const textMesh = this.createTextMesh("hello world");
+        // Create text mesh for the portal's title
+        const textMesh = this.createTextMesh(portal.title);
         textMesh.position.z = 0.01; // Place slightly in front of the name image
         nameMesh.add(textMesh); // Add text as a child of the name mesh
         
@@ -390,7 +390,8 @@ export class PortalManager {
         // Debug logging
         console.log(`[PortalManager] Created name image for portal ${portal.portalId}:`, {
             portalPosition: portalPosition.toArray(),
-            namePosition: nameMesh.position.toArray()
+            namePosition: nameMesh.position.toArray(),
+            title: portal.title
         });
     }
     
