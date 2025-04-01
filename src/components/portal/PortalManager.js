@@ -833,6 +833,17 @@ export class PortalManager {
         const defaultPortals = [
             // WATER GROUP - Portals near or on water
             {
+                position: new THREE.Vector3(-3, 0, 6),
+                rotation: new THREE.Euler(0, -.31*Math.PI, 0),
+                destination: "https://thevibemetaverse.vercel.app/api/portal/tidefall",
+                portalId: "tidefall",
+                title: "Tidefall",
+                description: "Portal in misc area",
+                modelPath: '/assets/models/portal/portal-new.gltf',
+                multiplayer: true,
+                avatarTeleport: false
+            },
+            {
                 position: new THREE.Vector3(6, 0, 17),
                 rotation: new THREE.Euler(0, -.16*Math.PI, 0),
                 destination: "https://thevibemetaverse.vercel.app/api/portal/vibe-sail",
