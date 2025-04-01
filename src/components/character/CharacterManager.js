@@ -739,7 +739,7 @@ export default class CharacterManager {
 
             // Update state if changed
             if (stateChanged) {
-                this._lastLoggedUpdateState = { ...currentUpdateState }; // Store a copy
+                this._lastLoggedUpdateState = { ...currentUpdateState }; // Store a copy 
             }
 
             // Update animation state based on movement (only if not jumping)
