@@ -6,12 +6,14 @@ export default class HillsGenerator {
     this.params = {
       smallHillCount: params.smallHillCount || 40,
       largeHillCount: params.largeHillCount || 8,
-      baseDistance: params.baseDistance || 320,
+      baseDistance: params.baseDistance || 10000,
       distanceVariation: params.distanceVariation || 80,
       colors: params.colors || [0x8AE68A, 0x9EEE9E, 0xB0F7B0],
+      randomNumber: 69 / 100, // Normalized to be between 0 and 1
       ...params
     };
     
+    console.log('Using random number:', this.params.randomNumber);
     this.hillsGroup = new THREE.Group();
     this.initialized = false;
   }
@@ -51,8 +53,8 @@ export default class HillsGenerator {
     for (let i = 0; i < instanceCount; i++) {
       // Position hills in a circle around the scene
       const angle = (i / instanceCount) * Math.PI * 2;
-      const baseDistance = this.params.baseDistance + Math.random() * this.params.distanceVariation;
-      const distance = baseDistance - Math.random() * 40;
+      const baseDistance = this.params.baseDistance + this.params.randomNumber * this.params.distanceVariation;
+      const distance = baseDistance - this.params.randomNumber * 40;
       
       // Set position
       dummy.position.x = Math.cos(angle) * distance;
@@ -60,12 +62,12 @@ export default class HillsGenerator {
       dummy.position.y = -10; // Slightly buried
       
       // Set rotation
-      dummy.rotation.y = Math.random() * Math.PI * 2;
+      dummy.rotation.y = this.params.randomNumber * Math.PI * 2;
       
       // Set scale - make hills wider than tall
-      const radius = 50 + Math.random() * 100;
-      const scaleX = radius * (1.0 + Math.random() * 0.5);
-      const scaleZ = radius * (1.0 + Math.random() * 0.5);
+      const radius = 50 + this.params.randomNumber * 100;
+      const scaleX = radius * (1.0 + this.params.randomNumber * 0.5);
+      const scaleZ = radius * (1.0 + this.params.randomNumber * 0.5);
       dummy.scale.set(scaleX, radius * 0.7, scaleZ);
       
       // Apply transform to instance
@@ -73,7 +75,7 @@ export default class HillsGenerator {
       instancedHills.setMatrixAt(i, dummy.matrix);
       
       // Set color for this instance
-      const colorIndex = Math.floor(Math.random() * this.params.colors.length);
+      const colorIndex = Math.floor(this.params.randomNumber * this.params.colors.length);
       const color = new THREE.Color(this.params.colors[colorIndex]);
       instancedHills.setColorAt(i, color);
     }
@@ -121,7 +123,7 @@ export default class HillsGenerator {
       dummy.position.y = -30;
       
       // Set scale - extra large and wide
-      const radius = 120 + Math.random() * 40;
+      const radius = 120 + this.params.randomNumber * 40;
       dummy.scale.set(radius * 1.6, radius * 0.7, radius * 1.6);
       
       // Apply transform to instance
@@ -129,7 +131,7 @@ export default class HillsGenerator {
       instancedLandmarks.setMatrixAt(i, dummy.matrix);
       
       // Set color for this landmark
-      const colorIndex = Math.floor(Math.random() * this.params.colors.length);
+      const colorIndex = Math.floor(this.params.randomNumber * this.params.colors.length);
       const color = new THREE.Color(this.params.colors[colorIndex]);
       instancedLandmarks.setColorAt(i, color);
     }
