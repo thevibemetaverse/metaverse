@@ -17,6 +17,15 @@ class PortalService {
                 this.userPortalLikes.set(userLike.userId, new Set(userLike.likedPortals));
             });
 
+            // Initialize portal likes count from user likes data
+            this.portalLikes.clear(); // Clear existing counts
+            for (const userLikes of this.userPortalLikes.values()) {
+                userLikes.forEach(portalId => {
+                    const currentCount = this.portalLikes.get(portalId) || 0;
+                    this.portalLikes.set(portalId, currentCount + 1);
+                });
+            }
+
             // Load daily visitors from database
             const visitorsCollection = mongodbService.getCollection('visitors');
             const today = new Date().toDateString();
