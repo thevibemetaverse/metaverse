@@ -392,7 +392,7 @@ export class PortalManager {
         this.scene.add(nameMesh);
 
         // Create info sign on the ground
-        const infoGeometry = new THREE.PlaneGeometry(3.5, 4); // Increased from (3, 3) to (4.5, 4) for x and y stretch
+        const infoGeometry = new THREE.PlaneGeometry(3.5, 4);
         const infoTexture = new THREE.TextureLoader().load('/assets/images/info.png');
         const infoMaterial = new THREE.MeshBasicMaterial({
             map: infoTexture,
@@ -406,14 +406,18 @@ export class PortalManager {
         // Position the info sign on the ground to the left of the portal
         const infoPosition = portal.position.clone();
         // Calculate the left direction based on portal's rotation (negative right vector)
-        const rightVector = new THREE.Vector3(-1.4, .4, .05); // Changed from (1, 0, 0) to (-1, 0, 0)
+        const rightVector = new THREE.Vector3(-1.4, .4, .05);
         rightVector.applyEuler(portal.rotation);
-        rightVector.multiplyScalar(4); // Move 4 units to the left
+        rightVector.multiplyScalar(4);
         
         infoPosition.add(rightVector);
         infoMesh.position.copy(infoPosition);
-    
 
+        // Create and add "hello world" text using the existing createTextMesh method
+        const helloText = this.createTextMesh("hello world");
+        helloText.position.z = 0.01; // Slightly in front of the info sign
+        helloText.position.y = 1; // Position text towards the top of the sign
+        infoMesh.add(helloText);
         
         // Add info mesh to the scene
         this.scene.add(infoMesh);
