@@ -1623,7 +1623,7 @@ export class MultiplayerManager {
                 const type = child.type || 'Unknown';
                 objectTypes[type] = (objectTypes[type] || 0) + 1;
             });
-            this.logScene(`Scene composition: ${JSON.stringify(objectTypes)}`, 'log');
+            // Removed scene composition log
         }
         
         // Always check for players that should be in scene but aren't

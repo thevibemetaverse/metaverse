@@ -1134,37 +1134,14 @@ export class PortalManager {
     }
     
     checkCollision(playerPosition, collisionDistance = 2.0) {
-        // Log all portal positions for debugging
-        console.log('[PortalManager] Checking collisions with portals:', {
-            playerPosition: playerPosition.toArray(),
-            collisionDistance,
-            activePortals: this.portals.filter(p => p.isActive).length
-        });
-
         // Simple distance-based collision detection for other portals
         for (const portal of this.portals) {
-            if (!portal.mesh || !portal.isActive) {
-                console.log(`[PortalManager] Skipping portal ${portal.portalId}:`, {
-                    hasMesh: !!portal.mesh,
-                    isActive: portal.isActive
-                });
-                continue;
-            }
+            if (!portal.mesh || !portal.isActive) continue;
             
             const portalPosition = portal.mesh.position;
             const distance = playerPosition.distanceTo(portalPosition);
             
-            // Log collision check for debugging
-            console.log(`[PortalManager] Checking collision with portal ${portal.portalId}:`, {
-                distance,
-                threshold: collisionDistance,
-                playerPos: playerPosition.toArray(),
-                portalPos: portalPosition.toArray(),
-                isActive: portal.isActive
-            });
-            
             if (distance < collisionDistance) {
-                console.log(`[PortalManager] Collision detected with portal ${portal.portalId}`);
                 const destinationURL = portal.prepareDestinationURL(this.playerState);
                 window.location.href = destinationURL;
                 return portal;
