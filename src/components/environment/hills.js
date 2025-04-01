@@ -6,7 +6,7 @@ export default class HillsGenerator {
     this.params = {
       smallHillCount: params.smallHillCount || 40,
       largeHillCount: params.largeHillCount || 8,
-      baseDistance: params.baseDistance || 320,
+      baseDistance: params.baseDistance || 520,
       distanceVariation: params.distanceVariation || 80,
       colors: params.colors || [0x8AE68A, 0x9EEE9E, 0xB0F7B0],
       ...params
@@ -113,7 +113,7 @@ export default class HillsGenerator {
     for (let i = 0; i < instanceCount; i++) {
       // Place these at specific angles for best visual effect
       const landmarkAngle = (i / instanceCount) * Math.PI * 2;
-      const landmarkDistance = 480; // Further back
+      const landmarkDistance = 680; // Increased from 480 to 680
       
       // Set position
       dummy.position.x = Math.cos(landmarkAngle) * landmarkDistance;
