@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { io } from 'socket.io-client';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import PlayerCountDisplay from '../environment/PlayerCountDisplay.js';
+import clientIdService from '../../services/clientId';
 
 // Add animation states enum to match CharacterManager
 const AnimationState = {
@@ -43,6 +44,8 @@ export class MultiplayerManager {
         this.networkMonitorRunning = false;
         this.playerCount = 0;
         this.playerCountDisplay = null;
+        this.dailyVisitorCount = 0;
+        this.clientId = clientIdService.getClientId();
         
         this.debug = new URLSearchParams(window.location.search).get('debug') === 'true';
         
@@ -230,13 +233,17 @@ export class MultiplayerManager {
             const currentPosition = this.getCurrentPosition();
             const currentRotation = this.getCurrentRotation();
             
-            // Send initial player data with username, position and rotation
+            // Send join request with all necessary data
             this.socket.emit('join', {
                 username: this.username,
                 avatarUrl: this.getAvatarUrl(),
                 position: currentPosition,
-                rotation: currentRotation
+                rotation: currentRotation,
+                clientId: this.clientId
             });
+            
+            // Request initial counts
+            this.socket.emit('getCounts');
         });
 
         // Add handler for heartbeat response
@@ -333,10 +340,17 @@ export class MultiplayerManager {
             // Clean up existing players before rejoining
             this.cleanupAllPlayers();
             
-            // Rejoin with current username
+            // Get the player's current position and rotation
+            const currentPosition = this.getCurrentPosition();
+            const currentRotation = this.getCurrentRotation();
+            
+            // Rejoin with all necessary data
             this.socket.emit('join', {
                 username: this.username,
-                avatarUrl: this.getAvatarUrl()
+                avatarUrl: this.getAvatarUrl(),
+                position: currentPosition,
+                rotation: currentRotation,
+                clientId: this.clientId
             });
         });
 
@@ -352,6 +366,19 @@ export class MultiplayerManager {
         // Handle page unload
         window.addEventListener('beforeunload', () => {
             this.dispose();
+        });
+
+        // Handle counts update
+        this.socket.on('counts', (data) => {
+            this.playerCount = data.playerCount;
+            this.dailyVisitorCount = data.dailyVisitorCount;
+            this.updateCountsDisplay();
+        });
+
+        // Handle daily visitor count updates
+        this.socket.on('dailyVisitorCount', (data) => {
+            this.dailyVisitorCount = data.count;
+            this.updateCountsDisplay();
         });
     }
 
@@ -2529,6 +2556,16 @@ export class MultiplayerManager {
         this.playerCountDisplay = new PlayerCountDisplay(this.scene, this.socket, displayPosition);
         console.log('[MultiplayerManager] Player count display initialized');
         
+        // Update initial text to show daily visitors
+        this.countsDisplay.text = `Daily Visitors: ${this.dailyVisitorCount}`;
+        
         return this.playerCountDisplay;
+    }
+
+    updateCountsDisplay() {
+        if (this.countsDisplay) {
+            // Update the text to show daily visitors instead of players online
+            this.countsDisplay.text = `Daily Visitors: ${this.dailyVisitorCount}`;
+        }
     }
 } 

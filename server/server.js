@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const app = express();
 const http = require('http').createServer(app);
@@ -8,6 +9,8 @@ const io = require('socket.io')(http, {
         credentials: true
     }
 });
+const mongodbService = require('./services/mongodb');
+const portalService = require('./services/portalService');
 
 // Add CORS headers for all routes
 app.use((req, res, next) => {
@@ -40,6 +43,17 @@ function broadcastPlayerCount() {
     const count = players.size;
     io.emit('playerCount', { count });
     console.log(`[Server] Broadcasting player count: ${count}`);
+}
+
+// Initialize MongoDB and PortalService
+async function initializeServices() {
+    try {
+        await mongodbService.connect();
+        await portalService.initialize();
+        console.log('[Server] Services initialized successfully');
+    } catch (error) {
+        console.error('[Server] Failed to initialize services:', error);
+    }
 }
 
 io.on('connection', (socket) => {
@@ -94,6 +108,16 @@ io.on('connection', (socket) => {
         console.log(`[Server] New player joined: ${playerId} (Socket: ${socket.id})`);
         handlePlayerJoin(playerId, data);
         
+        // Track visitor using clientId instead of playerId
+        if (data.clientId) {
+            portalService.trackVisitor(data.clientId).then(isNewVisitor => {
+                if (isNewVisitor) {
+                    // Broadcast updated daily visitor count
+                    io.emit('dailyVisitorCount', { count: portalService.getDailyVisitorCount() });
+                }
+            });
+        }
+        
         // Broadcast updated player count
         broadcastPlayerCount();
     });
@@ -119,20 +143,23 @@ io.on('connection', (socket) => {
         if (!playerId) return;
 
         const likesData = {};
-        portalLikes.forEach((count, portalId) => {
+        portalService.portalLikes.forEach((count, portalId) => {
             likesData[portalId] = count;
         });
         socket.emit('initialPortalLikes', likesData);
         
         // Send this player's liked portals
-        const playerLikedPortals = Array.from(userPortalLikes.get(playerId) || []);
+        const playerLikedPortals = portalService.getUserLikedPortals(playerId);
         socket.emit('playerLikedPortals', playerLikedPortals);
     });
 
-    // Handle request for player count
-    socket.on('getPlayerCount', () => {
-        console.log(`[Server] Player count requested from socket ${socket.id}`);
-        socket.emit('playerCount', { count: players.size });
+    // Handle request for player count and daily visitors
+    socket.on('getCounts', () => {
+        console.log(`[Server] Counts requested from socket ${socket.id}`);
+        socket.emit('counts', { 
+            playerCount: players.size,
+            dailyVisitorCount: portalService.getDailyVisitorCount()
+        });
     });
 
     socket.on('disconnect', () => {
@@ -265,39 +292,38 @@ setInterval(() => {
 }, 5000); // Check every 5 seconds
 
 // Handle portal like
-function handlePortalLike(playerId, portalId) {
-    // Initialize portal likes if not present
-    if (!portalLikes.has(portalId)) {
-        portalLikes.set(portalId, 0);
+async function handlePortalLike(playerId, portalId) {
+    const success = await portalService.handlePortalLike(playerId, portalId);
+    if (success) {
+        // Broadcast updated like count to all players
+        io.emit('portalLikeUpdate', {
+            portalId: portalId,
+            likeCount: portalService.getPortalLikeCount(portalId)
+        });
     }
-    
-    // Initialize player's liked portals if not present
-    if (!userPortalLikes.has(playerId)) {
-        userPortalLikes.set(playerId, new Set());
-    }
-    
-    // Check if player has already liked this portal
-    const playerLikedPortals = userPortalLikes.get(playerId);
-    if (playerLikedPortals.has(portalId)) {
-        console.log(`[Server] Player ${playerId} already liked portal ${portalId}`);
-        return; // Player already liked this portal
-    }
-    
-    // Record that this player liked the portal
-    playerLikedPortals.add(portalId);
-    
-    // Increment like count
-    portalLikes.set(portalId, portalLikes.get(portalId) + 1);
-    console.log(`[Server] Portal ${portalId} liked by player ${playerId}. New count: ${portalLikes.get(portalId)}`);
-    
-    // Broadcast updated like count to all players
-    io.emit('portalLikeUpdate', {
-        portalId: portalId,
-        likeCount: portalLikes.get(portalId) || 0
-    });
 }
 
-const PORT = process.env.PORT || 8080;
-http.listen(PORT, () => {
-    console.log(`[Server] Socket.IO server started on port ${PORT}`);
+// Initialize services before starting the server
+initializeServices().then(() => {
+    const PORT = process.env.PORT || 8080;
+    const server = http.listen(PORT, () => {
+        console.log(`[Server] Listening on port ${PORT}`);
+    }).on('error', (err) => {
+        if (err.code === 'EADDRINUSE') {
+            console.log(`[Server] Port ${PORT} is busy, trying ${PORT + 1}`);
+            server.close();
+            http.listen(PORT + 1, () => {
+                console.log(`[Server] Listening on port ${PORT + 1}`);
+            });
+        } else {
+            console.error('[Server] Error starting server:', err);
+        }
+    });
+});
+
+// Cleanup on server shutdown
+process.on('SIGTERM', async () => {
+    console.log('[Server] Received SIGTERM signal');
+    await mongodbService.close();
+    process.exit(0);
 }); 
