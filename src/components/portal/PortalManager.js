@@ -356,6 +356,64 @@ export class PortalManager {
         this.updateLikeButtonText(portal.portalId);
     }
     
+    // Create name image for a portal
+    createPortalName(portal) {
+        // Create canvas for combining image and text
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d', { alpha: true });
+        canvas.width = 512;
+        canvas.height = 512;
+        
+        // Load the name background image
+        const nameTexture = new THREE.TextureLoader().load('/assets/images/name.png', (image) => {
+            // Draw the background image
+            context.drawImage(image, 0, 0, canvas.width, canvas.height);
+            
+            // Draw text on top of the image
+            context.font = 'bold 48px Comic Sans MS';
+            context.textAlign = 'center';
+            context.textBaseline = 'middle';
+            context.fillStyle = '#000000';
+            context.fillText(portal.title, canvas.width / 2, canvas.height / 2);
+            
+            // Create the final texture with both image and text
+            const finalTexture = new THREE.CanvasTexture(canvas);
+            finalTexture.needsUpdate = true;
+            
+            // Create name mesh with the combined texture
+            const nameGeometry = new THREE.PlaneGeometry(3, 3);
+            const nameMaterial = new THREE.MeshBasicMaterial({ 
+                map: finalTexture,
+                transparent: true,
+                side: THREE.DoubleSide,
+                depthWrite: false
+            });
+            
+            const nameMesh = new THREE.Mesh(nameGeometry, nameMaterial);
+            
+            // Position the name mesh relative to the portal
+            const portalPosition = portal.position.clone();
+            nameMesh.position.copy(portalPosition);
+            nameMesh.position.y += 6; // Position above the portal
+            nameMesh.position.z += .2;
+            
+            // Use the portal's rotation to align the name with the portal
+            nameMesh.rotation.copy(portal.rotation);
+            
+            // Add name mesh directly to the scene
+            this.scene.add(nameMesh);
+
+            // Debug logging
+            console.log(`[PortalManager] Created name with text for portal ${portal.portalId}:`, {
+                portalPosition: portalPosition.toArray(),
+                portalRotation: portal.rotation.toArray(),
+                namePosition: nameMesh.position.toArray(),
+                nameRotation: nameMesh.rotation.toArray(),
+                title: portal.title
+            });
+        });
+    }
+    
     // Create text mesh for showing the count
     createTextMesh(text) {
         const canvas = document.createElement('canvas');
@@ -650,6 +708,7 @@ export class PortalManager {
         if (this.camera) {
             this.portalLikeButtons.forEach((buttonGroup) => {
                 if (buttonGroup && buttonGroup.children.length > 0) {
+                    // Make the entire group (including counter and name) face the camera
                     buttonGroup.quaternion.copy(this.camera.quaternion);
                 }
             });
@@ -923,12 +982,17 @@ export class PortalManager {
             return this.addPortal(config);
         });
         const results = await Promise.all(promises);
-        const successfulPortals = results.filter(Boolean).length;
+        const successfulPortals = results.filter(Boolean);
+        
+        // Create name images for all successful portals
+        successfulPortals.forEach(portal => {
+            this.createPortalName(portal);
+        });
         
         console.log('[PortalManager] Portal addition results:', {
             totalPortals: defaultPortals.length,
-            successfulPortals,
-            failedPortals: defaultPortals.length - successfulPortals,
+            successfulPortals: successfulPortals.length,
+            failedPortals: defaultPortals.length - successfulPortals.length,
             sceneChildrenCount: this.scene.children.length,
             portalPositions: this.portals.map(p => ({
                 id: p.portalId,
