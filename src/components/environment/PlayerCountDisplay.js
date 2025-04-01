@@ -68,7 +68,7 @@ export default class PlayerCountDisplay {
         titleContext.textAlign = 'center';
         titleContext.textBaseline = 'middle';
         titleContext.fillStyle = '#ecf0f1';
-        titleContext.fillText('PLAYERS ONLINE', titleCanvas.width / 2, titleCanvas.height / 2);
+        titleContext.fillText('DAILY VISITORS', titleCanvas.width / 2, titleCanvas.height / 2);
         
         const titleTexture = new THREE.CanvasTexture(titleCanvas);
         const titleMaterial = new THREE.MeshBasicMaterial({ 
@@ -124,13 +124,20 @@ export default class PlayerCountDisplay {
     }
     
     setupSocketListeners() {
-        this.socket.on('playerCount', (data) => {
-            console.log(`[PlayerCountDisplay] Received player count update: ${data.count}`);
+        // Listen for counts updates
+        this.socket.on('counts', (data) => {
+            console.log(`[PlayerCountDisplay] Received counts update: ${data.dailyVisitorCount} daily visitors`);
+            this.updatePlayerCount(data.dailyVisitorCount);
+        });
+
+        // Listen for daily visitor count updates
+        this.socket.on('dailyVisitorCount', (data) => {
+            console.log(`[PlayerCountDisplay] Received daily visitor count update: ${data.count}`);
             this.updatePlayerCount(data.count);
         });
         
-        // Request initial player count
-        this.socket.emit('getPlayerCount');
+        // Request initial counts
+        this.socket.emit('getCounts');
     }
     
     updatePlayerCount(count) {

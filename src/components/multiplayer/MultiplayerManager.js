@@ -2556,16 +2556,17 @@ export class MultiplayerManager {
         this.playerCountDisplay = new PlayerCountDisplay(this.scene, this.socket, displayPosition);
         console.log('[MultiplayerManager] Player count display initialized');
         
-        // Update initial text to show daily visitors
-        this.countsDisplay.text = `Daily Visitors: ${this.dailyVisitorCount}`;
+        // Request initial counts
+        if (this.socket) {
+            this.socket.emit('getCounts');
+        }
         
         return this.playerCountDisplay;
     }
 
     updateCountsDisplay() {
-        if (this.countsDisplay) {
-            // Update the text to show daily visitors instead of players online
-            this.countsDisplay.text = `Daily Visitors: ${this.dailyVisitorCount}`;
+        if (this.playerCountDisplay) {
+            this.playerCountDisplay.updatePlayerCount(this.dailyVisitorCount);
         }
     }
 } 
