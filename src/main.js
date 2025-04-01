@@ -98,12 +98,55 @@ let multiplayerManager;
 
 // Animation loop control
 let animationRunning = false;
+let showFPS = false;
+let lastTime = performance.now();
+let frames = 0;
+let fps = 0;
+
+// Create FPS display element
+const fpsDisplay = document.createElement('div');
+fpsDisplay.style.cssText = `
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.5);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-family: monospace;
+    font-size: 14px;
+    z-index: 1000;
+    display: none;
+`;
+document.body.appendChild(fpsDisplay);
+
+// Add key event listener for toggling FPS display
+window.addEventListener('keydown', (event) => {
+    if (event.key.toLowerCase() === 'i') {
+        showFPS = !showFPS;
+        fpsDisplay.style.display = showFPS ? 'block' : 'none';
+    }
+});
 
 // Animation loop
 function animate() {
     requestAnimationFrame(animate);
     
     const deltaTime = 0.016; // Approximately 60 FPS
+    
+    // Calculate FPS
+    frames++;
+    const currentTime = performance.now();
+    if (currentTime >= lastTime + 1000) {
+        fps = Math.round((frames * 1000) / (currentTime - lastTime));
+        frames = 0;
+        lastTime = currentTime;
+        
+        // Update FPS display if enabled
+        if (showFPS) {
+            fpsDisplay.textContent = `FPS: ${fps}`;
+        }
+    }
     
     // Only update components if they are initialized
     if (characterManager && character) {
