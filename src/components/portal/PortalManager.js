@@ -449,7 +449,7 @@ export class PortalManager {
     }
     
     // Create text mesh for showing the count
-    createTextMesh(text) {
+    createTextMesh(text, fontFamily = 'Arial') {
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d', { alpha: true });
         canvas.width = 512;
@@ -464,7 +464,7 @@ export class PortalManager {
         
         // Keep reducing font size until text fits
         do {
-            context.font = `bold ${fontSize}px Comic Sans MS`;
+            context.font = `bold ${fontSize}px ${fontFamily}`;
             textWidth = context.measureText(text).width;
             fontSize -= 10;
         } while (textWidth > canvas.width * 0.9 && fontSize > 20); // Leave 10% margin on each side
