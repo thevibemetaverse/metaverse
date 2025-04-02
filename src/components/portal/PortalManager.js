@@ -1021,7 +1021,7 @@ export class PortalManager {
                 description: "Portal in the row",
                 modelPath: '/assets/models/portal/portal-new.gltf',
                 multiplayer: true,
-                avatarTeleport: false
+                avatarTeleport: true
             },
             {
                 position: new THREE.Vector3(95, 0, 5), // 15 units offset respecting rotation
