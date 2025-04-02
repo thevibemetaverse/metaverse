@@ -966,7 +966,7 @@ export class PortalManager {
                 avatarTeleport: false
             },
             {
-                position: new THREE.Vector3(55, 0, 20),
+                position: new THREE.Vector3(80, 0, 20),
                 rotation: new THREE.Euler(0, 0, 0),
                 destination: "https://thevibemetaverse.vercel.app/api/portal/red-panda-vibes",
                 portalId: "red-panda-vibes",
@@ -977,7 +977,7 @@ export class PortalManager {
                 avatarTeleport: true
             },
             {
-                position: new THREE.Vector3(70, 0, 20),
+                position: new THREE.Vector3(95, 0, 20),
                 rotation: new THREE.Euler(0, 0, 0),
                 destination: "https://thevibemetaverse.vercel.app/api/portal/quack",
                 portalId: "quack",
@@ -988,7 +988,7 @@ export class PortalManager {
                 avatarTeleport: false
             },
             {
-                position: new THREE.Vector3(85, 0, 20),
+                position: new THREE.Vector3(110, 0, 20),
                 rotation: new THREE.Euler(0, 0, 0),
                 destination: "https://thevibemetaverse.vercel.app/api/portal/snowbrawl-world",
                 portalId: "snowbrawl-world",
@@ -999,7 +999,7 @@ export class PortalManager {
                 avatarTeleport: false
             },
             {
-                position: new THREE.Vector3(100, 0, 20),
+                position: new THREE.Vector3(125, 0, 20),
                 rotation: new THREE.Euler(0, 0, 0),
                 destination: "https://thevibemetaverse.vercel.app/api/portal/spacerunner",
                 portalId: "spacerunner",
@@ -1009,6 +1009,8 @@ export class PortalManager {
                 multiplayer: false,
                 avatarTeleport: false
             },
+
+            //row behind the front row
 
             // Airport runways
             {
