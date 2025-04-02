@@ -1011,6 +1011,41 @@ export class PortalManager {
             },
 
             //row behind the front row
+            //row behind the front row
+            {
+                position: new THREE.Vector3(80, 0, 5),
+                rotation: new THREE.Euler(0, 0, 0),
+                destination: "https://thevibemetaverse.vercel.app/api/portal/kart-fight",
+                portalId: "kart-fight",
+                title: "Kart Fight",
+                description: "Portal in the row",
+                modelPath: '/assets/models/portal/portal-new.gltf',
+                multiplayer: true,
+                avatarTeleport: false
+            },
+            {
+                position: new THREE.Vector3(95, 0, 5), // 15 units offset respecting rotation
+                rotation: new THREE.Euler(0, 0, 0),
+                destination: "https://thevibemetaverse.vercel.app/api/portal/swarm-vibe",
+                portalId: "swarm-vibe",
+                title: "Swarm Vibes",
+                description: "Portal in the row",
+                modelPath: '/assets/models/portal/portal-new.gltf',
+                multiplayer: true,
+                avatarTeleport: false
+            },
+            {
+                position: new THREE.Vector3(110, 0, 5), // 15 units offset respecting rotation
+                rotation: new THREE.Euler(0, 0, 0),
+                destination: "https://thevibemetaverse.vercel.app/api/portal/cyber-vibe",
+                portalId: "cyber-vibe",
+                title: "Cyber Vibes",
+                description: "Portal in the row",
+                modelPath: '/assets/models/portal/portal-new.gltf',
+                multiplayer: false,
+                avatarTeleport: false
+            },
+
 
             // Airport runways
             {
