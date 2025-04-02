@@ -261,11 +261,7 @@ export class MultiplayerManager {
         this.socket.on('playerCount', (data) => {
             this.playerCount = data.count;
             console.log(`[MultiplayerManager] Player count updated: ${this.playerCount}`);
-            
-            // Update player count display if it exists
-            if (this.playerCountDisplay) {
-                this.playerCountDisplay.updatePlayerCount(this.playerCount);
-            }
+            // Remove the display update from here since we only want to show daily visitors
         });
 
         this.socket.on('playerId', (data) => {
