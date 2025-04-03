@@ -966,7 +966,7 @@ export class PortalManager {
                 avatarTeleport: false
             },
             {
-                position: new THREE.Vector3(125, 0, 40),
+                position: new THREE.Vector3(115, 0, 40),
                 rotation: new THREE.Euler(0, Math.PI, 0),
                 destination: "https://thevibemetaverse.vercel.app/api/portal/ronansrun",
                 portalId: "ronansrun",
