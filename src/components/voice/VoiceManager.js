@@ -12,7 +12,17 @@ class VoiceManager {
     this.isInitialized = false;
     
     // Reference to the existing multiplayer system
-    this.clientId = null; 
+    this.clientId = null;
+    this.multiplayerManager = null;
+    this.characterManager = null;
+  }
+
+  setMultiplayerManager(multiplayerManager) {
+    this.multiplayerManager = multiplayerManager;
+  }
+  
+  setCharacterManager(characterManager) {
+    this.characterManager = characterManager;
   }
 
   async init(socket, clientId) {
@@ -87,6 +97,14 @@ class VoiceManager {
       gainNode.gain.value = 0.1; // Set to 10% volume for feedback
       source.connect(gainNode);
       gainNode.connect(audioContext.destination);
+      
+      // Emit initial microphone state
+      this.updateMicrophoneState();
+      
+      // Update local player's name label with initial state
+      if (this.multiplayerManager) {
+        this.multiplayerManager.updatePlayerVoiceState(this.clientId, this.isMuted);
+      }
       
     } catch (error) {
       console.error('[VoiceManager] Error initializing voice chat:', error);
@@ -176,6 +194,23 @@ class VoiceManager {
       console.log('[VoiceManager] User left voice chat:', data);
       this.removePeer(data.userId);
     });
+
+    this.socket.on('voiceChat:state', (data) => {
+      console.log('[VoiceManager] Received voice state update:', data);
+      if (this.multiplayerManager) {
+        this.multiplayerManager.updatePlayerVoiceState(data.userId, data.isMuted);
+      }
+    });
+  }
+
+  updateMicrophoneState() {
+    if (this.socket) {
+      console.log('[VoiceManager] Emitting microphone state:', this.isMuted);
+      this.socket.emit('voiceChat:state', {
+        userId: this.clientId,
+        isMuted: this.isMuted
+      });
+    }
   }
 
   createPeer(userId) {
@@ -238,6 +273,19 @@ class VoiceManager {
     this.stream.getAudioTracks().forEach(track => {
       track.enabled = !this.isMuted;
     });
+
+    // Update microphone state in multiplayer
+    this.updateMicrophoneState();
+    
+    // Update local player's name label
+    if (this.multiplayerManager) {
+      this.multiplayerManager.updatePlayerVoiceState(this.clientId, this.isMuted);
+    }
+    
+    // Update the character manager's mute state
+    if (this.characterManager) {
+      this.characterManager.updateMuteState(this.isMuted);
+    }
     
     return this.isMuted;
   }

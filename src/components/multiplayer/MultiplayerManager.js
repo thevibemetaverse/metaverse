@@ -376,13 +376,29 @@ export class MultiplayerManager {
             this.dailyVisitorCount = data.count;
             this.updateCountsDisplay();
         });
+        
+        // Handle voice chat state updates
+        this.socket.on('voiceChat:state', (data) => {
+            console.log('[MultiplayerManager] Received voice state update:', data);
+            if (data && data.userId) {
+                this.updatePlayerVoiceState(data.userId, data.isMuted);
+            }
+        });
     }
 
     handlePlayerJoined(data) {
         if (data.id === this.playerId) return;
         
         console.log(`[MultiplayerManager] Player joined: ${data.username}`);
+        
+        // Create player avatar
         this.createPlayerAvatar(data);
+        
+        // Initialize player with muted state (no microphone)
+        // The microphone will be shown only when we get a voice state update indicating they're unmuted
+        if (this.socket) {
+            this.socket.emit('voiceChat:requestState', { userId: data.id });
+        }
     }
 
     handlePlayerLeft(data) {
@@ -1158,9 +1174,13 @@ export class MultiplayerManager {
             mesh.position.set(data.position?.x || 0, data.position?.y || 0, data.position?.z || 0);
             mesh.rotation.set(data.rotation?.x || 0, data.rotation?.y || 0, data.rotation?.z || 0);
             
-            // Create and position name label for all players (including local)
+            // Create name label with microphone off by default
             const username = data.username || `Player${data.id.slice(0, 4)}`;
-            const nameLabel = this.createNameLabel(username);
+            
+            // Default to microphone off (muted) for new players
+            // We'll show the microphone emoji only when we get a voice state update
+            const nameLabel = this.createNameLabel(username, false);
+            
             nameLabel.position.set(
                 mesh.position.x,
                 mesh.position.y + this.nameLabelHeight,
@@ -1280,40 +1300,57 @@ export class MultiplayerManager {
     }
 
     createFallbackAvatar(data) {
-        console.log('[MultiplayerManager] Creating fallback avatar for player:', data.id);
+        console.log('[MultiplayerManager] Creating fallback avatar for player:', data);
+        
+        // Create a simple cube character for fallback
         const geometry = new THREE.BoxGeometry(1, 2, 1);
         const material = new THREE.MeshStandardMaterial({ 
-            color: data.id === this.playerId ? 0xff0000 : 0x00ff00,
-            metalness: 0.5,
-            roughness: 0.5
+            color: 0x00ff00,
+            roughness: 0.7,
+            metalness: 0.3
         });
+        
         const mesh = new THREE.Mesh(geometry, material);
-        mesh.position.set(data.position?.x || 0, data.position?.y || 0, data.position?.z || 0);
+        mesh.name = `player-${data.id}`;
         mesh.castShadow = true;
         mesh.receiveShadow = true;
-        mesh.visible = true;
         
-        // Create username label for all players
-        const nameLabel = this.createNameLabel(data.username);
+        // Set position and rotation
+        mesh.position.set(data.position?.x || 0, data.position?.y || 0, data.position?.z || 0);
+        mesh.rotation.set(data.rotation?.x || 0, data.rotation?.y || 0, data.rotation?.z || 0);
+        
+        // Add to scene
+        this.scene.add(mesh);
+        
+        // Create name label with microphone off by default
+        const nameLabel = this.createNameLabel(data.username, false);
         nameLabel.position.copy(mesh.position);
         nameLabel.position.y += this.nameLabelHeight;
         nameLabel.renderOrder = 999;
         
-        this.scene.add(mesh);
+        // Add to scene
         this.scene.add(nameLabel);
         
-        const isLocalPlayer = data.id === this.playerId;
-        
-        this.players.set(data.id, {
+        // Create/update the player object
+        const player = {
+            id: data.id,
             username: data.username,
-            mesh: mesh,
+            mesh,
             nameLabel: nameLabel,
-            isLocalPlayer: isLocalPlayer,
-            avatarUrl: data.avatarUrl, // Store the avatarUrl with the player
-            lastUpdate: Date.now()
-        });
+            isMoving: false,
+            lastUpdate: Date.now(),
+            isDisconnected: false,
+            isLocalPlayer: data.id === this.playerId,
+            avatarUrl: data.avatarUrl  // Store the avatarUrl with the player
+        };
         
-        console.log('[MultiplayerManager] Fallback avatar created successfully');
+        // Add to players Map
+        this.players.set(data.id, player);
+        
+        // Remove from pending
+        this.pendingAvatars.delete(data.id);
+        
+        return player;
     }
 
     removePlayerAvatar(playerId) {
@@ -1369,15 +1406,18 @@ export class MultiplayerManager {
         this.players.clear();
     }
 
-    createNameLabel(username) {
+    createNameLabel(username, showMicrophone = false) {
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
         
         // Set a fixed font size
         context.font = 'bold 32px Arial';
         
+        // Add microphone emoji to username only if showMicrophone is true
+        const displayText = showMicrophone ? `${username} 🎤` : username;
+        
         // Measure text width to determine canvas size
-        const textMetrics = context.measureText(username);
+        const textMetrics = context.measureText(displayText);
         const textWidth = textMetrics.width;
         const textHeight = 32; // Fixed height for text
         
@@ -1395,7 +1435,7 @@ export class MultiplayerManager {
         context.fillStyle = 'white';
         context.textAlign = 'center';
         context.textBaseline = 'middle';
-        context.fillText(username, canvas.width / 2, canvas.height / 2);
+        context.fillText(displayText, canvas.width / 2, canvas.height / 2);
         
         // Create sprite with better visibility
         const texture = new THREE.CanvasTexture(canvas);
@@ -2563,6 +2603,50 @@ export class MultiplayerManager {
     updateCountsDisplay() {
         if (this.playerCountDisplay) {
             this.playerCountDisplay.updatePlayerCount(this.dailyVisitorCount);
+        }
+    }
+
+    updatePlayerVoiceState(userId, isMuted) {
+        const player = this.players.get(userId);
+        if (player && player.nameLabel) {
+            // Store the current position
+            const position = player.nameLabel.position.clone();
+            
+            // Remove the old name label from the scene
+            if (player.nameLabel.parent) {
+                player.nameLabel.parent.remove(player.nameLabel);
+            }
+            
+            // Create new name label with or without microphone emoji based on mute state
+            const username = player.username;
+            const nameLabel = this.createNameLabel(username, !isMuted);
+            nameLabel.position.copy(position);
+            nameLabel.renderOrder = 999;
+            nameLabel.visible = true;
+            
+            // Add to scene
+            this.scene.add(nameLabel);
+            
+            // Update player's name label reference
+            player.nameLabel = nameLabel;
+        }
+    }
+    
+    // Method to update the local player's voice state
+    updateLocalPlayerVoiceState(isMuted) {
+        console.log(`[MultiplayerManager] Updating local player voice state: ${isMuted}`);
+        
+        // Update the local player's voice state through the normal method
+        if (this.playerId) {
+            this.updatePlayerVoiceState(this.playerId, isMuted);
+            
+            // Also send the voice state update to the server so other players see it
+            if (this.socket) {
+                this.socket.emit('voiceChat:state', {
+                    userId: this.playerId,
+                    isMuted: isMuted
+                });
+            }
         }
     }
 } 

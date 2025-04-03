@@ -316,6 +316,21 @@ async function startGame(username) {
                     const voiceManager = new VoiceManager(scene);
                     const voiceUI = new VoiceUI(voiceManager);
                     
+                    // Connect voice manager with multiplayer manager
+                    voiceManager.setMultiplayerManager(multiplayerManager);
+                    
+                    // Connect voice manager with character manager
+                    if (characterManager) {
+                        voiceManager.setCharacterManager(characterManager);
+                        console.log('[main] Voice manager connected to character manager');
+                    }
+                    
+                    // Add reference to window for global access
+                    window.multiplayerManager = multiplayerManager;
+                    
+                    // Initialize voice chat with socket and client ID
+                    voiceManager.init(multiplayerManager.socket, multiplayerManager.clientId);
+                    
                     // Initialize voice chat after multiplayer is ready
                     if (multiplayerManager && multiplayerManager.socket) {
                         voiceManager.init(multiplayerManager.socket, multiplayerManager.clientId);

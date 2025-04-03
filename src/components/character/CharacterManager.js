@@ -29,6 +29,7 @@ export default class CharacterManager {
         this.camera = null;
         this.portalManager = null;
         this.playerState = {};
+        this.isMuted = true; // Default to muted state
         
         // Portal collision properties
         this.lastPortalCheck = 0;
@@ -859,6 +860,17 @@ export default class CharacterManager {
                     isActive: p.isActive
                 }))
             });
+        }
+    }
+
+    // Add a method to update the character's mute state
+    updateMuteState(isMuted) {
+        console.log(`[CharacterManager] Updating mute state: ${isMuted}`);
+        this.isMuted = isMuted;
+        
+        // If we have a MultiplayerManager reference, update the player's voice state
+        if (window.multiplayerManager && this.username) {
+            window.multiplayerManager.updateLocalPlayerVoiceState(this.isMuted);
         }
     }
 } 
