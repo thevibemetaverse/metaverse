@@ -1,3 +1,6 @@
+// Import polyfills first
+import './utils/polyfills';
+
 import { inject } from '@vercel/analytics';
 import posthog from 'posthog-js';
 import CharacterManager from './components/character/CharacterManager';
@@ -12,6 +15,8 @@ import { animateWater } from './components/environment/waterSystem.js';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import config from './config';
+import VoiceManager from './components/voice/VoiceManager';
+import VoiceUI from './components/voice/VoiceUI';
 
 // Function to get username from URL parameters
 function getUsernameFromURL() {
@@ -200,10 +205,13 @@ window.addEventListener('beforeunload', () => {
     if (config.features.multiplayer && multiplayerManager) {
         multiplayerManager.dispose();
     }
+    if (config.features.voice && multiplayerManager) {
+        multiplayerManager.disconnect();
+    }
 });
 
 // Function to start the game
-function startGame(username) {
+async function startGame(username) {
     console.log('[main] Starting game with username:', username);
 
     // Initialize character manager first
@@ -285,7 +293,7 @@ function startGame(username) {
             multiplayerManager.connect(config.server.socketUrl);
             
             // Wait a moment for the socket connection to be established
-            setTimeout(() => {
+            setTimeout(async () => {
                 // Set socket from multiplayer manager to portal manager
                 if (multiplayerManager.socket && portalManager) {
                     console.log('[main] Connecting portal manager to socket for like functionality');
@@ -298,7 +306,23 @@ function startGame(username) {
                     const playerCountPosition = new THREE.Vector3(16, 7, 65);
                     multiplayerManager.initPlayerCountDisplay(playerCountPosition);
                 }
-            }, 2000);
+
+                // Initialize voice chat if feature is enabled
+                if (config.features.voice) {
+                    console.log('[main] Initializing voice chat system (feature enabled)');
+                    const VoiceManager = (await import('./components/voice/VoiceManager.js')).default;
+                    const VoiceUI = (await import('./components/voice/VoiceUI.js')).default;
+                    
+                    const voiceManager = new VoiceManager(scene);
+                    const voiceUI = new VoiceUI(voiceManager);
+                    
+                    // Initialize voice chat after multiplayer is ready
+                    if (multiplayerManager && multiplayerManager.socket) {
+                        voiceManager.init(multiplayerManager.socket, multiplayerManager.clientId);
+                        voiceUI.init();
+                    }
+                }
+            }, 1000);
         } else {
             console.log('[main] Multiplayer feature is disabled');
         }

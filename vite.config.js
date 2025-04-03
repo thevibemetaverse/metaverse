@@ -16,5 +16,12 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: true
+  },
+  optimizeDeps: {
+    include: ['simple-peer']
+  },
+  define: {
+    'global': 'window',
+    'process.env': {}
   }
 }); 

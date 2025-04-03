@@ -22,6 +22,21 @@ const config = {
      * - Reduced network usage and processing overhead
      */
     multiplayer: true,
+
+    /**
+     * Voice chat functionality
+     * 
+     * When enabled (true):
+     * - Players can communicate via voice chat
+     * - Real-time audio streaming between players
+     * - Mute/unmute controls available
+     * 
+     * When disabled (false):
+     * - No voice chat functionality
+     * - No audio streaming
+     * - Reduced network usage
+     */
+    voice: true,
   },
   
   // Server configuration

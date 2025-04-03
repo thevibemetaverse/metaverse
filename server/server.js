@@ -129,6 +129,60 @@ io.on('connection', (socket) => {
         }
     });
 
+    // Voice chat event handlers
+    socket.on('joinVoice', (data) => {
+        const playerId = connectedSockets.get(socket.id);
+        if (!playerId) return;
+
+        const player = players.get(playerId);
+        if (!player) return;
+
+        // Broadcast to others that this player joined voice chat
+        broadcastToOthers(playerId, {
+            type: 'voiceJoined',
+            id: playerId,
+            username: player.username
+        });
+
+        // Send existing voice chat participants to the new player
+        players.forEach((existingPlayer, existingId) => {
+            if (existingId !== playerId && existingPlayer.socket.connected) {
+                const existingPlayerId = connectedSockets.get(existingPlayer.socket.id);
+                if (existingPlayerId) {
+                    player.socket.emit('voiceJoined', {
+                        id: existingPlayerId,
+                        username: existingPlayer.username
+                    });
+                }
+            }
+        });
+    });
+
+    socket.on('voiceSignal', (data) => {
+        const playerId = connectedSockets.get(socket.id);
+        if (!playerId) return;
+
+        // Forward the signal to the target peer
+        const targetPlayer = players.get(data.targetId);
+        if (targetPlayer && targetPlayer.socket.connected) {
+            targetPlayer.socket.emit('voiceSignal', {
+                signal: data.signal,
+                fromId: playerId
+            });
+        }
+    });
+
+    socket.on('leaveVoice', (data) => {
+        const playerId = connectedSockets.get(socket.id);
+        if (!playerId) return;
+
+        // Broadcast to others that this player left voice chat
+        broadcastToOthers(playerId, {
+            type: 'voiceLeft',
+            id: playerId
+        });
+    });
+
     // Portal like event handler
     socket.on('likePortal', (data) => {
         const playerId = connectedSockets.get(socket.id);
