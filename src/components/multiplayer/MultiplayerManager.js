@@ -2622,6 +2622,11 @@ export class MultiplayerManager {
     updatePlayerVoiceState(userId, isMuted) {
         const player = this.players.get(userId);
         if (player && player.nameLabel) {
+            console.log(`[MultiplayerManager] Updating voice state for player ${userId}: isMuted=${isMuted}`);
+            
+            // Update the player's stored mute state
+            player.isMuted = isMuted;
+            
             // Store the current position
             const position = player.nameLabel.position.clone();
             
@@ -2642,21 +2647,6 @@ export class MultiplayerManager {
             
             // Update player's name label reference
             player.nameLabel = nameLabel;
-            
-            // Store if this is the local player 
-            player.isLocalPlayer = userId === this.playerId;
-            
-            // Store initial voice state (default to muted)
-            player.isMuted = true;
-            
-            // Request voice state for non-local players if socket is available
-            if (!player.isLocalPlayer && this.socket) {
-                console.log(`[MultiplayerManager] Requesting voice state for player: ${userId}`);
-                this.socket.emit('voiceChat:requestState', { userId: userId });
-            }
-            
-            // Store creation time for the player
-            player.createdAt = Date.now();
         }
     }
     
