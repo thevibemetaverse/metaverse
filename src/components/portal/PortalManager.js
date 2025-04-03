@@ -913,6 +913,17 @@ export class PortalManager {
             {
                 position: new THREE.Vector3(40, 0, 40),
                 rotation: new THREE.Euler(0, Math.PI, 0),
+                destination: "https://thevibemetaverse.vercel.app/api/portal/rokos-rebellion",
+                portalId: "rokos-rebellion",
+                title: "Rokos Rebellion",
+                description: "First portal in airport row",
+                modelPath: '/assets/models/portal/portal-new.gltf',
+                multiplayer: true,
+                avatarTeleport: false
+            },
+            {
+                position: new THREE.Vector3(55, 0, 40),
+                rotation: new THREE.Euler(0, Math.PI, 0),
                 destination: "https://thevibemetaverse.vercel.app/api/portal/vibesurvival",
                 portalId: "vibesurvival",
                 title: "Survival",
@@ -922,7 +933,7 @@ export class PortalManager {
                 avatarTeleport: true
             },
             {
-                position: new THREE.Vector3(55, 0, 40),
+                position: new THREE.Vector3(70, 0, 40),
                 rotation: new THREE.Euler(0, Math.PI, 0),
                 destination: "https://thevibemetaverse.vercel.app/api/portal/auto-boss",
                 portalId: "auto-boss",
@@ -933,7 +944,7 @@ export class PortalManager {
                 avatarTeleport: true
             },
             {
-                position: new THREE.Vector3(70, 0, 40),
+                position: new THREE.Vector3(85, 0, 40),
                 rotation: new THREE.Euler(0, Math.PI, 0),
                 destination: "https://thevibemetaverse.vercel.app/api/portal/roostervibes",
                 portalId: "roostervibes",
@@ -944,7 +955,7 @@ export class PortalManager {
                 avatarTeleport: false
             },
             {
-                position: new THREE.Vector3(85, 0, 40),
+                position: new THREE.Vector3(100, 0, 40),
                 rotation: new THREE.Euler(0, Math.PI, 0),
                 destination: "https://thevibemetaverse.vercel.app/api/portal/neon-trailblazer",
                 portalId: "neon-trailblazer",
@@ -955,7 +966,7 @@ export class PortalManager {
                 avatarTeleport: false
             },
             {
-                position: new THREE.Vector3(100, 0, 40),
+                position: new THREE.Vector3(125, 0, 40),
                 rotation: new THREE.Euler(0, Math.PI, 0),
                 destination: "https://thevibemetaverse.vercel.app/api/portal/ronansrun",
                 portalId: "ronansrun",
@@ -1246,7 +1257,7 @@ export class PortalManager {
         // Create portal group to contain all portal elements
         const portalGroup = new THREE.Group();
         // Position in line with other portals (front row)
-        portalGroup.position.set(125, 0, 30); // Position after the last portal in the front row
+        portalGroup.position.set(145, 0, 30); // Position after the last portal in the front row
         portalGroup.rotation.y = .5*Math.PI;
         
         // Create portal effect
