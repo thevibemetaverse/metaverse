@@ -102,7 +102,7 @@ export class PieterPortal {
         // Create portal group to contain all portal elements
         const exitPortalGroup = new THREE.Group();
         // Position behind the user (negative z position)
-        exitPortalGroup.position.set(105, 0, -25);
+        exitPortalGroup.position.set(0, 0, -25);
         exitPortalGroup.rotation.x = 0.35;
         exitPortalGroup.rotation.y = Math.PI; // Rotate to face the user
 
