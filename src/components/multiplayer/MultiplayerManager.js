@@ -394,10 +394,15 @@ export class MultiplayerManager {
         // Create player avatar
         this.createPlayerAvatar(data);
         
-        // Initialize player with muted state (no microphone)
-        // The microphone will be shown only when we get a voice state update indicating they're unmuted
+        // Ensure the player's voice state is requested
+        // The createPlayerAvatar method already makes this request, but we'll do it
+        // again here just to be safe
         if (this.socket) {
-            this.socket.emit('voiceChat:requestState', { userId: data.id });
+            // Delay slightly to ensure the player object is created first
+            setTimeout(() => {
+                console.log(`[MultiplayerManager] Requesting voice state for new player: ${data.id}`);
+                this.socket.emit('voiceChat:requestState', { userId: data.id });
+            }, 500);
         }
     }
 
@@ -1218,8 +1223,15 @@ export class MultiplayerManager {
                 isLocalPlayer,
                 isMoving: false, // Not moving initially
                 movementSpeed: 0,
+                isMuted: true, // Default to muted state
                 lastRenderFrame: 0 // Track last render frame
             });
+            
+            // For non-local players, request their current voice state if socket is connected
+            if (!isLocalPlayer && this.socket) {
+                console.log(`[MultiplayerManager] Requesting voice state for player: ${data.id}`);
+                this.socket.emit('voiceChat:requestState', { userId: data.id });
+            }
             
             // Mark explorer model players for special handling
             if (isExplorerModel) {
@@ -1341,6 +1353,7 @@ export class MultiplayerManager {
             lastUpdate: Date.now(),
             isDisconnected: false,
             isLocalPlayer: data.id === this.playerId,
+            isMuted: true, // Default to muted state
             avatarUrl: data.avatarUrl  // Store the avatarUrl with the player
         };
         
@@ -2629,6 +2642,21 @@ export class MultiplayerManager {
             
             // Update player's name label reference
             player.nameLabel = nameLabel;
+            
+            // Store if this is the local player 
+            player.isLocalPlayer = userId === this.playerId;
+            
+            // Store initial voice state (default to muted)
+            player.isMuted = true;
+            
+            // Request voice state for non-local players if socket is available
+            if (!player.isLocalPlayer && this.socket) {
+                console.log(`[MultiplayerManager] Requesting voice state for player: ${userId}`);
+                this.socket.emit('voiceChat:requestState', { userId: userId });
+            }
+            
+            // Store creation time for the player
+            player.createdAt = Date.now();
         }
     }
     

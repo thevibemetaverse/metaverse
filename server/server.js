@@ -158,6 +158,45 @@ io.on('connection', (socket) => {
         });
     });
 
+    // Handle voice chat state updates
+    socket.on('voiceChat:state', (data) => {
+        const playerId = connectedSockets.get(socket.id);
+        if (!playerId) return;
+        
+        console.log(`[Server] Voice state update from ${playerId}: isMuted=${data.isMuted}`);
+        
+        // Store voice state with player data
+        const player = players.get(playerId);
+        if (player) {
+            player.isMuted = data.isMuted;
+        }
+        
+        // Broadcast voice state to all other players
+        socket.broadcast.emit('voiceChat:state', {
+            userId: data.userId || playerId,
+            isMuted: data.isMuted
+        });
+    });
+    
+    // Handle requests for player voice state
+    socket.on('voiceChat:requestState', (data) => {
+        const requestedPlayerId = data.userId;
+        const requestingPlayerId = connectedSockets.get(socket.id);
+        
+        console.log(`[Server] Voice state requested by ${requestingPlayerId} for ${requestedPlayerId}`);
+        
+        // If we have this player and their voice state, send it back
+        if (requestedPlayerId && players.has(requestedPlayerId)) {
+            const player = players.get(requestedPlayerId);
+            const isMuted = player.isMuted !== undefined ? player.isMuted : true; // Default to muted
+            
+            socket.emit('voiceChat:state', {
+                userId: requestedPlayerId,
+                isMuted: isMuted
+            });
+        }
+    });
+
     socket.on('voiceSignal', (data) => {
         const playerId = connectedSockets.get(socket.id);
         if (!playerId) return;
@@ -248,6 +287,12 @@ function handlePlayerJoin(playerId, data) {
     // Use position and rotation from client data if provided, otherwise default to origin
     player.position = data.position || { x: 0, y: 0, z: 0 };
     player.rotation = data.rotation || { x: 0, y: 0, z: 0 };
+    
+    // Initialize voice chat state to muted by default
+    player.isMuted = true;
+    
+    // Track last activity
+    player.lastActivity = Date.now();
 
     // Send player ID and potentially modified username to the new player
     player.socket.emit('playerId', { 
