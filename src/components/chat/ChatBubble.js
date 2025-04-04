@@ -12,7 +12,7 @@ export class ChatBubble {
     this.creationTime = Date.now();
     this.lifespan = 5000; // Total lifespan of bubble in ms
     this.character = character; // Store reference to the character
-    this.heightOffset = 4.6; // Height above character's head
+    this.heightOffset = 5.0; // Height above character's head
     
     // Create visual elements
     this.createTextSprite();
@@ -21,11 +21,13 @@ export class ChatBubble {
   createTextSprite() {
     // Calculate appropriate canvas size based on text length
     const fontSize = 20;
-    const padding = 15;
-    const pointerHeight = 10; // Height of speech bubble pointer
+    const padding = 20;
     const textWidth = this.measureTextWidth(this.text, fontSize);
-    const canvasWidth = Math.max(textWidth + (padding * 2), 80); // Min width of 80px
-    const canvasHeight = fontSize + (padding * 2) + pointerHeight;
+    const minCanvasWidth = 150; // Minimum width to fit the background image
+    // Scale up for higher resolution
+    const resolution = window.devicePixelRatio || 2;
+    const canvasWidth = Math.max(textWidth + (padding * 2), minCanvasWidth) * resolution;
+    const canvasHeight = 100 * resolution; // Fixed height for the background image
     
     // Create canvas and context
     const canvas = document.createElement('canvas');
@@ -33,56 +35,52 @@ export class ChatBubble {
     canvas.height = canvasHeight;
     const context = canvas.getContext('2d');
     
+    // Scale the rendering context to match the resolution
+    context.scale(resolution, resolution);
+    
     // Fill with transparency
     context.clearRect(0, 0, canvasWidth, canvasHeight);
     
-    // Draw background bubble - darker blue color with slightly rounded corners
-    const bubbleColor = 'rgba(25, 70, 160, 0.9)'; // Darker blue with high opacity
-    const borderColor = 'rgba(255, 255, 255, 0.9)'; // White border
-    const bubbleRadius = 10; // Corner radius
+    // Load background bubble image
+    const bubbleImage = new Image();
+    bubbleImage.src = '/assets/images/chat_bubble.png';
+    bubbleImage.crossOrigin = 'anonymous'; // To prevent texture taint issues
     
-    // Draw main bubble body (without the pointer)
-    context.fillStyle = bubbleColor;
-    context.strokeStyle = borderColor;
-    context.lineWidth = 1.5;
-    this.roundRect(
-      context, 
-      0, 
-      0, 
-      canvasWidth, 
-      canvasHeight - pointerHeight, 
-      bubbleRadius
-    );
-    context.fill();
-    context.stroke();
+    // Draw everything once the image is loaded
+    bubbleImage.onload = () => {
+      // Draw the bubble image using 9-slice scaling
+      this.drawNineSlicedImage(
+        context,
+        bubbleImage, 
+        0, 
+        0, 
+        canvasWidth / resolution, 
+        canvasHeight / resolution
+      );
+      
+      // Draw text
+      context.font = `${fontSize}px Arial`;
+      context.fillStyle = 'white';
+      context.textAlign = 'center';
+      context.textBaseline = 'middle';
+      
+      // Position text in the upper part of the bubble (not including the pointer)
+      context.fillText(
+        this.text, 
+        (canvasWidth / resolution) / 2, 
+        (canvasHeight / resolution) // Position at 35% of the height
+      );
+      
+      // Update the texture
+      if (this.sprite && this.sprite.material && this.sprite.material.map) {
+        this.sprite.material.map.needsUpdate = true;
+      }
+    };
     
-    // Draw the speech pointer
-    context.beginPath();
-    const pointerWidth = 14;
-    const centerX = canvasWidth / 2;
-    context.moveTo(centerX - pointerWidth / 2, canvasHeight - pointerHeight);
-    context.lineTo(centerX, canvasHeight); // Pointer tip
-    context.lineTo(centerX + pointerWidth / 2, canvasHeight - pointerHeight);
-    context.closePath();
-    context.fillStyle = bubbleColor;
-    context.fill();
-    context.strokeStyle = borderColor;
-    context.stroke();
-    
-    // Draw text
-    context.font = `${fontSize}px Arial`;
-    context.fillStyle = 'white';
-    context.textAlign = 'center';
-    context.textBaseline = 'middle';
-    context.fillText(
-      this.text, 
-      canvasWidth / 2, 
-      (canvasHeight - pointerHeight) / 2
-    );
-    
-    // Create sprite using canvas as texture
+    // Create texture and material first (will be updated when image loads)
     const texture = new THREE.CanvasTexture(canvas);
     texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter; // Improve texture quality
     const material = new THREE.SpriteMaterial({
       map: texture,
       transparent: true
@@ -91,8 +89,8 @@ export class ChatBubble {
     // Create and position sprite
     this.sprite = new THREE.Sprite(material);
     
-    // Scale appropriately - make it a bit bigger for better visibility
-    const scale = 0.015; // Base scale factor for better visibility
+    // Scale appropriately for better visibility, adjust for resolution
+    const scale = 0.03 / resolution; // Adjust scale factor for the higher resolution
     this.sprite.scale.set(
       canvasWidth * scale, 
       canvasHeight * scale, 
@@ -104,27 +102,90 @@ export class ChatBubble {
     this.scene.add(this.sprite);
   }
   
+  // Helper function to draw nine-sliced image
+  drawNineSlicedImage(ctx, image, x, y, width, height, slice = 20) {
+    // If the image isn't loaded yet, just return
+    if (!image.complete) return;
+    
+    // Corner slices
+    const cornerSize = slice;
+    
+    // Using higher quality image drawing with smoothing
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    
+    // Draw corners
+    // Top-left
+    ctx.drawImage(
+      image, 
+      0, 0, cornerSize, cornerSize, 
+      x, y, cornerSize, cornerSize
+    );
+    
+    // Top-right
+    ctx.drawImage(
+      image, 
+      image.width - cornerSize, 0, cornerSize, cornerSize, 
+      x + width - cornerSize, y, cornerSize, cornerSize
+    );
+    
+    // Bottom-left
+    ctx.drawImage(
+      image, 
+      0, image.height - cornerSize, cornerSize, cornerSize, 
+      x, y + height - cornerSize, cornerSize, cornerSize
+    );
+    
+    // Bottom-right
+    ctx.drawImage(
+      image, 
+      image.width - cornerSize, image.height - cornerSize, cornerSize, cornerSize, 
+      x + width - cornerSize, y + height - cornerSize, cornerSize, cornerSize
+    );
+    
+    // Draw edges
+    // Top
+    ctx.drawImage(
+      image, 
+      cornerSize, 0, image.width - (cornerSize * 2), cornerSize, 
+      x + cornerSize, y, width - (cornerSize * 2), cornerSize
+    );
+    
+    // Bottom
+    ctx.drawImage(
+      image, 
+      cornerSize, image.height - cornerSize, image.width - (cornerSize * 2), cornerSize, 
+      x + cornerSize, y + height - cornerSize, width - (cornerSize * 2), cornerSize
+    );
+    
+    // Left
+    ctx.drawImage(
+      image, 
+      0, cornerSize, cornerSize, image.height - (cornerSize * 2), 
+      x, y + cornerSize, cornerSize, height - (cornerSize * 2)
+    );
+    
+    // Right
+    ctx.drawImage(
+      image, 
+      image.width - cornerSize, cornerSize, cornerSize, image.height - (cornerSize * 2), 
+      x + width - cornerSize, y + cornerSize, cornerSize, height - (cornerSize * 2)
+    );
+    
+    // Middle
+    ctx.drawImage(
+      image, 
+      cornerSize, cornerSize, image.width - (cornerSize * 2), image.height - (cornerSize * 2), 
+      x + cornerSize, y + cornerSize, width - (cornerSize * 2), height - (cornerSize * 2)
+    );
+  }
+  
   // Helper function to measure text width
   measureTextWidth(text, fontSize) {
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
     context.font = `${fontSize}px Arial`;
     return context.measureText(text).width;
-  }
-  
-  // Helper function to create rounded rectangle
-  roundRect(ctx, x, y, width, height, radius) {
-    ctx.beginPath();
-    ctx.moveTo(x + radius, y);
-    ctx.lineTo(x + width - radius, y);
-    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-    ctx.lineTo(x + width, y + height - radius);
-    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-    ctx.lineTo(x + radius, y + height);
-    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-    ctx.lineTo(x, y + radius);
-    ctx.quadraticCurveTo(x, y, x + radius, y);
-    ctx.closePath();
   }
   
   update(camera) {
