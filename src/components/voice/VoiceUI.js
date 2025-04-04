@@ -6,7 +6,7 @@ class VoiceUI {
     this.isMuted = true;
     this.isInitialized = false;
     this.errorNotification = null;
-    this.isVisible = true;
+    this.isVisible = false;
     
     this.init();
     
@@ -22,7 +22,7 @@ class VoiceUI {
       top: 20px;
       right: 20px;
       z-index: 1000;
-      display: flex;
+      display: none;
       flex-direction: column;
       gap: 10px;
     `;
