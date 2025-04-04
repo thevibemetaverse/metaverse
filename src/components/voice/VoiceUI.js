@@ -6,8 +6,12 @@ class VoiceUI {
     this.isMuted = true;
     this.isInitialized = false;
     this.errorNotification = null;
+    this.isVisible = true;
     
     this.init();
+    
+    // Register console commands for showing/hiding
+    this.registerConsoleCommands();
   }
   
   init() {
@@ -368,6 +372,11 @@ class VoiceUI {
     if (this.uiContainer) {
       this.uiContainer.remove();
     }
+    
+    // Clean up console commands
+    delete window.showVoiceUI;
+    delete window.hideVoiceUI;
+    delete window.toggleVoiceUI;
   }
   
   // New method to show browser-specific instructions for blocked permissions
@@ -461,6 +470,53 @@ class VoiceUI {
     document.getElementById('close-notification').addEventListener('click', () => {
       this.removeErrorNotification();
     });
+  }
+  
+  // New method to register console commands
+  registerConsoleCommands() {
+    window.showVoiceUI = () => {
+      this.show();
+      console.log('Voice UI is now visible');
+      return 'Voice UI is now visible';
+    };
+    
+    window.hideVoiceUI = () => {
+      this.hide();
+      console.log('Voice UI is now hidden');
+      return 'Voice UI is now hidden';
+    };
+    
+    window.toggleVoiceUI = () => {
+      if (this.isVisible) {
+        this.hide();
+        console.log('Voice UI is now hidden');
+        return 'Voice UI is now hidden';
+      } else {
+        this.show();
+        console.log('Voice UI is now visible');
+        return 'Voice UI is now visible';
+      }
+    };
+    
+    console.log('Voice UI commands registered: showVoiceUI(), hideVoiceUI(), toggleVoiceUI()');
+  }
+  
+  // New method to show the UI
+  show() {
+    if (!this.isVisible && this.uiContainer) {
+      this.uiContainer.style.display = 'flex';
+      this.isVisible = true;
+    }
+    return this.isVisible;
+  }
+  
+  // New method to hide the UI
+  hide() {
+    if (this.isVisible && this.uiContainer) {
+      this.uiContainer.style.display = 'none';
+      this.isVisible = false;
+    }
+    return this.isVisible;
   }
 }
 
