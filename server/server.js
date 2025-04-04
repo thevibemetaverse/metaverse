@@ -162,6 +162,14 @@ io.on('connection', (socket) => {
         });
     });
 
+    // Chat message handler
+    socket.on('chatMessage', (data) => {
+        const playerId = connectedSockets.get(socket.id);
+        if (playerId) {
+            handleChatMessage(playerId, data);
+        }
+    });
+
     socket.on('disconnect', () => {
         const playerId = connectedSockets.get(socket.id);
         if (playerId) {
@@ -301,6 +309,31 @@ async function handlePortalLike(playerId, portalId) {
             likeCount: portalService.getPortalLikeCount(portalId)
         });
     }
+}
+
+// Handle chat messages
+function handleChatMessage(playerId, data) {
+    const player = players.get(playerId);
+    if (!player || !player.socket.connected) return;
+    
+    console.log(`[Server] Chat message from ${player.username}: ${data.message}`);
+    
+    // Check for message length and content
+    const message = data.message.trim();
+    if (!message || message.length > 200) return; // Ignore empty or too long messages
+    
+    // Create the chat message object
+    const chatMessage = {
+        type: 'chatMessage',
+        id: playerId,
+        username: player.username,
+        message: message,
+        position: player.position,
+        timestamp: Date.now()
+    };
+    
+    // Broadcast to all players (including sender for consistency)
+    io.emit('chatMessage', chatMessage);
 }
 
 // Initialize services before starting the server
