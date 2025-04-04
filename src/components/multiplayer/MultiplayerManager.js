@@ -2565,4 +2565,16 @@ export class MultiplayerManager {
             this.playerCountDisplay.updatePlayerCount(this.dailyVisitorCount);
         }
     }
+
+    // Add this method after handlePlayerLeft
+    getPlayerById(playerId) {
+        // Check if player exists in players map
+        if (!this.players.has(playerId)) {
+            console.warn(`[MultiplayerManager] No player found with ID: ${playerId}`);
+            return null;
+        }
+        
+        // Return the player object
+        return this.players.get(playerId);
+    }
 } 

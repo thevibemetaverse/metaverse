@@ -8,6 +8,7 @@ import { FollowCamera } from './components/character/camera';
 import { createEnvironmentElements } from './components/environment/environmentElements.js';
 import { PortalManager } from './components/portal/PortalManager';
 import { MultiplayerManager } from './components/multiplayer/MultiplayerManager';
+import { ChatManager } from './components/chat/ChatManager.js';
 import { animateWater } from './components/environment/waterSystem.js';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
@@ -95,6 +96,7 @@ let character;
 let followCamera;
 let portalManager;
 let multiplayerManager;
+let chatManager;
 
 // Animation loop control
 let animationRunning = false;
@@ -174,6 +176,11 @@ function animate() {
                 character.rotation
             );
         }
+    }
+
+    // Update chat system
+    if (chatManager) {
+        chatManager.update();
     }
 
     // Update water animation
@@ -264,6 +271,10 @@ function startGame(username) {
         console.log('[main] Connecting portal manager to character manager');
         characterManager.setPortalManager(portalManager);
 
+        // Initialize chat manager
+        console.log('[main] Initializing chat manager');
+        chatManager = new ChatManager(scene, camera, character);
+
         // Initialize multiplayer manager if feature is enabled
         if (config.features.multiplayer) {
             console.log('[main] Initializing multiplayer manager (feature enabled)');
@@ -297,6 +308,12 @@ function startGame(username) {
                     // Position on the opposite side of the office computer at coordinates (15, 0, 55)
                     const playerCountPosition = new THREE.Vector3(16, 7, 65);
                     multiplayerManager.initPlayerCountDisplay(playerCountPosition);
+                }
+                
+                // Connect chat manager to multiplayer system
+                if (multiplayerManager.socket && chatManager) {
+                    console.log('[main] Connecting chat manager to multiplayer system');
+                    chatManager.setMultiplayerManager(multiplayerManager);
                 }
             }, 2000);
         } else {
