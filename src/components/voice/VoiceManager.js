@@ -63,15 +63,28 @@ class VoiceManager {
       source.connect(gainNode);
       gainNode.connect(audioContext.destination);
       
-      // Note: We're not muting the stream by default anymore
-      // The VoiceUI will control the initial mute state
+      // VoiceUI will control the initial mute state
+      // We'll set it to active (unmuted) by default when permission is given
+      this.isMuted = false;
       
-      // Emit initial microphone state (will be set by VoiceUI)
+      // Enable all audio tracks
+      if (this.stream) {
+        this.stream.getAudioTracks().forEach(track => {
+          track.enabled = true;
+        });
+      }
+      
+      console.log('[VoiceManager] Initial microphone state set to unmuted');
+      
+      // Emit initial microphone state
       this.updateMicrophoneState();
       
       // Update local player's name label with initial state
       if (this.multiplayerManager) {
+        console.log('[VoiceManager] Updating player label with unmuted state');
         this.multiplayerManager.updatePlayerVoiceState(this.clientId, this.isMuted);
+      } else {
+        console.warn('[VoiceManager] No multiplayerManager available for initial state');
       }
       
       // Update character manager's mute state
@@ -296,7 +309,10 @@ class VoiceManager {
     
     // Update local player's name label
     if (this.multiplayerManager) {
+      console.log('[VoiceManager] Updating player voice state in MultiplayerManager: clientId=', this.clientId, 'isMuted=', this.isMuted);
       this.multiplayerManager.updatePlayerVoiceState(this.clientId, this.isMuted);
+    } else {
+      console.warn('[VoiceManager] No MultiplayerManager available to update voice state');
     }
     
     // Update the character manager's mute state

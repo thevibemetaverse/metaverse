@@ -1427,7 +1427,7 @@ export class MultiplayerManager {
         context.font = 'bold 32px Arial';
         
         // Add microphone emoji to username based on showMicrophone state
-        const displayText = showMicrophone ? `${username} 🎤` : `${username} 🔇`;
+        const displayText = showMicrophone ? `${username} 🎤` : `${username} `;
         
         // Measure text width to determine canvas size
         const textMetrics = context.measureText(displayText);
@@ -2637,6 +2637,11 @@ export class MultiplayerManager {
             
             // Create new name label with or without microphone emoji based on mute state
             const username = player.username;
+            
+            // Log the values to help debug
+            console.log(`[MultiplayerManager] Creating label for ${username} with showMicrophone=${!isMuted} (isMuted=${isMuted})`);
+            
+            // Create new name label - showMicrophone is the opposite of isMuted
             const nameLabel = this.createNameLabel(username, !isMuted);
             nameLabel.position.copy(position);
             nameLabel.renderOrder = 999;
@@ -2647,6 +2652,33 @@ export class MultiplayerManager {
             
             // Update player's name label reference
             player.nameLabel = nameLabel;
+            
+            // Force an immediate render update
+            if (typeof this.scene.render === 'function') {
+                this.scene.render();
+            }
+            
+            // Create a backup call to re-render the name label after a short delay
+            // This helps with race conditions in the first update
+            setTimeout(() => {
+                if (player && player.nameLabel) {
+                    console.log(`[MultiplayerManager] Delayed re-render of label for ${username} (isMuted=${isMuted})`);
+                    const currentPosition = player.nameLabel.position.clone();
+                    if (player.nameLabel.parent) {
+                        player.nameLabel.parent.remove(player.nameLabel);
+                    }
+                    
+                    const refreshedLabel = this.createNameLabel(username, !isMuted);
+                    refreshedLabel.position.copy(currentPosition);
+                    refreshedLabel.renderOrder = 999;
+                    refreshedLabel.visible = true;
+                    
+                    this.scene.add(refreshedLabel);
+                    player.nameLabel = refreshedLabel;
+                }
+            }, 500);
+        } else {
+            console.warn(`[MultiplayerManager] Cannot update voice state: Player ${userId} not found or has no nameLabel`);
         }
     }
     

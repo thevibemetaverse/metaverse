@@ -154,8 +154,31 @@ class VoiceUI {
                     track.enabled = true;
                   });
                   
-                  // Trigger the voiceManager to update its state
+                  // Force update the microphone state in the multiplayer system
+                  console.log('Force updating voice state on initialization');
+                  
+                  // First use the VoiceManager to update its state
                   this.voiceManager.updateMicrophoneState();
+                  
+                  // Then directly update the player's label if MultiplayerManager is available
+                  if (this.voiceManager.multiplayerManager && this.voiceManager.clientId) {
+                    // Ensure the player's name gets updated with microphone icon
+                    this.voiceManager.multiplayerManager.updatePlayerVoiceState(
+                      this.voiceManager.clientId, 
+                      false // Explicitly set to unmuted state
+                    );
+                    
+                    // Add a delayed second call to handle race conditions
+                    setTimeout(() => {
+                      if (this.voiceManager.multiplayerManager) {
+                        console.log('Delayed second call to update player label with mic icon');
+                        this.voiceManager.multiplayerManager.updatePlayerVoiceState(
+                          this.voiceManager.clientId, 
+                          false // Still unmuted
+                        );
+                      }
+                    }, 1000);
+                  }
                   
                   // Update UI to reflect unmuted state
                   this.updateButtonState();
