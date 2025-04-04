@@ -267,6 +267,77 @@ class VoiceUI {
     // Add button to container
     this.uiContainer.appendChild(this.muteButton);
     
+    // Create diagnostic button
+    const diagnosticButton = document.createElement('button');
+    diagnosticButton.className = 'voice-diagnostic-button';
+    diagnosticButton.innerHTML = '📊';
+    diagnosticButton.style.cssText = `
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: none;
+      background-color: #2196F3;
+      color: white;
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      position: relative;
+    `;
+    
+    // Add hover effect
+    diagnosticButton.addEventListener('mouseover', () => {
+      diagnosticButton.style.transform = 'scale(1.1)';
+      diagnosticButton.style.boxShadow = '0 4px 8px rgba(0,0,0,0.3)';
+    });
+    
+    diagnosticButton.addEventListener('mouseout', () => {
+      diagnosticButton.style.transform = 'scale(1)';
+      diagnosticButton.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+    });
+    
+    // Add click handler
+    diagnosticButton.addEventListener('click', () => {
+      if (this.voiceManager) {
+        this.voiceManager.showConnectionStatus();
+      }
+    });
+    
+    // Add tooltip
+    const diagnosticTooltip = document.createElement('div');
+    diagnosticTooltip.style.cssText = `
+      position: absolute;
+      top: -30px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      white-space: nowrap;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      pointer-events: none;
+    `;
+    diagnosticTooltip.textContent = 'Voice Diagnostics';
+    diagnosticButton.appendChild(diagnosticTooltip);
+    
+    // Show/hide tooltip on hover
+    diagnosticButton.addEventListener('mouseover', () => {
+      diagnosticTooltip.style.opacity = '1';
+    });
+    
+    diagnosticButton.addEventListener('mouseout', () => {
+      diagnosticTooltip.style.opacity = '0';
+    });
+    
+    // Add button to container
+    this.uiContainer.appendChild(diagnosticButton);
+    
     // Add container to document
     document.body.appendChild(this.uiContainer);
     
@@ -498,7 +569,17 @@ class VoiceUI {
       }
     };
     
-    console.log('Voice UI commands registered: showVoiceUI(), hideVoiceUI(), toggleVoiceUI()');
+    window.showVoiceDiagnostic = () => {
+      if (this.voiceManager) {
+        console.log('Showing voice diagnostics');
+        return this.voiceManager.showConnectionStatus();
+      } else {
+        console.log('Voice manager not available');
+        return 'Voice manager not available';
+      }
+    };
+    
+    console.log('Voice UI commands registered: showVoiceUI(), hideVoiceUI(), toggleVoiceUI(), showVoiceDiagnostic()');
   }
   
   // New method to show the UI
