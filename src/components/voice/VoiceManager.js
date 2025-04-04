@@ -8,13 +8,15 @@ class VoiceManager {
     this.socket = null;
     this.peers = {};
     this.audioElements = {};
-    this.isMuted = false;
+    this.isMuted = true;
     this.isInitialized = false;
     
     // Reference to the existing multiplayer system
     this.clientId = null;
     this.multiplayerManager = null;
     this.characterManager = null;
+    this.microphoneAccessDenied = false;
+    this.permissionRequestShown = false;
   }
 
   setMultiplayerManager(multiplayerManager) {
@@ -25,29 +27,16 @@ class VoiceManager {
     this.characterManager = characterManager;
   }
 
+  // Initialize basic socket connection without requesting microphone access
   async init(socket, clientId) {
+    this.socket = socket;
+    this.clientId = clientId;
+    this.setupSocketListeners();
+  }
+
+  // Modified method to accept an existing stream
+  async initializeVoiceChat(stream) {
     try {
-      // More robust MediaDevices API check
-      if (!navigator.mediaDevices) {
-        // Try to polyfill for older browsers
-        navigator.mediaDevices = {};
-      }
-
-      // Some browsers partially support mediaDevices. We need getUserMedia
-      if (!navigator.mediaDevices.getUserMedia) {
-        navigator.mediaDevices.getUserMedia = function(constraints) {
-          const getUserMedia = navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
-          
-          if (!getUserMedia) {
-            throw new Error('getUserMedia is not implemented in this browser');
-          }
-          
-          return new Promise((resolve, reject) => {
-            getUserMedia.call(navigator, constraints, resolve, reject);
-          });
-        };
-      }
-
       // Check if we're in an iframe
       if (window.self !== window.top) {
         throw new Error('Voice chat is not supported in iframes. Please open the page directly.');
@@ -58,34 +47,10 @@ class VoiceManager {
         throw new Error('Voice chat requires a secure connection (HTTPS). Please use HTTPS or localhost.');
       }
 
-      console.log('[VoiceManager] Requesting microphone access...');
+      console.log('[VoiceManager] Initializing voice chat with stream...');
       
-      // Request microphone access with fallback options
-      try {
-        this.stream = await navigator.mediaDevices.getUserMedia({ 
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true
-          }, 
-          video: false 
-        });
-        console.log('[VoiceManager] Successfully got microphone access with advanced settings');
-      } catch (mediaError) {
-        console.log('[VoiceManager] Falling back to basic microphone settings');
-        // Try with simpler constraints if advanced ones fail
-        this.stream = await navigator.mediaDevices.getUserMedia({ 
-          audio: true,
-          video: false 
-        });
-      }
-      
-      // Store socket and client ID
-      this.socket = socket;
-      this.clientId = clientId;
-      
-      // Set up socket listeners
-      this.setupSocketListeners();
+      // Store the stream
+      this.stream = stream;
       
       this.isInitialized = true;
       console.log('[VoiceManager] Successfully initialized voice chat');
@@ -98,7 +63,10 @@ class VoiceManager {
       source.connect(gainNode);
       gainNode.connect(audioContext.destination);
       
-      // Emit initial microphone state
+      // Note: We're not muting the stream by default anymore
+      // The VoiceUI will control the initial mute state
+      
+      // Emit initial microphone state (will be set by VoiceUI)
       this.updateMicrophoneState();
       
       // Update local player's name label with initial state
@@ -106,70 +74,119 @@ class VoiceManager {
         this.multiplayerManager.updatePlayerVoiceState(this.clientId, this.isMuted);
       }
       
+      // Update character manager's mute state
+      if (this.characterManager) {
+        this.characterManager.updateMuteState(this.isMuted);
+      }
+
+      return true;
+      
     } catch (error) {
       console.error('[VoiceManager] Error initializing voice chat:', error);
-      
-      // Show user-friendly error message
-      let errorMessage = 'Failed to initialize voice chat. ';
-      if (error.name === 'NotAllowedError') {
-        errorMessage += 'Please allow microphone access in your browser settings.';
-      } else if (error.name === 'NotFoundError') {
-        errorMessage += 'No microphone found. Please connect a microphone and try again.';
-      } else if (error.message.includes('HTTPS')) {
-        errorMessage += 'Please use HTTPS or localhost.';
-      } else if (error.message.includes('iframe')) {
-        errorMessage += 'Please open the page directly in your browser, not in an iframe.';
-      } else if (error.message.includes('getUserMedia')) {
-        errorMessage += 'Your browser may be blocking microphone access. Please check your browser settings and try again.';
-      } else {
-        errorMessage += error.message;
-      }
-      
-      // Create error notification with troubleshooting steps
-      const notification = document.createElement('div');
-      notification.style.cssText = `
-        position: fixed;
-        top: 80px;
-        right: 20px;
-        background-color: #f44336;
-        color: white;
-        padding: 15px;
-        border-radius: 5px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-        z-index: 1000;
-        max-width: 300px;
-        font-size: 14px;
-        line-height: 1.4;
-      `;
-      
-      // Add troubleshooting steps
-      const troubleshooting = document.createElement('div');
-      troubleshooting.style.cssText = `
-        margin-top: 10px;
-        font-size: 12px;
-        opacity: 0.9;
-      `;
-      troubleshooting.innerHTML = `
-        <strong>Troubleshooting steps:</strong><br>
-        1. Make sure you're using Chrome, Firefox, or Edge<br>
-        2. Check if your microphone is connected and working<br>
-        3. Look for a microphone icon in your browser's address bar<br>
-        4. Try refreshing the page<br>
-        5. If using an iframe, open the page directly in your browser
-      `;
-      
-      notification.appendChild(document.createTextNode(errorMessage));
-      notification.appendChild(troubleshooting);
-      document.body.appendChild(notification);
-      
-      // Remove notification after 10 seconds
-      setTimeout(() => {
-        notification.remove();
-      }, 10000);
-      
-      // Disable voice chat
-      this.isInitialized = false;
+      throw error; // Propagate the error to be handled by VoiceUI
     }
+  }
+
+  showPermissionRequest() {
+    const permissionRequest = document.createElement('div');
+    permissionRequest.id = 'voice-permission-request';
+    permissionRequest.style.cssText = `
+      position: fixed;
+      top: 80px;
+      right: 20px;
+      background-color: #2196F3;
+      color: white;
+      padding: 15px;
+      border-radius: 5px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      z-index: 1000;
+      max-width: 300px;
+      font-size: 14px;
+      line-height: 1.4;
+      animation: fadeIn 0.3s ease-in-out;
+    `;
+    
+    permissionRequest.innerHTML = `
+      <div style="margin-bottom: 10px;">
+        <strong>Voice Chat Available</strong>
+      </div>
+      <div style="margin-bottom: 10px;">
+        Click the microphone icon in your browser's address bar to enable voice chat.
+      </div>
+      <div style="font-size: 12px; opacity: 0.9;">
+        You can always enable it later from your browser settings.
+      </div>
+    `;
+    
+    // Add some animation
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+    `;
+    document.head.appendChild(style);
+    
+    document.body.appendChild(permissionRequest);
+    this.permissionRequestShownTime = Date.now();
+  }
+
+  hidePermissionRequest() {
+    const permissionRequest = document.getElementById('voice-permission-request');
+    if (permissionRequest) {
+      permissionRequest.remove();
+    }
+  }
+
+  showErrorNotification(error) {
+    let errorMessage = 'Voice chat is currently disabled. ';
+    if (error.name === 'NotAllowedError') {
+      errorMessage += 'You can enable it later from your browser settings.';
+    } else if (error.name === 'NotFoundError') {
+      errorMessage += 'No microphone found. You can connect one later.';
+    } else if (error.message.includes('HTTPS')) {
+      errorMessage += 'Please use HTTPS or localhost.';
+    } else if (error.message.includes('iframe')) {
+      errorMessage += 'Please open the page directly in your browser.';
+    } else {
+      errorMessage += 'You can try again later.';
+    }
+    
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+      position: fixed;
+      top: 80px;
+      right: 20px;
+      background-color: #f44336;
+      color: white;
+      padding: 15px;
+      border-radius: 5px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      z-index: 1000;
+      max-width: 300px;
+      font-size: 14px;
+      line-height: 1.4;
+    `;
+    
+    notification.innerHTML = `
+      <div style="margin-bottom: 10px;">
+        <strong>Voice Chat Disabled</strong>
+      </div>
+      <div style="margin-bottom: 10px;">
+        ${errorMessage}
+      </div>
+      <div style="font-size: 12px; opacity: 0.9;">
+        You can still play the game without voice chat.
+      </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Remove notification after 10 seconds
+    setTimeout(() => {
+      notification.remove();
+    }, 10000);
   }
 
   setupSocketListeners() {

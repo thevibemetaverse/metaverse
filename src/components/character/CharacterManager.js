@@ -24,11 +24,16 @@ export default class CharacterManager {
         // Character properties
         this.character = null;
         this.characterMixer = null;
-        this.username = 'Guest';
+        this.username = null;
         this.characterControls = null;
         this.camera = null;
         this.portalManager = null;
-        this.playerState = {};
+        this.playerState = {
+            position: new THREE.Vector3(),
+            rotation: new THREE.Euler(),
+            isMoving: false,
+            isMuted: true // Set default state to muted
+        };
         this.isMuted = true; // Default to muted state
         
         // Portal collision properties
@@ -46,6 +51,8 @@ export default class CharacterManager {
         this.transitionInProgress = false;
         this.transitionTimeout = null;
         this.jumpAnimationStarted = false;
+        this.currentAnimation = null;
+        this.isMoving = false;
         
         // Jump properties
         this.jumpHeight = 2.0; // Maximum jump height in units

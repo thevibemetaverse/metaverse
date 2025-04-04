@@ -1426,8 +1426,8 @@ export class MultiplayerManager {
         // Set a fixed font size
         context.font = 'bold 32px Arial';
         
-        // Add microphone emoji to username only if showMicrophone is true
-        const displayText = showMicrophone ? `${username} 🎤` : username;
+        // Add microphone emoji to username based on showMicrophone state
+        const displayText = showMicrophone ? `${username} 🎤` : `${username} 🔇`;
         
         // Measure text width to determine canvas size
         const textMetrics = context.measureText(displayText);

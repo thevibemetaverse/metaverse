@@ -309,7 +309,7 @@ async function startGame(username) {
 
                 // Initialize voice chat if feature is enabled
                 if (config.features.voice) {
-                    console.log('[main] Initializing voice chat system (feature enabled)');
+                    console.log('[main] Setting up voice chat system (feature enabled)');
                     const VoiceManager = (await import('./components/voice/VoiceManager.js')).default;
                     const VoiceUI = (await import('./components/voice/VoiceUI.js')).default;
                     
@@ -328,13 +328,9 @@ async function startGame(username) {
                     // Add reference to window for global access
                     window.multiplayerManager = multiplayerManager;
                     
-                    // Initialize voice chat with socket and client ID
-                    voiceManager.init(multiplayerManager.socket, multiplayerManager.clientId);
-                    
-                    // Initialize voice chat after multiplayer is ready
+                    // Initialize basic socket connection without requesting microphone access
                     if (multiplayerManager && multiplayerManager.socket) {
-                        voiceManager.init(multiplayerManager.socket, multiplayerManager.clientId);
-                        voiceUI.init();
+                        await voiceManager.init(multiplayerManager.socket, multiplayerManager.clientId);
                     }
                 }
             }, 1000);
