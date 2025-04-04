@@ -12,7 +12,8 @@ export class ChatBubble {
     this.creationTime = Date.now();
     this.lifespan = 5000; // Total lifespan of bubble in ms
     this.character = character; // Store reference to the character
-    this.heightOffset = 5.0; // Height above character's head
+    this.heightOffset = 4.5; // Reduced height above character's head
+    this.horizontalOffset = -.2; // Offset to the right
     
     // Create visual elements
     this.createTextSprite();
@@ -68,7 +69,7 @@ export class ChatBubble {
       context.fillText(
         this.text, 
         (canvasWidth / resolution) / 2, 
-        (canvasHeight / resolution) // Position at 35% of the height
+        (canvasHeight / resolution) * 0.5 // Position at center (50%) of the height
       );
       
       // Update the texture
@@ -194,7 +195,20 @@ export class ChatBubble {
     // Update position to stay above character's head if character reference exists
     if (this.character && this.character.position) {
       const characterPosition = this.character.position.clone();
-      characterPosition.y += this.heightOffset; // Add height offset
+      
+      // Calculate offset position relative to character's rotation
+      if (this.character.rotation) {
+        // Create a vector for the horizontal offset
+        const offsetVector = new THREE.Vector3(this.horizontalOffset, 0, 0);
+        // Apply character's rotation to the offset vector
+        offsetVector.applyEuler(this.character.rotation);
+        // Add the rotated offset to the position
+        characterPosition.add(offsetVector);
+      }
+      
+      // Add vertical offset
+      characterPosition.y += this.heightOffset;
+      
       this.sprite.position.copy(characterPosition);
     }
     
@@ -230,4 +244,4 @@ export class ChatBubble {
       }
     }
   }
-} 
+}
