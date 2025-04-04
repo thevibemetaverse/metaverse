@@ -125,19 +125,32 @@ class VoiceUI {
           // Continue anyway as some browsers allow it
         }
 
-        // Force trigger permission dialog by requesting microphone
+        // Force trigger permission dialog by requesting microphone with optimized settings
         try {
           console.log('Requesting microphone permission...');
           // Use async/await and try-catch for cleaner error handling
           navigator.mediaDevices
-            .getUserMedia({ audio: { 
-              echoCancellation: true,
-              noiseSuppression: true,
-              autoGainControl: true
-            }})
+            .getUserMedia({ 
+              audio: { 
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true,
+                channelCount: 1,  // Mono audio is sufficient for voice
+                sampleRate: 48000 // Higher quality
+              }
+            })
             .then((stream) => {
               // Successfully got microphone access
               console.log('Microphone access granted');
+              
+              // Log the audio tracks in the stream
+              const audioTracks = stream.getAudioTracks();
+              console.log(`Obtained ${audioTracks.length} audio tracks`);
+              audioTracks.forEach((track, i) => {
+                console.log(`Audio track ${i}: enabled=${track.enabled}, muted=${track.muted}, readyState=${track.readyState}`);
+                // Make sure track is enabled
+                track.enabled = true;
+              });
               
               // Initialize voice chat with the stream
               this.voiceManager.initializeVoiceChat(stream)
@@ -156,6 +169,7 @@ class VoiceUI {
                   // Unmute all audio tracks in the stream
                   stream.getAudioTracks().forEach(track => {
                     track.enabled = true;
+                    console.log(`Setting track to enabled=${track.enabled}`);
                   });
                   
                   // Force update the microphone state in the multiplayer system
@@ -186,6 +200,11 @@ class VoiceUI {
                   
                   // Update UI to reflect unmuted state
                   this.updateButtonState();
+                  
+                  // Show the initial diagnostic to confirm setup
+                  setTimeout(() => {
+                    this.voiceManager.showConnectionStatus();
+                  }, 500);
                   
                   console.log('Microphone initialized and unmuted');
                 })
@@ -231,6 +250,11 @@ class VoiceUI {
         // Subsequent clicks - toggle mute
         this.isMuted = this.voiceManager.toggleMute();
         this.updateButtonState();
+        
+        // Show the diagnostic when toggling mute to verify state
+        setTimeout(() => {
+          this.voiceManager.showConnectionStatus();
+        }, 500);
       }
     });
     

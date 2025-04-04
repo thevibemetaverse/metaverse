@@ -132,30 +132,41 @@ io.on('connection', (socket) => {
     // Voice chat event handlers
     socket.on('joinVoice', (data) => {
         const playerId = connectedSockets.get(socket.id);
-        if (!playerId) return;
+        if (!playerId) {
+            console.error(`[Server] Cannot join voice chat - invalid player ID for socket ${socket.id}`);
+            return;
+        }
 
         const player = players.get(playerId);
-        if (!player) return;
+        if (!player) {
+            console.error(`[Server] Cannot join voice chat - player ${playerId} not found`);
+            return;
+        }
+
+        console.log(`[Server] Player ${playerId} joined voice chat`);
 
         // Broadcast to others that this player joined voice chat
-        broadcastToOthers(playerId, {
-            type: 'voiceJoined',
+        socket.broadcast.emit('voiceJoined', {
             id: playerId,
-            username: player.username
+            username: player.username || 'Unknown'
         });
 
+        console.log(`[Server] Broadcasting join event for ${playerId} to all other players`);
+
         // Send existing voice chat participants to the new player
+        let participantCount = 0;
         players.forEach((existingPlayer, existingId) => {
-            if (existingId !== playerId && existingPlayer.socket.connected) {
-                const existingPlayerId = connectedSockets.get(existingPlayer.socket.id);
-                if (existingPlayerId) {
-                    player.socket.emit('voiceJoined', {
-                        id: existingPlayerId,
-                        username: existingPlayer.username
-                    });
-                }
+            if (existingId !== playerId && existingPlayer.socket && existingPlayer.socket.connected) {
+                console.log(`[Server] Sending existing voice participant ${existingId} to new player ${playerId}`);
+                socket.emit('voiceJoined', {
+                    id: existingId,
+                    username: existingPlayer.username || 'Unknown'
+                });
+                participantCount++;
             }
         });
+        
+        console.log(`[Server] Sent ${participantCount} existing participants to ${playerId}`);
     });
 
     // Handle voice chat state updates
@@ -199,15 +210,23 @@ io.on('connection', (socket) => {
 
     socket.on('voiceSignal', (data) => {
         const playerId = connectedSockets.get(socket.id);
-        if (!playerId) return;
+        if (!playerId) {
+            console.error(`[Server] Cannot forward voice signal - invalid player ID for socket ${socket.id}`);
+            return;
+        }
+
+        console.log(`[Server] Forwarding voice signal from ${playerId} to ${data.targetId}, type: ${data.signal.type || 'unknown'}`);
 
         // Forward the signal to the target peer
         const targetPlayer = players.get(data.targetId);
-        if (targetPlayer && targetPlayer.socket.connected) {
+        if (targetPlayer && targetPlayer.socket && targetPlayer.socket.connected) {
             targetPlayer.socket.emit('voiceSignal', {
                 signal: data.signal,
                 fromId: playerId
             });
+            console.log(`[Server] Successfully forwarded signal to ${data.targetId}`);
+        } else {
+            console.error(`[Server] Failed to forward signal - target player ${data.targetId} not found or not connected`);
         }
     });
 
@@ -215,9 +234,10 @@ io.on('connection', (socket) => {
         const playerId = connectedSockets.get(socket.id);
         if (!playerId) return;
 
+        console.log(`[Server] Player ${playerId} left voice chat`);
+
         // Broadcast to others that this player left voice chat
-        broadcastToOthers(playerId, {
-            type: 'voiceLeft',
+        socket.broadcast.emit('voiceLeft', {
             id: playerId
         });
     });
