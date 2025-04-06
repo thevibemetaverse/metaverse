@@ -5,6 +5,7 @@ import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader.js';
 import { createWater } from './waterSystem.js';
 import { create2DImage } from './imageSystem.js';
+import { portalForm } from '../ui/index.js';
 
 // Model loaders
 const loadingManager = new THREE.LoadingManager();
@@ -56,8 +57,8 @@ async function loadGLTFModel(url, position = new THREE.Vector3(0, 0, 0), scale =
 }
 
 // Function to create environment elements
-async function createEnvironmentElements(scene) {
-  console.log('createEnvironmentElements called');
+async function createEnvironmentElements(scene, interactionManager = null) {
+  console.log('createEnvironmentElements called with interactionManager:', interactionManager ? 'provided' : 'not provided');
   // Create a group to hold all environment objects
   const environment = new THREE.Group();
   scene.add(environment);
@@ -79,7 +80,25 @@ async function createEnvironmentElements(scene) {
       new THREE.Euler(0, 0, 0)
     );
     console.log('BBQ Sauce loaded:', bbqSauce);
-    if (bbqSauce) environment.add(bbqSauce);
+    if (bbqSauce) {
+      environment.add(bbqSauce);
+      
+      // Make BBQ Sauce interactive if interactionManager is available
+      if (interactionManager) {
+        interactionManager.makeObjectInteractable(bbqSauce, {
+          onClick: () => {
+            console.log('BBQ Sauce clicked!');
+            // Add any click behavior here
+          },
+          onHover: () => {
+            console.log('Hovering over BBQ Sauce');
+          },
+          onHoverExit: () => {
+            console.log('No longer hovering over BBQ Sauce');
+          }
+        });
+      }
+    }
 
     // Load Office Computer
     console.log('About to load Office Computer...');
@@ -92,6 +111,23 @@ async function createEnvironmentElements(scene) {
     console.log('Office Computer loaded:', officeComputer);
     if (officeComputer) {
       environment.add(officeComputer);
+      
+      // Make office computer interactive if interactionManager is available
+      if (interactionManager) {
+        interactionManager.makeObjectInteractable(officeComputer, {
+          onClick: () => {
+            console.log('Office computer clicked!');
+            // Show portal application form using the new component
+            portalForm.show();
+          },
+          onHover: () => {
+            console.log('Hovering over office computer');
+          },
+          onHoverExit: () => {
+            console.log('No longer hovering over office computer');
+          }
+        });
+      }
       
       // Add solsys image next to the computer
       const computerImagePosition = new THREE.Vector3(20, 7, 55); // Position to the right of computer

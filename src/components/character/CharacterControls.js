@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 
 export default class CharacterControls {
-    constructor(character, camera, domElement) {
+    constructor(character, camera, domElement, gameStateManager = null) {
         this.character = character;
         this.camera = camera;
         this.domElement = domElement || document;
+        this.gameStateManager = gameStateManager;
         
         // Movement state
         this.moveForward = false;
@@ -63,6 +64,11 @@ export default class CharacterControls {
     }
     
     handleKeyDown(event) {
+        // Check game state before processing input
+        if (this.gameStateManager && !this.gameStateManager.isPlaying()) {
+            return;
+        }
+        
         // Prevent default behavior for movement keys
         if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE'].includes(event.code)) {
             event.preventDefault();
@@ -103,6 +109,11 @@ export default class CharacterControls {
     }
     
     handleKeyUp(event) {
+        // Check game state before processing input
+        if (this.gameStateManager && !this.gameStateManager.isPlaying()) {
+            return;
+        }
+        
         console.log('[Controls] Keyup:', event.code);
         switch (event.code) {
             case 'ArrowUp':
@@ -370,6 +381,11 @@ export default class CharacterControls {
     }
 
     update(deltaTime) {
+        // Check game state before processing movement
+        if (this.gameStateManager && !this.gameStateManager.isPlaying()) {
+            return;
+        }
+        
         // Calculate movement direction based on character's rotation
         const moveAngle = this.character.rotation.y;
         const forwardVector = new THREE.Vector3(Math.sin(moveAngle), 0, Math.cos(moveAngle));

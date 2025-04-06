@@ -10,9 +10,10 @@ const AnimationState = {
 };
 
 export default class CharacterManager {
-    constructor(scene, domElement) {
+    constructor(scene, domElement, gameStateManager = null) {
         this.scene = scene;
         this.domElement = domElement;
+        this.gameStateManager = gameStateManager;
         this.loader = new GLTFLoader();
         
         // Model paths
@@ -36,7 +37,7 @@ export default class CharacterManager {
         this.lastPortalCollision = null;
         this.portalCheckEnabled = false; // Add flag to track if checks are enabled
         
-        console.log('[CharacterManager] Initialized with scene and domElement');
+        console.log('[CharacterManager] Initialized with scene, domElement, and gameStateManager:', gameStateManager ? 'provided' : 'not provided');
         
         // Animation properties
         this.animations = {};
@@ -421,57 +422,40 @@ export default class CharacterManager {
     
     // Modified to accept optional movement state to restore
     updateCharacterControls(movementStateToRestore = null) {
-        if (this.camera && this.character) {
-            console.log('[Manager] Updating character controls. Restoring state:', movementStateToRestore);
-            // Store camera state BEFORE potentially changing controls/character
-            const cameraOffset = new THREE.Vector3().subVectors(
-                this.camera.position,
-                this.character.position
+        // Remove existing control listeners before creating new ones
+        if (this.characterControls) {
+            console.log('[Manager] Removing previous control listeners');
+            document.removeEventListener('keydown', this.characterControls.handleKeyDown);
+            document.removeEventListener('keyup', this.characterControls.handleKeyUp);
+        }
+        
+        // Create new controls with the current character
+        if (this.character && this.camera) {
+            console.log('[Manager] Creating new CharacterControls');
+            this.characterControls = new CharacterControls(
+                this.character, 
+                this.camera,
+                this.domElement,
+                this.gameStateManager
             );
-            const cameraDirection = new THREE.Vector3();
-            this.camera.getWorldDirection(cameraDirection);
             
-            // --- Listener Management --- 
-            // Remove listeners from the OLD controls instance, if it exists
-            if (this.characterControls) {
-                console.log('[Manager] Removing listeners from old controls');
-                window.removeEventListener('keydown', this.characterControls.handleKeyDown);
-                window.removeEventListener('keyup', this.characterControls.handleKeyUp);
-                // Add mobile listener removal if applicable
-            }
-            
-            // Create NEW controls instance
-            this.characterControls = new CharacterControls(this.character, this.camera, this.domElement);
-            console.log('[Manager] New controls instance created.');
-            
-            // Restore previous movement state if provided
+            // Restore movement state if provided (for jump model swapping)
             if (movementStateToRestore) {
-                Object.assign(this.characterControls, movementStateToRestore);
-                console.log('[Manager] Restored provided movement state:', movementStateToRestore);
-            } else {
-                 console.log('[Manager] No movement state provided to restore, using defaults.');
+                console.log('[Manager] Restoring movement state:', movementStateToRestore);
+                this.characterControls.moveForward = movementStateToRestore.moveForward || false;
+                this.characterControls.moveBackward = movementStateToRestore.moveBackward || false;
+                this.characterControls.moveLeft = movementStateToRestore.moveLeft || false;
+                this.characterControls.moveRight = movementStateToRestore.moveRight || false;
+                this.characterControls.rotateLeft = movementStateToRestore.rotateLeft || false;
+                this.characterControls.rotateRight = movementStateToRestore.rotateRight || false;
             }
             
-             // --- Listener Management --- 
-            // Add listeners for the NEW controls instance
-            console.log('[Manager] Adding listeners for new controls');
-            window.addEventListener('keydown', this.characterControls.handleKeyDown, false);
-            window.addEventListener('keyup', this.characterControls.handleKeyUp, false);
-            // Add mobile listener addition if applicable
-
-            // Restore camera relative position and orientation AFTER controls are set
-            this.camera.position.copy(this.character.position).add(cameraOffset);
-            const lookAtPoint = new THREE.Vector3()
-                .copy(this.character.position)
-                .add(cameraDirection.multiplyScalar(10)); 
-            this.camera.lookAt(lookAtPoint);
-            
-            // Initialization call if needed by controls (though listener setup is main part now)
-            if (this.characterControls.initialize) {
-                this.characterControls.initialize();
-            }
+            // Re-add listeners for the new controls
+            console.log('[Manager] Adding new control listeners to document');
+            document.addEventListener('keydown', this.characterControls.handleKeyDown);
+            document.addEventListener('keyup', this.characterControls.handleKeyUp);
         } else {
-            console.warn('[Manager] Cannot update controls: Camera or Character missing.');
+            console.warn('[Manager] Cannot create controls: character or camera is missing');
         }
     }
 
@@ -789,9 +773,8 @@ export default class CharacterManager {
         // Also remove listeners from the current controls instance
         if (this.characterControls) {
              console.log('[Manager] Removing listeners from final controls instance during dispose');
-             window.removeEventListener('keydown', this.characterControls.handleKeyDown);
-             window.removeEventListener('keyup', this.characterControls.handleKeyUp);
-             // Add mobile listener removal if applicable
+             document.removeEventListener('keydown', this.characterControls.handleKeyDown);
+             document.removeEventListener('keyup', this.characterControls.handleKeyUp);
         }
         
         if (this.transitionTimeout) {
