@@ -11,6 +11,7 @@ import { MultiplayerManager } from './components/multiplayer/MultiplayerManager'
 import { ChatManager } from './components/chat/ChatManager.js';
 import { animateWater } from './components/environment/waterSystem.js';
 import { InteractionManager } from './components/interactions/InteractionManager.js';
+import GameStateManager from './services/GameStateManager.js';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import config from './config';
@@ -45,6 +46,11 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
+
+// Initialize GameStateManager
+const gameStateManager = new GameStateManager();
+// Make the game state manager globally available
+window.gameStateManager = gameStateManager;
 
 // Add lighting
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
@@ -220,8 +226,11 @@ window.addEventListener('beforeunload', () => {
 function startGame(username) {
     console.log('[main] Starting game with username:', username);
 
-    // Initialize character manager first
-    characterManager = new CharacterManager(scene, renderer.domElement);
+    // Initialize character manager first with the game state manager
+    characterManager = new CharacterManager(scene, renderer.domElement, gameStateManager);
+    
+    // Make character manager globally available for compatibility with existing code
+    window.characterManager = characterManager;
     
     // Ensure character manager has the correct username
     if (characterManager.username !== username) {
@@ -266,9 +275,17 @@ function startGame(username) {
         // Set the camera in portal manager
         portalManager.camera = camera;
         
-        // Initialize interaction manager
+        // Initialize interaction manager with the game state manager
         console.log('[main] Initializing InteractionManager');
         interactionManager = new InteractionManager(scene, camera, renderer);
+
+        // Listen for game state changes to manage orbit controls if they exist
+        if (window.orbitControls) {
+            gameStateManager.onStateChange((newState) => {
+                // Enable orbit controls only when in playing state
+                window.orbitControls.enabled = (newState === 'playing');
+            });
+        }
 
         // Initialize portals
         console.log('[main] Initializing portals');

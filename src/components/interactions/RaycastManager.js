@@ -56,6 +56,16 @@ export class RaycastManager {
   }
   
   update() {
+    // Check if the game is in playing state
+    if (window.gameStateManager && !window.gameStateManager.isPlaying()) {
+      // If we had a hovered object, call onHoverExit and clear it
+      if (this.currentHovered && this.currentHovered.onHoverExit) {
+        this.currentHovered.onHoverExit();
+        this.currentHovered = null;
+      }
+      return; // Skip raycasting when not in playing state
+    }
+    
     if (!this.camera) {
       console.warn('RaycastManager update called without camera');
       return;
@@ -137,6 +147,11 @@ export class RaycastManager {
   }
   
   onPointerDown(event) {
+    // Check if the game is in playing state
+    if (window.gameStateManager && !window.gameStateManager.isPlaying()) {
+      return; // Skip interaction when not in playing state
+    }
+    
     if (!this.camera || this.interactables.length === 0) {
       return;
     }
