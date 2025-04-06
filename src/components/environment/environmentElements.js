@@ -32,6 +32,54 @@ function injectPortalFormStyles() {
       font-family: 'system-ui', sans-serif;
     }
     
+    /* Mobile responsive adjustments */
+    @media (max-width: 600px) {
+      .portal-form-container {
+        width: 90%;
+        padding: 15px;
+        font-size: 14px;
+      }
+      
+      .portal-form-container h2 {
+        font-size: 20px;
+      }
+      
+      .portal-form-container input,
+      .portal-form-container textarea {
+        padding: 8px;
+        font-size: 14px;
+      }
+      
+      .portal-form-container .buttons {
+        flex-direction: column;
+        gap: 10px;
+      }
+      
+      .portal-form-container button {
+        width: 100%;
+        padding: 12px;
+      }
+
+      .success-container {
+        flex-direction: column;
+        gap: 10px;
+      }
+      
+      .success-icon {
+        height: 60px;
+        width: 60px;
+        font-size: 36px;
+      }
+      
+      .success-text h3 {
+        font-size: 18px;
+      }
+      
+      .success-text p {
+        font-size: 14px;
+      }
+    }
+    
     @keyframes portal-form-appear {
       0% {
         opacity: 0;
@@ -138,6 +186,14 @@ function injectPortalFormStyles() {
       animation: portal-success-appear 0.5s ease-out forwards, 
                  portal-success-glow 2s infinite alternate;
       max-width: 80%;
+    }
+
+    /* Mobile responsive adjustment for success message */
+    @media (max-width: 600px) {
+      .portal-success-message {
+        padding: 15px;
+        max-width: 90%;
+      }
     }
     
     @keyframes portal-success-appear {
@@ -274,6 +330,14 @@ function createPortalForm() {
   form.id = 'portal-form';
   form.action = 'https://submit-form.com/OOKKM5IU8';
   
+  // Add viewport meta tag for mobile responsiveness if not present
+  if (!document.querySelector('meta[name="viewport"]')) {
+    const viewport = document.createElement('meta');
+    viewport.name = 'viewport';
+    viewport.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+    document.head.appendChild(viewport);
+  }
+  
   // URL input
   const urlLabel = document.createElement('label');
   urlLabel.textContent = 'Portal URL:';
@@ -285,6 +349,8 @@ function createPortalForm() {
   urlInput.name = 'url';
   urlInput.placeholder = 'https://example.com';
   urlInput.required = true;
+  urlInput.autocomplete = 'off'; // Better mobile experience
+  urlInput.autocapitalize = 'off'; // Better for URLs on mobile
   
   // Image URL input
   const imageLabel = document.createElement('label');
@@ -297,6 +363,8 @@ function createPortalForm() {
   imageInput.name = 'image';
   imageInput.placeholder = 'https://example.com/image.jpg';
   imageInput.required = true;
+  imageInput.autocomplete = 'off';
+  imageInput.autocapitalize = 'off';
   
   // Agreement checkbox
   const checkboxContainer = document.createElement('div');
