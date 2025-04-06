@@ -122,6 +122,17 @@ portalManager = new PortalManager(scene, null, {
     speed: 5
 });
 
+// Initialize portals using preloaded assets in background
+console.log('[main] Initializing portals in background');
+portalManager.initializeDefaultPortals().then(() => {
+    console.log('[main] Portals initialized in background');
+    // Create Pieter portal in line with other portals
+    console.log('[main] Creating Pieter portal in background');
+    portalManager.createPieterPortal();
+}).catch(error => {
+    console.error('[main] Error initializing portals:', error);
+});
+
 // Initialize interaction manager in the background
 console.log('[main] Initializing interaction manager in background');
 interactionManager = new InteractionManager(scene, null, renderer);
@@ -138,6 +149,10 @@ createEnvironmentElements(scene, interactionManager).then(environment => {
 if (config.features.multiplayer) {
     console.log('[main] Initializing multiplayer manager in background');
     multiplayerManager = new MultiplayerManager(scene);
+    
+    // Connect to socket server in background
+    console.log('[main] Connecting to socket server in background');
+    multiplayerManager.connect(config.server.socketUrl);
 }
 
 // Animation loop control
@@ -342,14 +357,6 @@ function startGame(username) {
             });
         }
 
-        // Initialize portals using preloaded assets
-        console.log('[main] Initializing portals');
-        await portalManager.initializeDefaultPortals();
-
-        // Create Pieter portal in line with other portals
-        console.log('[main] Creating Pieter portal');
-        portalManager.createPieterPortal();
-
         // Connect portal manager to character manager
         console.log('[main] Connecting portal manager to character manager');
         characterManager.setPortalManager(portalManager);
@@ -372,30 +379,24 @@ function startGame(username) {
                 multiplayerManager.setLocalPlayerModel(characterManager.gltfData.scene);
             }
             
-            // Call connect method to establish socket connection
-            multiplayerManager.connect(config.server.socketUrl);
-            
-            // Wait a moment for the socket connection to be established
-            setTimeout(() => {
-                // Set socket from multiplayer manager to portal manager
-                if (multiplayerManager.socket && portalManager) {
-                    console.log('[main] Connecting portal manager to socket for like functionality');
-                    portalManager.setSocket(multiplayerManager.socket);
-                    portalManager.initializePortalLikes();
-                    
-                    // Create player count display near the desk
-                    console.log('[main] Creating player count display near desk');
-                    // Position on the opposite side of the office computer at coordinates (15, 0, 55)
-                    const playerCountPosition = new THREE.Vector3(16, 7, 65);
-                    multiplayerManager.initPlayerCountDisplay(playerCountPosition);
-                }
+            // Set socket from multiplayer manager to portal manager
+            if (multiplayerManager.socket && portalManager) {
+                console.log('[main] Connecting portal manager to socket for like functionality');
+                portalManager.setSocket(multiplayerManager.socket);
+                portalManager.initializePortalLikes();
                 
-                // Connect chat manager to multiplayer system
-                if (multiplayerManager.socket && chatManager) {
-                    console.log('[main] Connecting chat manager to multiplayer system');
-                    chatManager.setMultiplayerManager(multiplayerManager);
-                }
-            }, 2000);
+                // Create player count display near the desk
+                console.log('[main] Creating player count display near desk');
+                // Position on the opposite side of the office computer at coordinates (15, 0, 55)
+                const playerCountPosition = new THREE.Vector3(16, 7, 65);
+                multiplayerManager.initPlayerCountDisplay(playerCountPosition);
+            }
+            
+            // Connect chat manager to multiplayer system
+            if (multiplayerManager.socket && chatManager) {
+                console.log('[main] Connecting chat manager to multiplayer system');
+                chatManager.setMultiplayerManager(multiplayerManager);
+            }
         } else {
             console.log('[main] Multiplayer feature is disabled');
         }
