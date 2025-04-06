@@ -39,6 +39,15 @@ posthog.init(import.meta.env.POSTHOG_KEY, {
     person_profiles: 'identified_only',
 });
 
+// Declare all manager variables
+let characterManager;
+let portalManager;
+let interactionManager;
+let multiplayerManager;
+let chatManager;
+let character;
+let followCamera;
+
 // Scene setup
 const scene = new THREE.Scene();
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -51,11 +60,6 @@ document.body.appendChild(renderer.domElement);
 // Initialize LoadingManager
 const loadingManager = new LoadingManager();
 window.loadingManager = loadingManager;
-
-// Start preloading assets in the background
-loadingManager.preloadAssets().catch(error => {
-    console.error('Error preloading assets:', error);
-});
 
 // Initialize GameStateManager
 const gameStateManager = new GameStateManager();
@@ -100,21 +104,41 @@ const hills = new HillsGenerator({
 });
 scene.add(hills.init());
 
-// Add environment elements
-createEnvironmentElements(scene).then(environment => {
-    console.log('Environment elements created:', environment);
+// Start preloading all assets in the background
+console.log('[main] Starting background asset preloading');
+loadingManager.preloadAssets().catch(error => {
+    console.error('Error preloading assets:', error);
+});
+
+// Initialize character manager in the background
+console.log('[main] Initializing character manager in background');
+characterManager = new CharacterManager(scene, renderer.domElement, gameStateManager);
+window.characterManager = characterManager;
+
+// Initialize portal manager in the background
+console.log('[main] Initializing portal manager in background');
+portalManager = new PortalManager(scene, null, {
+    username: 'Guest',
+    speed: 5
+});
+
+// Initialize interaction manager in the background
+console.log('[main] Initializing interaction manager in background');
+interactionManager = new InteractionManager(scene, null, renderer);
+
+// Create environment elements in the background
+console.log('[main] Creating environment elements in background');
+createEnvironmentElements(scene, interactionManager).then(environment => {
+    console.log('Environment elements created in background:', environment);
 }).catch(error => {
     console.error('Error creating environment elements:', error);
 });
 
-// Character and camera references
-let characterManager;
-let character;
-let followCamera;
-let portalManager;
-let multiplayerManager;
-let chatManager;
-let interactionManager;
+// Initialize multiplayer manager in the background if feature is enabled
+if (config.features.multiplayer) {
+    console.log('[main] Initializing multiplayer manager in background');
+    multiplayerManager = new MultiplayerManager(scene);
+}
 
 // Animation loop control
 let animationRunning = false;
@@ -232,16 +256,48 @@ window.addEventListener('beforeunload', () => {
     }
 });
 
+// Check for username when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    // Get username from URL if available
+    const username = getUsernameFromURL();
+    const urlParams = new URLSearchParams(window.location.search);
+    const isPortal = urlParams.get('portal') === 'true';
+    
+    if (username || isPortal) {
+        // Start game directly if username is in URL or if portal=true
+        startGame(username || 'metaverse-explorer');
+    } else {
+        // Show the username modal
+        const usernameModal = document.getElementById('username-modal');
+        if (usernameModal) {
+            usernameModal.classList.remove('hidden');
+        }
+        
+        // Set up form submission
+        const usernameForm = document.getElementById('submit-username');
+        if (usernameForm) {
+            usernameForm.addEventListener('submit', (event) => {
+                event.preventDefault();
+                const usernameInput = document.getElementById('username-input');
+                const username = usernameInput?.value?.trim();
+                if (username) {
+                    // Update URL with username before starting game
+                    updateURLWithUsername(username);
+                    startGame(username);
+                } else {
+                    console.error('Username cannot be empty');
+                }
+            });
+        } else {
+            console.error('Username form not found!');
+        }
+    }
+});
+
 // Function to start the game
 function startGame(username) {
     console.log('[main] Starting game with username:', username);
 
-    // Initialize character manager first with the game state manager
-    characterManager = new CharacterManager(scene, renderer.domElement, gameStateManager);
-    
-    // Make character manager globally available for compatibility with existing code
-    window.characterManager = characterManager;
-    
     // Ensure character manager has the correct username
     if (characterManager.username !== username) {
         console.log('[main] Setting character manager username:', username);
@@ -251,12 +307,6 @@ function startGame(username) {
             username: username
         };
     }
-
-    // Initialize portal manager
-    portalManager = new PortalManager(scene, null, {
-        username: username,
-        speed: 5
-    });
 
     // Track portal interactions
     portalManager.onPortalEnter = (portalId) => {
@@ -275,19 +325,14 @@ function startGame(username) {
             timestamp: new Date().toISOString()
         });
 
-        // Initialize FollowCamera
+        // Initialize FollowCamera first
         followCamera = new FollowCamera(character);
         const camera = followCamera.getCamera();
 
-        // Set the camera in character manager
+        // Set the camera in all managers that need it
         characterManager.setCamera(camera);
-      
-        // Set the camera in portal manager
         portalManager.camera = camera;
-        
-        // Initialize interaction manager with the game state manager
-        console.log('[main] Initializing InteractionManager');
-        interactionManager = new InteractionManager(scene, camera, renderer);
+        interactionManager.camera = camera;
 
         // Listen for game state changes to manage orbit controls if they exist
         if (window.orbitControls) {
@@ -308,24 +353,13 @@ function startGame(username) {
         // Connect portal manager to character manager
         console.log('[main] Connecting portal manager to character manager');
         characterManager.setPortalManager(portalManager);
-        
-        // Create environment elements using preloaded assets
-        console.log('[main] Creating interactive environment elements');
-        createEnvironmentElements(scene, interactionManager).then(environment => {
-            console.log('Interactive environment elements created:', environment);
-        }).catch(error => {
-            console.error('Error creating interactive environment elements:', error);
-        });
 
         // Initialize chat manager
         console.log('[main] Initializing chat manager');
         chatManager = new ChatManager(scene, camera, character);
 
-        // Initialize multiplayer manager if feature is enabled
+        // Connect multiplayer manager if feature is enabled
         if (config.features.multiplayer) {
-            console.log('[main] Initializing multiplayer manager (feature enabled)');
-            multiplayerManager = new MultiplayerManager(scene);
-
             // Ensure multiplayer manager has the correct username
             if (multiplayerManager.username !== username) {
                 console.log('[main] Setting multiplayer manager username:', username);
@@ -404,41 +438,3 @@ function startGame(username) {
         }
     });
 }
-
-// Check for username when DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-    // Get username from URL if available
-    const username = getUsernameFromURL();
-    const urlParams = new URLSearchParams(window.location.search);
-    const isPortal = urlParams.get('portal') === 'true';
-    
-    if (username || isPortal) {
-        // Start game directly if username is in URL or if portal=true
-        startGame(username || 'metaverse-explorer');
-    } else {
-        // Show the username modal
-        const usernameModal = document.getElementById('username-modal');
-        if (usernameModal) {
-            usernameModal.classList.remove('hidden');
-        }
-        
-        // Set up form submission
-        const usernameForm = document.getElementById('submit-username');
-        if (usernameForm) {
-            usernameForm.addEventListener('submit', (event) => {
-                event.preventDefault();
-                const usernameInput = document.getElementById('username-input');
-                const username = usernameInput?.value?.trim();
-                if (username) {
-                    // Update URL with username before starting game
-                    updateURLWithUsername(username);
-                    startGame(username);
-                } else {
-                    console.error('Username cannot be empty');
-                }
-            });
-        } else {
-            console.error('Username form not found!');
-        }
-    }
-});
