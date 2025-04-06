@@ -10,6 +10,7 @@ import { PortalManager } from './components/portal/PortalManager';
 import { MultiplayerManager } from './components/multiplayer/MultiplayerManager';
 import { ChatManager } from './components/chat/ChatManager.js';
 import { animateWater } from './components/environment/waterSystem.js';
+import { InteractionManager } from './components/interactions/InteractionManager.js';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import config from './config';
@@ -97,6 +98,7 @@ let followCamera;
 let portalManager;
 let multiplayerManager;
 let chatManager;
+let interactionManager;
 
 // Animation loop control
 let animationRunning = false;
@@ -158,6 +160,11 @@ function animate() {
     // Update camera
     if (followCamera) {
         followCamera.update();
+    }
+    
+    // Update interaction manager
+    if (interactionManager) {
+        interactionManager.update();
     }
     
     // Update portals
@@ -258,6 +265,10 @@ function startGame(username) {
       
         // Set the camera in portal manager
         portalManager.camera = camera;
+        
+        // Initialize interaction manager
+        console.log('[main] Initializing InteractionManager');
+        interactionManager = new InteractionManager(scene, camera, renderer);
 
         // Initialize portals
         console.log('[main] Initializing portals');
@@ -270,6 +281,14 @@ function startGame(username) {
         // Connect portal manager to character manager
         console.log('[main] Connecting portal manager to character manager');
         characterManager.setPortalManager(portalManager);
+        
+        // Re-create environment elements with interaction manager
+        console.log('[main] Creating interactive environment elements');
+        createEnvironmentElements(scene, interactionManager).then(environment => {
+            console.log('Interactive environment elements created:', environment);
+        }).catch(error => {
+            console.error('Error creating interactive environment elements:', error);
+        });
 
         // Initialize chat manager
         console.log('[main] Initializing chat manager');
