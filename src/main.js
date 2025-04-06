@@ -15,6 +15,7 @@ import GameStateManager from './services/GameStateManager.js';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import config from './config';
+import { LoadingManager } from './services/LoadingManager.js';
 
 // Function to get username from URL parameters
 function getUsernameFromURL() {
@@ -46,6 +47,15 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
+
+// Initialize LoadingManager
+const loadingManager = new LoadingManager();
+window.loadingManager = loadingManager;
+
+// Start preloading assets in the background
+loadingManager.preloadAssets().catch(error => {
+    console.error('Error preloading assets:', error);
+});
 
 // Initialize GameStateManager
 const gameStateManager = new GameStateManager();
@@ -287,7 +297,7 @@ function startGame(username) {
             });
         }
 
-        // Initialize portals
+        // Initialize portals using preloaded assets
         console.log('[main] Initializing portals');
         await portalManager.initializeDefaultPortals();
 
@@ -299,7 +309,7 @@ function startGame(username) {
         console.log('[main] Connecting portal manager to character manager');
         characterManager.setPortalManager(portalManager);
         
-        // Re-create environment elements with interaction manager
+        // Create environment elements using preloaded assets
         console.log('[main] Creating interactive environment elements');
         createEnvironmentElements(scene, interactionManager).then(environment => {
             console.log('Interactive environment elements created:', environment);

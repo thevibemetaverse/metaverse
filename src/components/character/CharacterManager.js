@@ -500,14 +500,19 @@ export default class CharacterManager {
             const modelUrl = this.avatarUrl || this.modelPaths.default;
             console.log('Loading model from:', modelUrl);
             
-            // Load the model
-            const gltf = await this.loadModel(modelUrl);
+            // Check if model is already preloaded
+            if (window.loadingManager && window.loadingManager.isAssetLoaded(modelUrl)) {
+                console.log('Using preloaded model:', modelUrl);
+                const gltf = window.loadingManager.getAsset(modelUrl);
+                this.gltfData = gltf;
+                this.character = gltf.scene;
+            } else {
+                // Load the model if not preloaded
+                const gltf = await this.loadModel(modelUrl);
+                this.gltfData = gltf;
+                this.character = gltf.scene;
+            }
             
-            // Store the full GLTF object for multiplayer use
-            this.gltfData = gltf;
-            
-            // Set up the character
-            this.character = gltf.scene;
             this.character.name = 'playerCharacter';
           
             // Store the model URL with the character for multiplayer use
@@ -538,7 +543,7 @@ export default class CharacterManager {
             });
             
             // Setup animations if available
-            this.setupAnimations(gltf);
+            this.setupAnimations(this.gltfData);
             
             // Add character to scene
             this.scene.add(this.character);
@@ -578,6 +583,14 @@ export default class CharacterManager {
 
     async loadModel(url) {
         return new Promise((resolve, reject) => {
+            // First check if the model is already preloaded
+            if (window.loadingManager && window.loadingManager.isAssetLoaded(url)) {
+                console.log('Using preloaded model from LoadingManager:', url);
+                resolve(window.loadingManager.getAsset(url));
+                return;
+            }
+
+            // If not preloaded, load it
             this.loader.load(
                 url,
                 (gltf) => {
@@ -585,7 +598,7 @@ export default class CharacterManager {
                     gltf.userData = { modelPath: url };
                     resolve(gltf);
                 },
-                (xhr) => console.log(`Loading model: ${(xhr.loaded / xhr.total) * 100}% loaded`),
+                undefined,
                 (error) => {
                     console.error('Error loading model:', error);
                     reject(error);

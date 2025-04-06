@@ -246,7 +246,17 @@ export class PortalManager {
         const portal = new Portal(portalConfig);
         try {
             console.log('[PortalManager] Loading portal model from:', portalConfig.modelPath);
-            const portalMesh = await portal.load(this.loadingManager);
+            
+            // Check if model is already preloaded
+            let portalMesh;
+            if (window.loadingManager && window.loadingManager.isAssetLoaded(portalConfig.modelPath)) {
+                console.log('[PortalManager] Using preloaded portal model');
+                const gltf = window.loadingManager.getAsset(portalConfig.modelPath);
+                portalMesh = await portal.load(this.loadingManager, gltf);
+            } else {
+                portalMesh = await portal.load(this.loadingManager);
+            }
+            
             console.log('[PortalManager] Portal model loaded successfully, adding to scene');
             
             // Set position and rotation explicitly
