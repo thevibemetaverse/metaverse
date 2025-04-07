@@ -24,6 +24,8 @@ export class PortalForm {
     this.createForm = this.createForm.bind(this);
     this.handleSubmit = this.handleSubmit.bind(this);
     this.showSuccessNotification = this.showSuccessNotification.bind(this);
+    this.handleInputFocus = this.handleInputFocus.bind(this);
+    this.handleInputBlur = this.handleInputBlur.bind(this);
   }
 
   /**
@@ -148,8 +150,10 @@ export class PortalForm {
     urlInput.name = 'url';
     urlInput.placeholder = 'https://example.com';
     urlInput.required = true;
-    urlInput.autocomplete = 'off'; // Better mobile experience
-    urlInput.autocapitalize = 'off'; // Better for URLs on mobile
+    urlInput.autocomplete = 'off';
+    urlInput.autocapitalize = 'off';
+    urlInput.addEventListener('focus', this.handleInputFocus);
+    urlInput.addEventListener('blur', this.handleInputBlur);
     
     // Image URL input
     const imageLabel = document.createElement('label');
@@ -164,6 +168,8 @@ export class PortalForm {
     imageInput.required = true;
     imageInput.autocomplete = 'off';
     imageInput.autocapitalize = 'off';
+    imageInput.addEventListener('focus', this.handleInputFocus);
+    imageInput.addEventListener('blur', this.handleInputBlur);
     
     // Agreement checkbox
     const checkboxContainer = document.createElement('div');
@@ -192,10 +198,14 @@ export class PortalForm {
     const submitButton = document.createElement('button');
     submitButton.type = 'submit';
     submitButton.textContent = 'Submit Portal';
+    submitButton.style.padding = '12px 24px'; // Larger touch target
+    submitButton.style.minWidth = '120px'; // Ensure minimum width for better touch
     
     const cancelButton = document.createElement('button');
     cancelButton.type = 'button';
     cancelButton.textContent = 'Cancel';
+    cancelButton.style.padding = '12px 24px'; // Larger touch target
+    cancelButton.style.minWidth = '120px'; // Ensure minimum width for better touch
     
     buttonsContainer.appendChild(submitButton);
     buttonsContainer.appendChild(cancelButton);
@@ -220,6 +230,23 @@ export class PortalForm {
     
     this.formContainer = formContainer;
     return formContainer;
+  }
+  
+  handleInputFocus(event) {
+    // Add visual feedback for focused input
+    event.target.style.borderColor = '#4a90e2';
+    event.target.style.boxShadow = '0 0 5px rgba(74, 144, 226, 0.5)';
+    
+    // Ensure input is visible when virtual keyboard appears
+    setTimeout(() => {
+      event.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+  }
+  
+  handleInputBlur(event) {
+    // Remove visual feedback
+    event.target.style.borderColor = '';
+    event.target.style.boxShadow = '';
   }
   
   /**
