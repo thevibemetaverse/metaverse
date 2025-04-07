@@ -20,9 +20,21 @@ export class RaycastManager {
     // Set up event listeners
     if (renderer && renderer.domElement) {
       console.log('Setting up event listeners for raycasting');
-      renderer.domElement.addEventListener('pointermove', this.onPointerMove.bind(this));
-      renderer.domElement.addEventListener('pointerdown', this.onPointerDown.bind(this));
-      renderer.domElement.addEventListener('pointerup', this.onPointerUp.bind(this));
+      const domElement = renderer.domElement;
+      
+      // Mouse events
+      domElement.addEventListener('pointermove', this.onPointerMove.bind(this));
+      domElement.addEventListener('pointerdown', this.onPointerDown.bind(this));
+      domElement.addEventListener('pointerup', this.onPointerUp.bind(this));
+      
+      // Touch events
+      domElement.addEventListener('touchstart', this.onTouchStart.bind(this), { passive: false });
+      domElement.addEventListener('touchmove', this.onTouchMove.bind(this), { passive: false });
+      domElement.addEventListener('touchend', this.onTouchEnd.bind(this), { passive: false });
+      
+      // Prevent default touch behaviors that might interfere
+      domElement.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+      domElement.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
     } else {
       console.error('Cannot initialize RaycastManager: renderer or domElement is undefined');
     }
@@ -183,5 +195,34 @@ export class RaycastManager {
   
   onPointerUp(event) {
     // Handle any pointer up specific logic if needed
+  }
+  
+  onTouchStart(event) {
+    if (event.touches.length === 1) {
+      this.updatePointerFromTouch(event.touches[0]);
+      this.onPointerDown(event);
+    }
+  }
+  
+  onTouchMove(event) {
+    if (event.touches.length === 1) {
+      this.updatePointerFromTouch(event.touches[0]);
+      this.onPointerMove(event);
+    }
+  }
+  
+  onTouchEnd(event) {
+    if (event.changedTouches.length === 1) {
+      this.updatePointerFromTouch(event.changedTouches[0]);
+      this.onPointerUp(event);
+    }
+  }
+  
+  updatePointerFromTouch(touch) {
+    if (!this.renderer || !this.renderer.domElement) return;
+    
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    this.pointer.x = ((touch.clientX - rect.left) / rect.width) * 2 - 1;
+    this.pointer.y = -((touch.clientY - rect.top) / rect.height) * 2 + 1;
   }
 } 
