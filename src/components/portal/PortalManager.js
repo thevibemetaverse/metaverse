@@ -1074,10 +1074,10 @@ export class PortalManager {
             {
                 position: new THREE.Vector3(125, 0, 5), // 15 units offset respecting rotation
                 rotation: new THREE.Euler(0, 0, 0),
-                destination: "",
-                portalId: "",
-                title: "",
-                description: "",
+                destination: "https://thevibemetaverse.vercel.app/api/portal/getitspinning",
+                portalId: "getitspinning",
+                title: "Get It Spinning",
+                description: "Portal in the row",
                 modelPath: '/assets/models/portal/portal-new.gltf',
                 multiplayer: false,
                 avatarTeleport: false
