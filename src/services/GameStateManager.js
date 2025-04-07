@@ -7,6 +7,8 @@ class GameStateManager {
     this.currentState = 'playing'; // Default state: 'playing', 'form-open', 'menu', etc.
     this.listeners = new Map();
     this.gameCanvas = null;
+    this.transitionLock = false; // Add a lock to prevent rapid state transitions
+    this.stateChangeTimeout = null; // To track state change timeout
     
     console.log('[GameStateManager] Initialized with default state:', this.currentState);
     
@@ -28,10 +30,25 @@ class GameStateManager {
    * @param {string} newState - The new state to set
    */
   setState(newState) {
+    // Prevent rapid state changes by adding a debounce
+    if (this.transitionLock) {
+      console.log(`[GameStateManager] State change blocked - transition in progress`);
+      return;
+    }
+    
+    // If trying to set the same state, do nothing
+    if (this.currentState === newState) {
+      console.log(`[GameStateManager] Already in state '${newState}', ignoring`);
+      return;
+    }
+    
     const oldState = this.currentState;
     this.currentState = newState;
     
     console.log(`[GameStateManager] State changed from '${oldState}' to '${newState}'`);
+    
+    // Lock transitions briefly to prevent state flickering
+    this.transitionLock = true;
     
     // Handle specific state transitions
     if (newState === 'form-open') {
@@ -46,6 +63,13 @@ class GameStateManager {
         callback(newState, oldState);
       });
     }
+    
+    // Unlock state transitions after a short delay to prevent rapid toggling
+    clearTimeout(this.stateChangeTimeout);
+    this.stateChangeTimeout = setTimeout(() => {
+      this.transitionLock = false;
+      console.log(`[GameStateManager] State transition lock released`);
+    }, 300); // 300ms debounce period
   }
   
   /**
