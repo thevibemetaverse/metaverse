@@ -1085,12 +1085,12 @@ export class PortalManager {
             {
                 position: new THREE.Vector3(140, 0, 5), // 15 units offset respecting rotation
                 rotation: new THREE.Euler(0, 0, 0),
-                destination: "",
-                portalId: "",
-                title: "",
-                description: "",
+                destination: "https://thevibemetaverse.vercel.app/api/portal/vibe-assault",
+                portalId: "vibe-assault",
+                title: "Vibe Assault",
+                description: "Portal in the row",
                 modelPath: '/assets/models/portal/portal-new.gltf',
-                multiplayer: false,
+                multiplayer: true,
                 avatarTeleport: false
             },
             {
