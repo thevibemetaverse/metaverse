@@ -1056,6 +1056,64 @@ export class PortalManager {
                 multiplayer: false,
                 avatarTeleport: false
             },
+            {
+                position: new THREE.Vector3(125, 0, 5), // 15 units offset respecting rotation
+                rotation: new THREE.Euler(0, 0, 0),
+                destination: "",
+                portalId: "",
+                title: "",
+                description: "",
+                modelPath: '/assets/models/portal/portal-new.gltf',
+                multiplayer: false,
+                avatarTeleport: false
+            },
+            {
+                position: new THREE.Vector3(140, 0, 5), // 15 units offset respecting rotation
+                rotation: new THREE.Euler(0, 0, 0),
+                destination: "",
+                portalId: "",
+                title: "",
+                description: "",
+                modelPath: '/assets/models/portal/portal-new.gltf',
+                multiplayer: false,
+                avatarTeleport: false
+            },
+            {
+                position: new THREE.Vector3(155, 0, 5), // 15 units offset respecting rotation
+                rotation: new THREE.Euler(0, 0, 0),
+                destination: "",
+                portalId: "",
+                title: "",
+                description: "",
+                modelPath: '/assets/models/portal/portal-new.gltf',
+                multiplayer: false,
+                avatarTeleport: false
+            },
+            {
+                position: new THREE.Vector3(170, 0, 5), // 15 units offset respecting rotation
+                rotation: new THREE.Euler(0, 0, 0),
+                destination: "",
+                portalId: "",
+                title: "",
+                description: "",
+                modelPath: '/assets/models/portal/portal-new.gltf',
+                multiplayer: false,
+                avatarTeleport: false
+            },
+            {
+                position: new THREE.Vector3(185, 0, 5), // 15 units offset respecting rotation
+                rotation: new THREE.Euler(0, 0, 0),
+                destination: "",
+                portalId: "",
+                title: "",
+                description: "",
+                modelPath: '/assets/models/portal/portal-new.gltf',
+                multiplayer: false,
+                avatarTeleport: false
+            },
+
+
+
 
 
             // Airport runways
