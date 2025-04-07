@@ -114,14 +114,40 @@ async function createEnvironmentElements(scene, interactionManager = null) {
       
       // Make office computer interactive if interactionManager is available
       if (interactionManager) {
+        let clickLock = false;
         interactionManager.makeObjectInteractable(officeComputer, {
           onClick: () => {
+            // Prevent rapid consecutive clicks
+            if (clickLock) {
+              console.log('Office computer click ignored - too soon after previous click');
+              return;
+            }
+            
+            // Only react to clicks when in playing state
+            if (window.gameStateManager && !window.gameStateManager.isPlaying()) {
+              console.log('Office computer click ignored - not in playing state');
+              return;
+            }
+            
             console.log('Office computer clicked!');
-            // Show portal application form using the new component
+            
+            // Set lock to prevent rapid clicks
+            clickLock = true;
+            
+            // Show portal application form
             portalForm.show();
+            
+            // Release lock after a delay (matches GameStateManager transition lock)
+            setTimeout(() => {
+              clickLock = false;
+              console.log('Office computer click lock released');
+            }, 500);
           },
           onHover: () => {
-            console.log('Hovering over office computer');
+            // Only show hover effects when in playing state
+            if (window.gameStateManager && window.gameStateManager.isPlaying()) {
+              console.log('Hovering over office computer');
+            }
           },
           onHoverExit: () => {
             console.log('No longer hovering over office computer');

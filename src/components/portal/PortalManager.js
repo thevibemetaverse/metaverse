@@ -73,6 +73,11 @@ export class PortalManager {
     }
     
     onTouchStart(event) {
+        // Skip if game is not in playing state
+        if (window.gameStateManager && !window.gameStateManager.isPlaying()) {
+            return;
+        }
+        
         // Prevent default behavior (scrolling, zooming)
         event.preventDefault();
         
@@ -85,6 +90,11 @@ export class PortalManager {
     }
     
     onTouchMove(event) {
+        // Skip if game is not in playing state
+        if (window.gameStateManager && !window.gameStateManager.isPlaying()) {
+            return;
+        }
+        
         // Prevent default behavior (scrolling, zooming)
         event.preventDefault();
         
@@ -95,6 +105,11 @@ export class PortalManager {
     }
     
     onTouchEnd(event) {
+        // Skip if game is not in playing state
+        if (window.gameStateManager && !window.gameStateManager.isPlaying()) {
+            return;
+        }
+        
         // Prevent default behavior
         event.preventDefault();
         

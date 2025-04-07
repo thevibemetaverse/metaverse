@@ -123,6 +123,11 @@ export class Portal {
         this.animationMixer = null;
         this.animations = {};
         
+        // Flag for performance optimization on mobile
+        this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+            typeof navigator !== 'undefined' ? navigator.userAgent : ''
+        );
+        
         // Generate unique random offsets for this portal instance
         this.uniqueOffset = new THREE.Vector4(
             Math.random() * 10,
@@ -157,24 +162,26 @@ export class Portal {
                             child.userData.portalRef = this;
                             // Create ripple shader material for portal textures
                             if (child.material.name === 'Material.002' || child.material.name === 'Cube002_3') {
+                                // Choose simplified shader for mobile devices
                                 const shaderMaterial = new THREE.ShaderMaterial({
                                     uniforms: {
                                         baseTexture: { value: null },
                                         time: { value: 0 },
                                         uniqueOffset: { value: this.uniqueOffset }
                                     },
-                                    vertexShader: rippleVertexShader,
-                                    fragmentShader: rippleFragmentShader,
+                                    vertexShader: this.isMobile ? this.getSimplifiedVertexShader() : rippleVertexShader,
+                                    fragmentShader: this.isMobile ? this.getSimplifiedFragmentShader() : rippleFragmentShader,
                                     transparent: true,
                                     side: THREE.DoubleSide
                                 });
                                 shaderMaterial.name = child.material.name;
                                 child.material = shaderMaterial;
                                 
-                                console.log(`[Portal] Applied ripple shader material to ${this.portalId}:`, {
+                                console.log(`[Portal] Applied ${this.isMobile ? 'simplified' : 'standard'} ripple shader material to ${this.portalId}:`, {
                                     meshName: child.name,
                                     materialName: shaderMaterial.name,
-                                    isShaderMaterial: shaderMaterial instanceof THREE.ShaderMaterial
+                                    isShaderMaterial: shaderMaterial instanceof THREE.ShaderMaterial,
+                                    isMobile: this.isMobile
                                 });
                             }
                         }
@@ -237,17 +244,20 @@ export class Portal {
             this.animationMixer.update(deltaTime);
         }
         
-        // Update ripple effect
+        // Update ripple effect - use smaller time steps on mobile for smoother animation
         if (this.mesh) {
+            const timeIncrement = this.isMobile ? deltaTime * 0.5 : deltaTime;
             this.mesh.traverse((child) => {
                 if (child.isMesh && child.material instanceof THREE.ShaderMaterial) {
-                    child.material.uniforms.time.value += deltaTime;
+                    child.material.uniforms.time.value += timeIncrement;
                 }
             });
         }
         
         // Update effects
-        this.effects.forEach(effect => effect.update(deltaTime));
+        if (!this.isMobile || this.effects.length < 3) { // Limit effects on mobile
+            this.effects.forEach(effect => effect.update(deltaTime));
+        }
     }
 
     updateTexture(materialName, texturePath) {
@@ -304,5 +314,55 @@ export class Portal {
                 console.error(`[Portal] Error loading texture for ${this.portalId}:`, error);
             }
         );
+    }
+
+    // Add simplified shader methods for mobile devices
+    getSimplifiedVertexShader() {
+        return `
+        uniform float time;
+        uniform vec4 uniqueOffset;
+        varying vec2 vUv;
+        varying vec3 vNormal;
+
+        void main() {
+            vUv = uv;
+            vNormal = normal;
+            
+            // Simplified vertex displacement for better performance
+            vec3 pos = position;
+            
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+        }
+        `;
+    }
+
+    getSimplifiedFragmentShader() {
+        return `
+        uniform sampler2D baseTexture;
+        uniform float time;
+        uniform vec4 uniqueOffset;
+        varying vec2 vUv;
+        varying vec3 vNormal;
+
+        void main() {
+            vec2 uv = vUv;
+            vec2 center = vec2(0.5);
+            vec2 centeredUV = uv - center;
+            float distanceFromCenter = length(centeredUV);
+            
+            // Simplified distortion for better performance
+            float ripple = sin(distanceFromCenter * 10.0 - time * 0.7) * 0.002;
+            vec2 finalUV = uv + vec2(ripple);
+            
+            // Sample base texture with simplified distortions
+            vec4 baseColor = texture2D(baseTexture, finalUV);
+            
+            // Simple glow effect
+            vec3 glowColor = vec3(0.2, 0.4, 0.8);
+            vec3 glow = glowColor * (1.0 - distanceFromCenter) * 0.1;
+            
+            gl_FragColor = baseColor + vec4(glow, 0.0);
+        }
+        `;
     }
 } 

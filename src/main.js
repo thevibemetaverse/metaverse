@@ -51,6 +51,8 @@ document.body.appendChild(renderer.domElement);
 const gameStateManager = new GameStateManager();
 // Make the game state manager globally available
 window.gameStateManager = gameStateManager;
+// Set the renderer's canvas as the game canvas
+gameStateManager.setGameCanvas(renderer.domElement);
 
 // Add lighting
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);

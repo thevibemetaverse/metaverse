@@ -24,6 +24,11 @@ export class PortalForm {
     this.createForm = this.createForm.bind(this);
     this.handleSubmit = this.handleSubmit.bind(this);
     this.showSuccessNotification = this.showSuccessNotification.bind(this);
+    this.handleInputFocus = this.handleInputFocus.bind(this);
+    this.handleInputBlur = this.handleInputBlur.bind(this);
+    this.handleTouchStart = this.handleTouchStart.bind(this);
+    this.handleTouchEnd = this.handleTouchEnd.bind(this);
+    this.handleClick = this.handleClick.bind(this);
   }
 
   /**
@@ -36,6 +41,9 @@ export class PortalForm {
     if (!this.formContainer) {
       this.createForm();
     }
+    
+    // Ensure the 3D game is properly disabled
+    this.disableGameInteractions();
     
     // Add form to document
     document.body.appendChild(this.formContainer);
@@ -71,6 +79,9 @@ export class PortalForm {
       window.gameStateManager.setPlaying();
     }
     
+    // Restore game interactions
+    this.enableGameInteractions();
+    
     // Animate form close
     this.formContainer.style.animation = 'portal-form-disappear 0.5s ease-in forwards';
     
@@ -88,6 +99,73 @@ export class PortalForm {
     }, 500);
   }
 
+  disableGameInteractions() {
+    console.log('[PortalForm] Disabling game interactions');
+    
+    // Find and disable THREE.js canvas
+    const canvases = document.querySelectorAll('canvas');
+    canvases.forEach(canvas => {
+      // Completely disable the canvas while form is open
+      canvas.style.pointerEvents = 'none';
+      // Lower the opacity slightly to indicate disabled state
+      canvas.style.opacity = '0.8';
+      // Store original zIndex to restore later
+      canvas._originalZIndex = canvas.style.zIndex || '';
+      // Ensure canvas is below form
+      canvas.style.zIndex = '1';
+    });
+    
+    // Create a full screen overlay to block all interactions
+    // This is a more reliable approach than just disabling pointerEvents
+    if (!document.getElementById('form-overlay')) {
+      const overlay = document.createElement('div');
+      overlay.id = 'form-overlay';
+      overlay.style.position = 'fixed';
+      overlay.style.top = '0';
+      overlay.style.left = '0';
+      overlay.style.width = '100%';
+      overlay.style.height = '100%';
+      overlay.style.backgroundColor = 'rgba(0,0,0,0.1)';
+      overlay.style.zIndex = '99999';
+      document.body.appendChild(overlay);
+    }
+    
+    // Also block document scroll/touch events
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.width = '100%';
+    document.body.style.height = '100%';
+  }
+
+  enableGameInteractions() {
+    console.log('[PortalForm] Enabling game interactions');
+    
+    // Restore canvas state
+    const canvases = document.querySelectorAll('canvas');
+    canvases.forEach(canvas => {
+      // Re-enable pointer events
+      canvas.style.pointerEvents = 'auto';
+      // Restore original opacity
+      canvas.style.opacity = '1';
+      // Restore original z-index
+      canvas.style.zIndex = canvas._originalZIndex || '';
+    });
+    
+    // Remove the overlay
+    const overlay = document.getElementById('form-overlay');
+    if (overlay) {
+      overlay.remove();
+    }
+    
+    // Restore document scroll
+    document.documentElement.style.overflow = '';
+    document.body.style.overflow = '';
+    document.body.style.position = '';
+    document.body.style.width = '';
+    document.body.style.height = '';
+  }
+
   /**
    * Create the portal form
    * @private
@@ -101,30 +179,12 @@ export class PortalForm {
     const formContainer = document.createElement('div');
     formContainer.className = 'portal-form-container';
     formContainer.style.animation = 'portal-form-appear 0.5s ease-out forwards';
+    formContainer.style.zIndex = '100000';
     
-    // Add direct key handlers to the form container to catch keyboard events
-    formContainer.tabIndex = -1; // Make it focusable
-    formContainer.addEventListener('keydown', (e) => {
-      // If typing in a form field, allow normal behavior
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'BUTTON') {
-        return true;
-      }
-      
-      // Block movement keys
-      const movementKeys = ['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' ', 'q', 'e'];
-      if (movementKeys.includes(e.key.toLowerCase())) {
-        e.stopImmediatePropagation();
-        e.preventDefault();
-        return false;
-      }
-      
-      // Close form on Escape
-      if (e.key === 'Escape') {
-        this.hide();
-        e.preventDefault();
-        return false;
-      }
-    }, true);
+    // Add mobile touch events
+    formContainer.addEventListener('touchstart', this.handleTouchStart, { passive: false });
+    formContainer.addEventListener('touchend', this.handleTouchEnd, { passive: false });
+    formContainer.addEventListener('click', this.handleClick, { passive: false });
     
     // Create form header
     const heading = document.createElement('h2');
@@ -148,8 +208,13 @@ export class PortalForm {
     urlInput.name = 'url';
     urlInput.placeholder = 'https://example.com';
     urlInput.required = true;
-    urlInput.autocomplete = 'off'; // Better mobile experience
-    urlInput.autocapitalize = 'off'; // Better for URLs on mobile
+    urlInput.autocomplete = 'off';
+    urlInput.autocapitalize = 'off';
+    urlInput.addEventListener('focus', this.handleInputFocus);
+    urlInput.addEventListener('blur', this.handleInputBlur);
+    urlInput.addEventListener('touchstart', e => {
+      e.stopPropagation();
+    });
     
     // Image URL input
     const imageLabel = document.createElement('label');
@@ -164,6 +229,11 @@ export class PortalForm {
     imageInput.required = true;
     imageInput.autocomplete = 'off';
     imageInput.autocapitalize = 'off';
+    imageInput.addEventListener('focus', this.handleInputFocus);
+    imageInput.addEventListener('blur', this.handleInputBlur);
+    imageInput.addEventListener('touchstart', e => {
+      e.stopPropagation();
+    });
     
     // Agreement checkbox
     const checkboxContainer = document.createElement('div');
@@ -174,6 +244,9 @@ export class PortalForm {
     agreementCheckbox.id = 'agreement';
     agreementCheckbox.name = 'agreement';
     agreementCheckbox.required = true;
+    agreementCheckbox.addEventListener('touchstart', e => {
+      e.stopPropagation();
+    });
     
     const agreementLabel = document.createElement('label');
     agreementLabel.htmlFor = 'agreement';
@@ -192,10 +265,20 @@ export class PortalForm {
     const submitButton = document.createElement('button');
     submitButton.type = 'submit';
     submitButton.textContent = 'Submit Portal';
+    submitButton.style.padding = '12px 24px';
+    submitButton.style.minWidth = '120px';
+    submitButton.addEventListener('touchstart', e => {
+      e.stopPropagation();
+    });
     
     const cancelButton = document.createElement('button');
     cancelButton.type = 'button';
     cancelButton.textContent = 'Cancel';
+    cancelButton.style.padding = '12px 24px';
+    cancelButton.style.minWidth = '120px';
+    cancelButton.addEventListener('touchstart', e => {
+      e.stopPropagation();
+    });
     
     buttonsContainer.appendChild(submitButton);
     buttonsContainer.appendChild(cancelButton);
@@ -213,13 +296,51 @@ export class PortalForm {
     formContainer.appendChild(form);
     
     // Cancel button event listener
-    cancelButton.addEventListener('click', () => this.hide());
+    cancelButton.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.hide();
+    });
     
     // Form submit handler
     form.addEventListener('submit', this.handleSubmit);
     
     this.formContainer = formContainer;
     return formContainer;
+  }
+  
+  handleTouchStart(e) {
+    console.log('[PortalForm] Touch start detected');
+    e.stopPropagation();
+  }
+  
+  handleTouchEnd(e) {
+    console.log('[PortalForm] Touch end detected');
+    e.stopPropagation();
+  }
+  
+  handleClick(e) {
+    console.log('[PortalForm] Click detected');
+    e.stopPropagation();
+  }
+  
+  handleInputFocus(event) {
+    console.log('[PortalForm] Input focused:', event.target.id);
+    // Add visual feedback for focused input
+    event.target.style.borderColor = '#4a90e2';
+    event.target.style.boxShadow = '0 0 5px rgba(74, 144, 226, 0.5)';
+    
+    // Ensure input is visible when virtual keyboard appears
+    setTimeout(() => {
+      event.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+  }
+  
+  handleInputBlur(event) {
+    console.log('[PortalForm] Input blurred:', event.target.id);
+    // Remove visual feedback
+    event.target.style.borderColor = '';
+    event.target.style.boxShadow = '';
   }
   
   /**
@@ -229,6 +350,8 @@ export class PortalForm {
    */
   handleSubmit(e) {
     e.preventDefault();
+    e.stopPropagation();
+    console.log('[PortalForm] Form submitted');
     
     // Get form element
     const form = e.target;

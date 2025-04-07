@@ -24,57 +24,146 @@ export function injectPortalFormStyles() {
       padding: 25px;
       border-radius: 15px;
       box-shadow: 0 0 30px rgba(74, 144, 226, 0.6);
-      z-index: 1000;
+      z-index: 100000; /* Increased z-index to ensure it's above other elements */
       width: 400px;
-      max-width: 90vw;
+      max-width: 85vw; /* Reduced from 90vw to avoid edge bleed */
       font-family: 'system-ui', sans-serif;
+      -webkit-tap-highlight-color: transparent; /* Prevent tap highlight on mobile */
+      touch-action: manipulation; /* Optimize for touch */
+      box-sizing: border-box; /* Ensure padding is included in width calculation */
     }
     
     /* Mobile responsive adjustments */
     @media (max-width: 600px) {
       .portal-form-container {
-        width: 90%;
-        padding: 15px;
-        font-size: 14px;
+        width: 92%;
+        max-width: 360px; /* Explicit max-width for mobile */
+        padding: 18px;
+        font-size: 16px; /* Increased font size for better readability */
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        max-height: 90vh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
       }
       
       .portal-form-container h2 {
         font-size: 20px;
+        margin-bottom: 20px;
       }
       
       .portal-form-container input,
       .portal-form-container textarea {
-        padding: 8px;
+        padding: 12px; /* Increased padding for better touch targets */
+        font-size: 16px;
+        min-height: 44px; /* Minimum touch target size */
+        border: 2px solid rgba(74, 144, 226, 0.5);
+        -webkit-appearance: none; /* Remove default iOS styling */
+        border-radius: 8px;
+        box-sizing: border-box; /* Ensure padding is included in width calculation */
+        width: 100%;
+      }
+      
+      .portal-form-container label {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 16px;
+      }
+      
+      .portal-form-container .checkbox-container {
+        display: flex;
+        align-items: center;
+        margin: 20px 0;
+        padding: 5px 0;
+      }
+      
+      .portal-form-container .checkbox-container input[type="checkbox"] {
+        width: 24px;
+        height: 24px;
+        min-width: 24px; /* Prevent shrinking */
+        margin-right: 10px;
+        -webkit-appearance: none;
+        background-color: rgba(0, 20, 40, 0.7);
+        border: 2px solid rgba(74, 144, 226, 0.5);
+        border-radius: 4px;
+        position: relative;
+      }
+      
+      .portal-form-container .checkbox-container input[type="checkbox"]:checked {
+        background-color: #4a90e2;
+      }
+      
+      .portal-form-container .checkbox-container input[type="checkbox"]:checked::after {
+        content: '✓';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: white;
+        font-size: 16px;
+      }
+      
+      /* Make agreement label wrap better */
+      .portal-form-container .checkbox-container label {
         font-size: 14px;
+        line-height: 1.3;
+        flex: 1;
       }
       
       .portal-form-container .buttons {
         flex-direction: column;
-        gap: 10px;
+        gap: 12px;
+        margin-top: 20px;
       }
       
       .portal-form-container button {
         width: 100%;
-        padding: 12px;
-      }
-
-      .success-container {
-        flex-direction: column;
-        gap: 10px;
+        padding: 14px;
+        font-size: 16px;
+        min-height: 44px; /* Minimum touch target size */
+        border-radius: 8px;
+        -webkit-appearance: none;
+        border: none;
+        background-color: #4a90e2;
+        color: white;
+        font-weight: bold;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
       }
       
-      .success-icon {
-        height: 60px;
-        width: 60px;
-        font-size: 36px;
+      .portal-form-container button:active {
+        background-color: #3a80d2;
       }
       
-      .success-text h3 {
+      .portal-form-container button[type="button"] {
+        background-color: rgba(255, 255, 255, 0.2);
+      }
+      
+      .portal-form-container button[type="button"]:active {
+        background-color: rgba(255, 255, 255, 0.3);
+      }
+    }
+    
+    /* Small phone adjustments */
+    @media (max-width: 360px) {
+      .portal-form-container {
+        width: 90%;
+        padding: 15px;
+        font-size: 15px;
+      }
+      
+      .portal-form-container h2 {
         font-size: 18px;
       }
       
-      .success-text p {
-        font-size: 14px;
+      .portal-form-container .checkbox-container label {
+        font-size: 13px;
+      }
+      
+      .portal-form-container button {
+        padding: 12px;
       }
     }
     
@@ -125,6 +214,7 @@ export function injectPortalFormStyles() {
       background-color: rgba(0, 20, 40, 0.7);
       color: white;
       font-size: 16px;
+      box-sizing: border-box; /* Ensure padding is included in width calculation */
     }
     
     .portal-form-container label {
@@ -190,18 +280,50 @@ export function injectPortalFormStyles() {
       padding: 20px;
       border-radius: 10px;
       box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
-      z-index: 10000;
+      z-index: 100001; /* Higher than form */
       text-align: center;
       animation: portal-success-appear 0.5s ease-out forwards, 
                  portal-success-glow 2s infinite alternate;
       max-width: 80%;
+      box-sizing: border-box; /* Ensure padding is included in width calculation */
     }
 
     /* Mobile responsive adjustment for success message */
     @media (max-width: 600px) {
       .portal-success-message {
         padding: 15px;
+        max-width: 85%;
+        width: 320px;
+        font-size: 16px;
+      }
+      
+      .success-container {
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+      }
+      
+      .success-icon {
+        height: 60px;
+        width: 60px;
+        font-size: 36px;
+      }
+    }
+    
+    /* Small phone adjustments for success message */
+    @media (max-width: 360px) {
+      .portal-success-message {
         max-width: 90%;
+        width: 280px;
+        padding: 12px;
+      }
+      
+      .success-text h3 {
+        font-size: 20px;
+      }
+      
+      .success-text p {
+        font-size: 14px;
       }
     }
     
