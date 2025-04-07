@@ -26,6 +26,8 @@ export class PortalForm {
     this.showSuccessNotification = this.showSuccessNotification.bind(this);
     this.handleInputFocus = this.handleInputFocus.bind(this);
     this.handleInputBlur = this.handleInputBlur.bind(this);
+    this.handleTouchStart = this.handleTouchStart.bind(this);
+    this.handleTouchEnd = this.handleTouchEnd.bind(this);
   }
 
   /**
@@ -104,29 +106,9 @@ export class PortalForm {
     formContainer.className = 'portal-form-container';
     formContainer.style.animation = 'portal-form-appear 0.5s ease-out forwards';
     
-    // Add direct key handlers to the form container to catch keyboard events
-    formContainer.tabIndex = -1; // Make it focusable
-    formContainer.addEventListener('keydown', (e) => {
-      // If typing in a form field, allow normal behavior
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'BUTTON') {
-        return true;
-      }
-      
-      // Block movement keys
-      const movementKeys = ['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' ', 'q', 'e'];
-      if (movementKeys.includes(e.key.toLowerCase())) {
-        e.stopImmediatePropagation();
-        e.preventDefault();
-        return false;
-      }
-      
-      // Close form on Escape
-      if (e.key === 'Escape') {
-        this.hide();
-        e.preventDefault();
-        return false;
-      }
-    }, true);
+    // Add touch event listeners
+    formContainer.addEventListener('touchstart', this.handleTouchStart, { passive: false });
+    formContainer.addEventListener('touchend', this.handleTouchEnd, { passive: false });
     
     // Create form header
     const heading = document.createElement('h2');
@@ -154,6 +136,7 @@ export class PortalForm {
     urlInput.autocapitalize = 'off';
     urlInput.addEventListener('focus', this.handleInputFocus);
     urlInput.addEventListener('blur', this.handleInputBlur);
+    urlInput.addEventListener('touchstart', (e) => e.stopPropagation());
     
     // Image URL input
     const imageLabel = document.createElement('label');
@@ -170,6 +153,7 @@ export class PortalForm {
     imageInput.autocapitalize = 'off';
     imageInput.addEventListener('focus', this.handleInputFocus);
     imageInput.addEventListener('blur', this.handleInputBlur);
+    imageInput.addEventListener('touchstart', (e) => e.stopPropagation());
     
     // Agreement checkbox
     const checkboxContainer = document.createElement('div');
@@ -180,6 +164,7 @@ export class PortalForm {
     agreementCheckbox.id = 'agreement';
     agreementCheckbox.name = 'agreement';
     agreementCheckbox.required = true;
+    agreementCheckbox.addEventListener('touchstart', (e) => e.stopPropagation());
     
     const agreementLabel = document.createElement('label');
     agreementLabel.htmlFor = 'agreement';
@@ -198,14 +183,16 @@ export class PortalForm {
     const submitButton = document.createElement('button');
     submitButton.type = 'submit';
     submitButton.textContent = 'Submit Portal';
-    submitButton.style.padding = '12px 24px'; // Larger touch target
-    submitButton.style.minWidth = '120px'; // Ensure minimum width for better touch
+    submitButton.style.padding = '12px 24px';
+    submitButton.style.minWidth = '120px';
+    submitButton.addEventListener('touchstart', (e) => e.stopPropagation());
     
     const cancelButton = document.createElement('button');
     cancelButton.type = 'button';
     cancelButton.textContent = 'Cancel';
-    cancelButton.style.padding = '12px 24px'; // Larger touch target
-    cancelButton.style.minWidth = '120px'; // Ensure minimum width for better touch
+    cancelButton.style.padding = '12px 24px';
+    cancelButton.style.minWidth = '120px';
+    cancelButton.addEventListener('touchstart', (e) => e.stopPropagation());
     
     buttonsContainer.appendChild(submitButton);
     buttonsContainer.appendChild(cancelButton);
@@ -230,6 +217,18 @@ export class PortalForm {
     
     this.formContainer = formContainer;
     return formContainer;
+  }
+  
+  handleTouchStart(e) {
+    // Prevent touch events from propagating to the game
+    e.stopPropagation();
+    e.preventDefault();
+  }
+  
+  handleTouchEnd(e) {
+    // Prevent touch events from propagating to the game
+    e.stopPropagation();
+    e.preventDefault();
   }
   
   handleInputFocus(event) {
