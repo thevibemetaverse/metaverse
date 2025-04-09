@@ -108,6 +108,13 @@ let multiplayerManager;
 let chatManager;
 let interactionManager;
 
+// Add function to count objects in scene
+function countObjects(scene) {
+    let count = 0;
+    scene.traverse(() => count++);
+    return count;
+}
+
 // Animation loop control
 let animationRunning = false;
 let showFPS = false;
@@ -129,6 +136,7 @@ fpsDisplay.style.cssText = `
     font-size: 14px;
     z-index: 1000;
     display: none;
+    white-space: pre;
 `;
 document.body.appendChild(fpsDisplay);
 
@@ -156,7 +164,15 @@ function animate() {
         
         // Update FPS display if enabled
         if (showFPS) {
-            fpsDisplay.textContent = `FPS: ${fps}`;
+            const metrics = [
+                `FPS: ${fps}`,
+                `Draw calls: ${renderer.info.render.calls}`,
+                `Triangles: ${renderer.info.render.triangles}`,
+                `Objects in scene: ${countObjects(scene)}`,
+                `Textures: ${renderer.info.memory.textures}`,
+                `Geometries: ${renderer.info.memory.geometries}`
+            ].join('\n');
+            fpsDisplay.textContent = metrics;
         }
     }
     
