@@ -1195,35 +1195,79 @@ export class PortalManager {
             }
         });
         
-        console.log('[PortalManager] Starting to add portals to scene');
-        // Add each default portal
-        const promises = defaultPortals.map(config => {
-            console.log(`[PortalManager] Adding portal to scene:`, {
-                id: config.portalId,
-                position: config.position,
-                destination: config.destination
+        console.log('[PortalManager] Starting to add portals to scene using instancing');
+        try {
+            // Use the new instancing method to create all portals at once
+            this.portals = await Portal.createPortalInstances(this.scene, defaultPortals, this.loadingManager);
+            
+            // Create name images for all portals
+            this.portals.forEach(portal => {
+                this.createPortalName(portal);
+                
+                // Create 3D like button for this portal
+                this.create3DLikeButton(portal);
+                
+                // Initialize like count for this portal (from config or default to 0)
+                if (!this.portalLikes.has(portal.portalId)) {
+                    this.portalLikes.set(portal.portalId, 0);
+                }
+                
+                // Apply config override if exists
+                if (config.portals && config.portals.initialLikes && config.portals.initialLikes[portal.portalId]) {
+                    this.portalLikes.set(portal.portalId, config.portals.initialLikes[portal.portalId]);
+                }
+                
+                // Update button text with initial count
+                this.updateLikeButtonText(portal.portalId);
+                
+                // Update texture after a short delay to ensure the portal is fully loaded
+                setTimeout(() => {
+                    console.log(`[PortalManager] Updating texture for portal ${portal.portalId}`);
+                    // Use special fire portal image for Enter portal
+                    const portalImageUrl = portal.portalId === 'enter' 
+                        ? '/assets/images/portal.jpg'  // Use absolute path to assets directory
+                        : `https://thevibemetaverse.vercel.app/assets/images/${portal.portalId}.png`;
+                    console.log(`[PortalManager] Setting texture for ${portal.portalId} to:`, portalImageUrl);
+                    
+                    // Try both material names that might exist in the model
+                    ['Material.002', 'Cube002_3'].forEach(materialName => {
+                        portal.updateTexture(materialName, portalImageUrl);
+                    });
+                }, 100);
             });
-            return this.addPortal(config);
-        });
-        const results = await Promise.all(promises);
-        const successfulPortals = results.filter(Boolean);
-        
-        // Create name images for all successful portals
-        successfulPortals.forEach(portal => {
-            this.createPortalName(portal);
-        });
-        
-        console.log('[PortalManager] Portal addition results:', {
-            totalPortals: defaultPortals.length,
-            successfulPortals: successfulPortals.length,
-            failedPortals: defaultPortals.length - successfulPortals.length,
-            sceneChildrenCount: this.scene.children.length,
-            portalPositions: this.portals.map(p => ({
-                id: p.portalId,
-                position: p.mesh?.position,
-                isActive: p.isActive
-            }))
-        });
+            
+            console.log('[PortalManager] Portal addition results:', {
+                totalPortals: defaultPortals.length,
+                successfulPortals: this.portals.length,
+                sceneChildrenCount: this.scene.children.length,
+            });
+        } catch (error) {
+            console.error('[PortalManager] Error creating instanced portals:', error);
+            
+            // Fallback to individual portal creation
+            console.log('[PortalManager] Falling back to individual portal creation');
+            const promises = defaultPortals.map(config => {
+                console.log(`[PortalManager] Adding portal to scene:`, {
+                    id: config.portalId,
+                    position: config.position,
+                    destination: config.destination
+                });
+                return this.addPortal(config);
+            });
+            const results = await Promise.all(promises);
+            const successfulPortals = results.filter(Boolean);
+            
+            // Create name images for all successful portals
+            successfulPortals.forEach(portal => {
+                this.createPortalName(portal);
+            });
+            
+            console.log('[PortalManager] Fallback portal addition results:', {
+                totalPortals: defaultPortals.length,
+                successfulPortals: successfulPortals.length,
+                failedPortals: defaultPortals.length - successfulPortals.length,
+            });
+        }
     }
     
     async fetchPortalsFromAPI() {
@@ -1235,9 +1279,22 @@ export class PortalManager {
             // Clear existing portals
             this.removeAllPortals();
             
-            // Add portals from API
-            const promises = portalData.map(config => this.addPortal(config));
-            await Promise.all(promises);
+            try {
+                // Use the new instancing method to create all portals at once
+                this.portals = await Portal.createPortalInstances(this.scene, portalData, this.loadingManager);
+                
+                // Create name images for all portals
+                this.portals.forEach(portal => {
+                    this.createPortalName(portal);
+                    this.create3DLikeButton(portal);
+                });
+            } catch (error) {
+                console.error('[PortalManager] Error creating instanced portals from API:', error);
+                
+                // Fallback to individual portal creation
+                const promises = portalData.map(config => this.addPortal(config));
+                this.portals = await Promise.all(promises);
+            }
         } catch (error) {
             console.error("Failed to fetch portals from API:", error);
             // Fallback to default portals if API fails

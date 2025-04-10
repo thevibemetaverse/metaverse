@@ -9,6 +9,26 @@ export class PieterPortal {
         this.startPortalBox = null;
         this.exitPortalBox = null;
         
+        // Store shared geometries and materials for instancing
+        this.portalGeometries = {
+            torus: null,
+            circle: null,
+            particles: null
+        };
+        
+        this.portalMaterials = {
+            startTorus: null,
+            startCircle: null,
+            startParticles: null,
+            exitTorus: null,
+            exitCircle: null,
+            exitParticles: null
+        };
+        
+        // Instances and animation handlers
+        this.particleSystems = [];
+        this.animationIds = [];
+        
         // Check if portal parameter is true in URL
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('portal') === 'true') {
@@ -18,34 +38,85 @@ export class PieterPortal {
         console.log('[PieterPortal] Initialized with scene and playerState');
     }
 
+    // Create shared portal geometries for instancing
+    createSharedGeometries() {
+        // Create geometries only once
+        if (!this.portalGeometries.torus) {
+            this.portalGeometries.torus = new THREE.TorusGeometry(15, 2, 16, 100);
+            this.portalGeometries.circle = new THREE.CircleGeometry(13, 32);
+            
+            // Create a buffer geometry for particles
+            this.portalGeometries.particles = new THREE.BufferGeometry();
+            
+            // Create materials for start portal (red)
+            this.portalMaterials.startTorus = new THREE.MeshPhongMaterial({
+                color: 0xff0000,
+                emissive: 0xff0000,
+                transparent: true,
+                opacity: 0.8
+            });
+            
+            this.portalMaterials.startCircle = new THREE.MeshBasicMaterial({
+                color: 0xff0000,
+                transparent: true,
+                opacity: 0.5,
+                side: THREE.DoubleSide
+            });
+            
+            this.portalMaterials.startParticles = new THREE.PointsMaterial({
+                size: 0.2,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.6
+            });
+            
+            // Create materials for exit portal (green)
+            this.portalMaterials.exitTorus = new THREE.MeshPhongMaterial({
+                color: 0x00ff00,
+                emissive: 0x00ff00,
+                transparent: true,
+                opacity: 0.8
+            });
+            
+            this.portalMaterials.exitCircle = new THREE.MeshBasicMaterial({
+                color: 0x00ff00,
+                transparent: true,
+                opacity: 0.5,
+                side: THREE.DoubleSide
+            });
+            
+            this.portalMaterials.exitParticles = new THREE.PointsMaterial({
+                size: 0.2,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.6
+            });
+        }
+    }
+
     createStartPortal() {
+        // Create shared geometries and materials if not created yet
+        this.createSharedGeometries();
+        
         // Create portal group to contain all portal elements
         const startPortalGroup = new THREE.Group();
-        // Create portal effect
-        const startPortalGeometry = new THREE.TorusGeometry(15, 2, 16, 100);
-        const startPortalMaterial = new THREE.MeshPhongMaterial({
-            color: 0xff0000,
-            emissive: 0xff0000,
-            transparent: true,
-            opacity: 0.8
-        });
-        const startPortal = new THREE.Mesh(startPortalGeometry, startPortalMaterial);
+        
+        // Create the torus mesh using shared geometry and material
+        const startPortal = new THREE.Mesh(
+            this.portalGeometries.torus, 
+            this.portalMaterials.startTorus
+        );
         startPortalGroup.add(startPortal);
                     
         // Create portal inner surface
-        const startPortalInnerGeometry = new THREE.CircleGeometry(13, 32);
-        const startPortalInnerMaterial = new THREE.MeshBasicMaterial({
-            color: 0xff0000,
-            transparent: true,
-            opacity: 0.5,
-            side: THREE.DoubleSide
-        });
-        const startPortalInner = new THREE.Mesh(startPortalInnerGeometry, startPortalInnerMaterial);
+        const startPortalInner = new THREE.Mesh(
+            this.portalGeometries.circle, 
+            this.portalMaterials.startCircle
+        );
         startPortalGroup.add(startPortalInner);
 
         // Create particle system for portal effect
         const startPortalParticleCount = 1000;
-        const startPortalParticles = new THREE.BufferGeometry();
         const startPortalPositions = new Float32Array(startPortalParticleCount * 3);
         const startPortalColors = new Float32Array(startPortalParticleCount * 3);
 
@@ -63,17 +134,12 @@ export class PieterPortal {
             startPortalColors[i + 2] = 0;
         }
 
+        // Create an instance of particles for this portal
+        const startPortalParticles = this.portalGeometries.particles.clone();
         startPortalParticles.setAttribute('position', new THREE.BufferAttribute(startPortalPositions, 3));
         startPortalParticles.setAttribute('color', new THREE.BufferAttribute(startPortalColors, 3));
 
-        const startPortalParticleMaterial = new THREE.PointsMaterial({
-            size: 0.2,
-            vertexColors: true,
-            transparent: true,
-            opacity: 0.6
-        });
-
-        const startPortalParticleSystem = new THREE.Points(startPortalParticles, startPortalParticleMaterial);
+        const startPortalParticleSystem = new THREE.Points(startPortalParticles, this.portalMaterials.startParticles);
         startPortalGroup.add(startPortalParticleSystem);
 
         // Add portal group to scene
@@ -82,54 +148,44 @@ export class PieterPortal {
         // Create portal collision box
         this.startPortalBox = new THREE.Box3().setFromObject(startPortalGroup);
         this.startPortal = startPortalGroup;
+        
+        // Store reference to particle system for animation
+        this.particleSystems.push({
+            system: startPortalParticleSystem,
+            particles: startPortalParticles
+        });
 
-        // Animate particles and portal
-        const animateStartPortal = () => {
-            const positions = startPortalParticles.attributes.position.array;
-            for (let i = 0; i < positions.length; i += 3) {
-                positions[i + 1] += 0.05 * Math.sin(Date.now() * 0.001 + i);
-            }
-            startPortalParticles.attributes.position.needsUpdate = true;
-            if (startPortalInnerMaterial.uniforms && startPortalInnerMaterial.uniforms.time) {
-                startPortalInnerMaterial.uniforms.time.value = Date.now() * 0.001;
-            }
-            requestAnimationFrame(animateStartPortal);
-        };
-        animateStartPortal();
+        // Animate particles
+        this.animatePortalParticles(startPortalParticles);
     }
 
     createExitPortal() {
+        // Create shared geometries and materials if not created yet
+        this.createSharedGeometries();
+        
         // Create portal group to contain all portal elements
         const exitPortalGroup = new THREE.Group();
+        
         // Position behind the user (negative z position)
         exitPortalGroup.position.set(0, 0, -25);
         exitPortalGroup.rotation.x = 0.35;
         exitPortalGroup.rotation.y = Math.PI; // Rotate to face the user
 
-        // Create portal effect
-        const exitPortalGeometry = new THREE.TorusGeometry(15, 2, 16, 100);
-        const exitPortalMaterial = new THREE.MeshPhongMaterial({
-            color: 0x00ff00,
-            emissive: 0x00ff00,
-            transparent: true,
-            opacity: 0.8
-        });
-        const exitPortal = new THREE.Mesh(exitPortalGeometry, exitPortalMaterial);
+        // Create portal effect using the shared geometry
+        const exitPortal = new THREE.Mesh(
+            this.portalGeometries.torus,
+            this.portalMaterials.exitTorus
+        );
         exitPortalGroup.add(exitPortal);
 
         // Create portal inner surface
-        const exitPortalInnerGeometry = new THREE.CircleGeometry(13, 32);
-        const exitPortalInnerMaterial = new THREE.MeshBasicMaterial({
-            color: 0x00ff00,
-            transparent: true,
-            opacity: 0.5,
-            side: THREE.DoubleSide
-        });
-        const exitPortalInner = new THREE.Mesh(exitPortalInnerGeometry, exitPortalInnerMaterial);
+        const exitPortalInner = new THREE.Mesh(
+            this.portalGeometries.circle,
+            this.portalMaterials.exitCircle
+        );
         exitPortalGroup.add(exitPortalInner);
         
         // Add portal label
-        const loader = new THREE.TextureLoader();
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
         canvas.width = 512;
@@ -149,9 +205,8 @@ export class PieterPortal {
         label.position.y = 20;
         exitPortalGroup.add(label);
 
-        // Create particle system for portal effect
+        // Create particle system for portal effect - use instanced approach
         const exitPortalParticleCount = 1000;
-        const exitPortalParticles = new THREE.BufferGeometry();
         const exitPortalPositions = new Float32Array(exitPortalParticleCount * 3);
         const exitPortalColors = new Float32Array(exitPortalParticleCount * 3);
 
@@ -169,17 +224,12 @@ export class PieterPortal {
             exitPortalColors[i + 2] = 0;
         }
 
+        // Create an instance of particles for this portal
+        const exitPortalParticles = this.portalGeometries.particles.clone();
         exitPortalParticles.setAttribute('position', new THREE.BufferAttribute(exitPortalPositions, 3));
         exitPortalParticles.setAttribute('color', new THREE.BufferAttribute(exitPortalColors, 3));
 
-        const exitPortalParticleMaterial = new THREE.PointsMaterial({
-            size: 0.2,
-            vertexColors: true,
-            transparent: true,
-            opacity: 0.6
-        });
-
-        const exitPortalParticleSystem = new THREE.Points(exitPortalParticles, exitPortalParticleMaterial);
+        const exitPortalParticleSystem = new THREE.Points(exitPortalParticles, this.portalMaterials.exitParticles);
         exitPortalGroup.add(exitPortalParticleSystem);
 
         // Add portal group to scene
@@ -188,20 +238,31 @@ export class PieterPortal {
         // Create portal collision box
         this.exitPortalBox = new THREE.Box3().setFromObject(exitPortalGroup);
         this.exitPortal = exitPortalGroup;
+        
+        // Store reference to particle system for animation
+        this.particleSystems.push({
+            system: exitPortalParticleSystem,
+            particles: exitPortalParticles
+        });
 
-        // Animate particles and portal
-        const animateExitPortal = () => {
-            const positions = exitPortalParticles.attributes.position.array;
+        // Animate particles
+        this.animatePortalParticles(exitPortalParticles);
+    }
+    
+    // Single animation method for all particle systems
+    animatePortalParticles(particles) {
+        const animate = () => {
+            const positions = particles.attributes.position.array;
             for (let i = 0; i < positions.length; i += 3) {
                 positions[i + 1] += 0.05 * Math.sin(Date.now() * 0.001 + i);
             }
-            exitPortalParticles.attributes.position.needsUpdate = true;
-            if (exitPortalInnerMaterial.uniforms && exitPortalInnerMaterial.uniforms.time) {
-                exitPortalInnerMaterial.uniforms.time.value = Date.now() * 0.001;
-            }
-            requestAnimationFrame(animateExitPortal);
+            particles.attributes.position.needsUpdate = true;
+            
+            const animationId = requestAnimationFrame(animate);
+            this.animationIds.push(animationId);
         };
-        animateExitPortal();
+        
+        animate();
     }
 
     checkCollisions(playerPosition) {
@@ -292,6 +353,10 @@ export class PieterPortal {
     }
 
     dispose() {
+        // Cancel all animation frames
+        this.animationIds.forEach(id => cancelAnimationFrame(id));
+        this.animationIds = [];
+        
         // Remove special portals
         if (this.startPortal) {
             this.scene.remove(this.startPortal);
@@ -303,5 +368,24 @@ export class PieterPortal {
             this.exitPortal = null;
             this.exitPortalBox = null;
         }
+        
+        // Dispose of geometries
+        for (const key in this.portalGeometries) {
+            if (this.portalGeometries[key]) {
+                this.portalGeometries[key].dispose();
+            }
+        }
+        
+        // Dispose of materials
+        for (const key in this.portalMaterials) {
+            if (this.portalMaterials[key]) {
+                this.portalMaterials[key].dispose();
+            }
+        }
+        
+        // Clear references
+        this.portalGeometries = {};
+        this.portalMaterials = {};
+        this.particleSystems = [];
     }
 } 
