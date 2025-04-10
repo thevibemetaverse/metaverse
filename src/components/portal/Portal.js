@@ -140,6 +140,30 @@ void main() {
 }
 `;
 
+// Ultra simplified vertex shader for distant portals
+const ultraSimplifiedVertexShader = `
+varying vec2 vUv;
+
+void main() {
+    vUv = uv;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}
+`;
+
+// Ultra simplified fragment shader for distant portals
+const ultraSimplifiedFragmentShader = `
+uniform sampler2D baseTexture;
+varying vec2 vUv;
+
+void main() {
+    // Simple direct texture mapping without effects
+    gl_FragColor = texture2D(baseTexture, vUv);
+}
+`;
+
+// Export all shaders for use in other files
+export { rippleVertexShader, rippleFragmentShader, simplifiedVertexShader, simplifiedFragmentShader, ultraSimplifiedVertexShader, ultraSimplifiedFragmentShader };
+
 // Portal class with instancing support
 export class Portal {
     constructor({
@@ -451,23 +475,34 @@ export class Portal {
             this.distanceFromCamera = camera.position.distanceTo(this.mesh.position);
         }
         
-        // Update shader time based on visibility (reduced updates for distant portals)
+        // Update shader time based on visibility and distance (reduced updates for distant portals)
         if (this.mesh) {
             // Determine update frequency based on distance
             let updateShader = true;
+            let updateMultiplier = 1.0;
             
             if (this.distanceFromCamera > 0) {
-                if (this.distanceFromCamera > 150) {
-                    // Very far portals - update every 5 frames
-                    updateShader = (performance.now() % 100 < 20);
-                } else if (this.distanceFromCamera > 80) {
-                    // Far portals - update every 2 frames
-                    updateShader = (performance.now() % 50 < 25);
+                if (this.distanceFromCamera > 200) {
+                    // Very far portals - only update every 10 frames
+                    updateShader = (Math.floor(performance.now() / 200) % 5 === 0);
+                    updateMultiplier = 0.1;
+                } else if (this.distanceFromCamera > 150) {
+                    // Far portals - update every 8 frames
+                    updateShader = (Math.floor(performance.now() / 160) % 4 === 0);
+                    updateMultiplier = 0.2;
+                } else if (this.distanceFromCamera > 100) {
+                    // Medium distance - update every 5 frames
+                    updateShader = (Math.floor(performance.now() / 100) % 3 === 0);
+                    updateMultiplier = 0.5;
+                } else if (this.distanceFromCamera > 50) {
+                    // Near portals - update every 2 frames
+                    updateShader = (Math.floor(performance.now() / 50) % 2 === 0);
+                    updateMultiplier = 0.8;
                 }
             }
             
             if (updateShader) {
-                const timeIncrement = this.isMobile ? deltaTime * 0.5 : deltaTime;
+                const timeIncrement = (this.isMobile ? deltaTime * 0.5 : deltaTime) * updateMultiplier;
                 
                 // Update shader uniforms if this portal has custom uniforms
                 if (this.shaderUniforms && this.shaderUniforms.time) {
@@ -483,10 +518,13 @@ export class Portal {
             }
         }
         
-        // Skip effects update for very distant portals
-        const shouldUpdateEffects = !this.distanceFromCamera || this.distanceFromCamera < 100;
+        // Skip effects update for distant portals
+        const shouldUpdateEffects = !this.distanceFromCamera || this.distanceFromCamera < 80;
         if (shouldUpdateEffects && (!this.isMobile || this.effects.length < 3)) {
-            this.effects.forEach(effect => effect.update(deltaTime));
+            // Update effects with variable frequency based on distance
+            if (this.distanceFromCamera < 50 || Math.floor(performance.now() / 100) % 2 === 0) {
+                this.effects.forEach(effect => effect.update(deltaTime));
+            }
         }
     }
 

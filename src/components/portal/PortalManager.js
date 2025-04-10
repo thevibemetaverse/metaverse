@@ -1,107 +1,92 @@
 import * as THREE from 'three';
-import { Portal } from './Portal.js';
+import { Portal, rippleVertexShader, rippleFragmentShader, simplifiedVertexShader, simplifiedFragmentShader, ultraSimplifiedVertexShader, ultraSimplifiedFragmentShader } from './Portal.js';
+import { PieterPortal } from './PieterPortal.js';
 import config from '../../config.js';
 
 export class PortalManager {
     constructor(scene, camera, playerState) {
+        // Store references
         this.scene = scene;
         this.camera = camera;
         this.playerState = playerState;
+        
+        // Initialize portals array
         this.portals = [];
-        this.loadingManager = new THREE.LoadingManager();
+        
+        // Initialize raycaster for portal collision detection
         this.raycaster = new THREE.Raycaster();
-        
-        // Cache for future API responses
-        this.portalDataCache = new Map();
-        
-        // Portal likes storage
-        this.portalLikes = new Map();
-        this.portalLikeButtons = new Map();
-        this.likeButtonMeshes = new Map();
-        this.likeTextMeshes = new Map();
-        
-        // Track which portals have been liked by this user
-        this.likedPortals = new Set();
-        
-        // Mouse interaction for 3D buttons
-        this.mouse = new THREE.Vector2();
         this.clickRaycaster = new THREE.Raycaster();
+        this.mouse = new THREE.Vector2();
+        this.touchPosition = new THREE.Vector2();
+        
+        // Create loading manager for asset loading
+        this.loadingManager = new THREE.LoadingManager();
+        
+        // Track liked portals (using portal IDs as keys)
+        this.portalLikes = new Map();
+        
+        // Store the authenticated user ID if available
+        this.userId = null;
+        
+        // Store selected button reference for hover/click
         this.selectedButton = null;
         
-        // Socket reference for multiplayer communication
-        this.socket = null;
-        
-        // Setup mouse and touch event listeners for 3D button interaction
-        if (typeof window !== 'undefined') {
-            window.addEventListener('mousemove', this.onMouseMove.bind(this));
-            window.addEventListener('click', this.onMouseClick.bind(this));
-            
-            // Add touch events for mobile devices
-            window.addEventListener('touchstart', this.onTouchStart.bind(this), { passive: false });
-            window.addEventListener('touchmove', this.onTouchMove.bind(this), { passive: false });
-            window.addEventListener('touchend', this.onTouchEnd.bind(this), { passive: false });
-        }
-        
-        // Keep track of touch interaction state
-        this.touchInteracting = false;
-        this.lastTouchPosition = { x: 0, y: 0 };
-        
-        // Shared resources for optimizations
-        this.sharedResources = {
-            // Shared geometries
-            geometries: {
-                likeButton: null,    // For portal likes
-                nameplate: null,     // For portal names
-                infoSign: null,      // For portal info
-                textPlane: null      // For text displays
-            },
-            
-            // Shared materials
-            materials: {
-                likeButton: null,
-                nameplate: null,
-                infoSign: null
-            },
-            
-            // Texture atlas for common UI elements
-            atlas: null,
-            
-            // Font for text rendering
-            font: null,
-            
-            // Cache for text textures to avoid redundant creation
-            textTextureCache: new Map(),
-            
-            // Text batch renderer for optimized text rendering
-            textBatch: null
-        };
-        
-        // Initialize shared resources
-        this._initSharedResources();
-        
-        // Create UI groups to batch UI elements
+        // Setup UI groups for organization
         this.uiGroups = {
             likeButtons: new THREE.Group(),
             nameplates: new THREE.Group(),
-            infoSigns: new THREE.Group()
+            infoSigns: new THREE.Group(),
+            particles: new THREE.Group()
         };
         
         // Add UI groups to scene
-        this.scene.add(this.uiGroups.likeButtons);
-        this.scene.add(this.uiGroups.nameplates);
-        this.scene.add(this.uiGroups.infoSigns);
+        for (const groupName in this.uiGroups) {
+            this.scene.add(this.uiGroups[groupName]);
+        }
         
-        // Distance-based LOD for UI elements
-        this.lodLevels = {
-            // Close proximity - all UI elements visible
-            close: 100,
-            // Medium distance - only names and likes visible
-            medium: 200,
-            // Far distance - minimal UI
-            far: 300
+        // Create collections for UI elements (as Maps instead of arrays)
+        this.likeButtonMeshes = new Map();
+        this.portalLikeButtons = new Map();
+        this.likeTextMeshes = new Map();
+        this.likedPortals = new Set();
+        this.nameplateMeshes = [];
+        
+        // Initialize socket for real-time updates
+        this.socket = null;
+        
+        // Initialize shared resources object
+        this.sharedResources = {
+            // Shared geometries
+            geometries: {},
+            // Shared materials
+            materials: {},
+            // Cache for text textures
+            textTextureCache: new Map()
         };
         
-        console.log('[PortalManager] Initialized with scene, camera, and playerState');
+        // Cache common geometries and materials for UI elements
+        this._initSharedResources();
+        
+        // Setup performance levels (default to auto)
+        this.configurePerformance('auto');
+        
+        // Initialize shared materials for distant portals
+        this.sharedLowDetailMaterials = {};
+        
+        // FPS monitoring for auto-balancing
+        this.fpsHistory = [];
+        this.lastFrameTime = 0;
+        this.fpsUpdateInterval = 500; // ms between FPS calculations
+        this.lastFpsUpdate = 0;
+        this.currentFps = 60;
+        this.targetFps = 60;
+        this.balancingEnabled = true;
+        this.maxVisibilityDistance = this.lodLevels.far; // Initial max visibility distance
+        this.distanceAdjustmentStep = 10; // Distance adjustment per step
+        this.distanceAdjustmentCooldown = 0; // Cooldown for distance adjustments
+        this.lastDistanceAdjustment = 0;
+        
+        console.log('[PortalManager] Initialized');
     }
     
     _initSharedResources() {
@@ -254,7 +239,7 @@ export class PortalManager {
         });
         
         // Reset all button star materials to their original color
-        this.likeButtonMeshes.forEach(mesh => {
+        this.likeButtonMeshes.forEach((mesh, portalId) => {
             if (mesh.visible && mesh.material) {
                 // Default color is white if no original color is stored
                 const originalColor = mesh.material.userData?.originalColor || 0xFFFFFF;
@@ -669,22 +654,25 @@ export class PortalManager {
     
     // Update the appearance of a like button based on whether it's been liked
     updateLikeButtonAppearance(portalId) {
-        const counterMesh = this.likeButtonMeshes.get(portalId);
-        if (!counterMesh) return;
+        // Get references to the meshes
+        const starMesh = this.likeButtonMeshes.get(portalId);
+        if (!starMesh) return;
         
+        // Update the appearance of the star based on liked status
         if (this.likedPortals.has(portalId)) {
-            // User has liked this portal - show brighter
-            counterMesh.material.opacity = 1.0;
+            // This portal has been liked
+            starMesh.material.opacity = 1.0;
+            starMesh.material.color.set(0xFFD700); // Gold color
         } else {
-            // Not liked yet - show slightly dimmer
-            counterMesh.material.opacity = 0.8;
+            // Not liked
+            starMesh.material.color.set(0xFFFFFF); // White color
+            starMesh.material.opacity = 0.8;
         }
     }
     
     // Handle portal like
     likePortal(portalId) {
         // Check if user has already liked this portal
-        console.log('MATT',this.likedPortals)
         if (this.likedPortals.has(portalId)) {
             console.log(`[PortalManager] Portal ${portalId} already liked by this user`);
             return;
@@ -900,26 +888,150 @@ export class PortalManager {
     }
     
     update(deltaTime) {
-        // Update portals with camera reference for LOD
-        this.portals.forEach(portal => {
-            portal.update(deltaTime, this.camera);
-        });
+        // Monitor FPS for auto-balancing visibility distance
+        this.monitorFps();
         
-        // Update LOD visibility for UI elements
-        this.updateLODVisibility();
-        
-        // Make sure like buttons face the camera - only if they're visible
-        if (this.camera) {
-            this.uiGroups.likeButtons.children.forEach(buttonGroup => {
-                if (buttonGroup.visible && buttonGroup.children.length > 0 && !buttonGroup.userData.skipUpdate) {
-                    // Make the entire group (including counter and name) face the camera
-                    buttonGroup.quaternion.copy(this.camera.quaternion);
-                }
-            });
+        // Only update LOD visibility every 10 frames for performance
+        this.frameCounter = (this.frameCounter || 0) + 1;
+        if (this.frameCounter % 10 === 0) {
+            this.updateLODVisibility();
+            
+            // Log stats occasionally for debugging (once every ~5 seconds)
+            if (this.frameCounter % 300 === 0) {
+                this.logPerformanceStats();
+            }
+            
+            // Adjust visibility distance based on performance if enabled
+            if (this.balancingEnabled && this.frameCounter % 30 === 0) {
+                this.autoBalanceVisibilityDistance();
+            }
         }
         
-        // Check for button hover - only if mouse has moved recently
+        // Check if player is hovering over a like button
         this.checkButtonHover();
+        
+        // Update portal animations with adaptive frequency
+        this.portals.forEach(portal => {
+            if (portal.mesh && portal.mesh.visible) {
+                // For distant portals, update less frequently to save resources
+                if (portal.distanceFromCamera > this.lodLevels.medium) {
+                    if (this.frameCounter % 3 === 0) {
+                        portal.update(deltaTime, this.camera);
+                    }
+                } else {
+                    portal.update(deltaTime, this.camera);
+                }
+            }
+        });
+        
+        // Rotate like buttons to face camera
+        this.uiGroups.likeButtons.children.forEach(buttonGroup => {
+            if (buttonGroup.visible && !buttonGroup.userData.skipUpdate) {
+                buttonGroup.lookAt(this.camera.position);
+            }
+        });
+        
+        // Rotate nameplates to face camera
+        this.uiGroups.nameplates.children.forEach(nameMesh => {
+            if (nameMesh.visible) {
+                nameMesh.lookAt(this.camera.position);
+            }
+        });
+    }
+    
+    // Monitor FPS for auto-balancing
+    monitorFps() {
+        const now = performance.now();
+        
+        // Calculate instantaneous FPS
+        if (this.lastFrameTime > 0) {
+            const instantFps = 1000 / (now - this.lastFrameTime);
+            this.fpsHistory.push(instantFps);
+            
+            // Keep history limited to last 60 frames
+            if (this.fpsHistory.length > 60) {
+                this.fpsHistory.shift();
+            }
+        }
+        
+        this.lastFrameTime = now;
+        
+        // Update average FPS periodically
+        if (now - this.lastFpsUpdate > this.fpsUpdateInterval && this.fpsHistory.length > 10) {
+            // Calculate average FPS from history
+            const sum = this.fpsHistory.reduce((a, b) => a + b, 0);
+            this.currentFps = sum / this.fpsHistory.length;
+            
+            // Reset for next update
+            this.lastFpsUpdate = now;
+            
+            // Log FPS occasionally for debugging
+            if (this.frameCounter % 300 === 0) {
+                console.log(`[PortalManager] Current FPS: ${this.currentFps.toFixed(1)}, Max visibility distance: ${this.maxVisibilityDistance.toFixed(1)}`);
+            }
+        }
+    }
+    
+    // Auto-balance visibility distance based on current FPS
+    autoBalanceVisibilityDistance() {
+        if (!this.balancingEnabled || this.fpsHistory.length < 10) return;
+        
+        const now = performance.now();
+        
+        // Enforce cooldown between adjustments
+        if (now - this.lastDistanceAdjustment < this.distanceAdjustmentCooldown) {
+            return;
+        }
+        
+        // Analyze current performance
+        const fpsMargin = 5; // Allow some fluctuation
+        const lowFpsThreshold = this.targetFps - fpsMargin;
+        const highFpsThreshold = this.targetFps + fpsMargin;
+        
+        // Calculate average FPS over the last 10 samples for stability
+        const recentFps = this.fpsHistory.slice(-10);
+        const avgRecentFps = recentFps.reduce((sum, fps) => sum + fps, 0) / recentFps.length;
+        
+        // Track consecutive low FPS counts for detecting severely throttled environments
+        this.consecutiveLowFpsCount = (avgRecentFps < this.targetFps / 2) 
+            ? (this.consecutiveLowFpsCount || 0) + 1 
+            : 0;
+            
+        // Check if we need to switch to minimal mode due to severely throttled environment
+        // (FPS consistently less than 50% of target for 5+ consecutive checks)
+        if (this.consecutiveLowFpsCount >= 5 && avgRecentFps < this.targetFps / 2) {
+            // Switch to minimal mode if not already there
+            if (this.maxVisibilityDistance > 50) {
+                console.log(`[PortalManager] Severely throttled environment detected (FPS: ${avgRecentFps.toFixed(1)}), switching to minimal mode`);
+                this.configurePerformance('minimal');
+                this.consecutiveLowFpsCount = 0;
+                return;
+            }
+        }
+        
+        // Determine if adjustment is needed
+        if (this.currentFps < lowFpsThreshold) {
+            // FPS is too low, reduce visibility distance
+            this.maxVisibilityDistance = Math.max(
+                this.lodLevels.close,
+                this.maxVisibilityDistance - this.distanceAdjustmentStep
+            );
+            this.lastDistanceAdjustment = now;
+            this.distanceAdjustmentCooldown = 1000; // Longer cooldown for reduction
+            
+            console.log(`[PortalManager] Performance balancing: Reduced visibility distance to ${this.maxVisibilityDistance.toFixed(1)} (FPS: ${this.currentFps.toFixed(1)})`);
+        } 
+        else if (this.currentFps > highFpsThreshold && this.maxVisibilityDistance < this.lodLevels.far * 1.5) {
+            // FPS is high, we can try increasing visibility distance up to 150% of the base far distance
+            this.maxVisibilityDistance = Math.min(
+                this.lodLevels.far * 1.5,
+                this.maxVisibilityDistance + this.distanceAdjustmentStep * 0.5
+            );
+            this.lastDistanceAdjustment = now;
+            this.distanceAdjustmentCooldown = 2000; // Longer cooldown for increases
+            
+            console.log(`[PortalManager] Performance balancing: Increased visibility distance to ${this.maxVisibilityDistance.toFixed(1)} (FPS: ${this.currentFps.toFixed(1)})`);
+        }
     }
     
     dispose() {
@@ -951,25 +1063,42 @@ export class PortalManager {
             }
         });
         
-        // Clear all collections
-        this.portalLikeButtons.clear();
-        this.likeButtonMeshes.clear();
-        this.likeTextMeshes.clear();
+        // Clear all Map collections
+        if (this.portalLikeButtons) this.portalLikeButtons.clear();
+        if (this.likeButtonMeshes) this.likeButtonMeshes.clear();
+        if (this.likeTextMeshes) this.likeTextMeshes.clear();
+        if (this.portalLikes) this.portalLikes.clear();
+        if (this.portalTextures) this.portalTextures.clear();
+        
+        // Clear Set collections
+        if (this.likedPortals) this.likedPortals.clear();
         
         // Dispose of shared resources
-        Object.values(this.sharedResources.geometries).forEach(geometry => {
-            if (geometry) geometry.dispose();
-        });
+        if (this.sharedResources) {
+            Object.values(this.sharedResources.geometries).forEach(geometry => {
+                if (geometry) geometry.dispose();
+            });
+            
+            Object.values(this.sharedResources.materials).forEach(material => {
+                if (material) material.dispose();
+            });
+            
+            // Dispose of cached textures
+            if (this.sharedResources.textTextureCache) {
+                this.sharedResources.textTextureCache.forEach(texture => {
+                    if (texture) texture.dispose();
+                });
+                this.sharedResources.textTextureCache.clear();
+            }
+        }
         
-        Object.values(this.sharedResources.materials).forEach(material => {
-            if (material) material.dispose();
-        });
-        
-        // Dispose of cached textures
-        this.sharedResources.textTextureCache.forEach(texture => {
-            if (texture) texture.dispose();
-        });
-        this.sharedResources.textTextureCache.clear();
+        // Dispose of shared low detail materials
+        if (this.sharedLowDetailMaterials) {
+            Object.values(this.sharedLowDetailMaterials).forEach(material => {
+                if (material) material.dispose();
+            });
+            this.sharedLowDetailMaterials = {};
+        }
         
         // Remove event listeners
         if (typeof window !== 'undefined') {
@@ -1001,6 +1130,16 @@ export class PortalManager {
         
         // Adjust LOD distances based on performance mode
         this.configurePerformance(performanceMode);
+        
+        // Check for explicit performance override settings in URL
+        if (urlParams.get('ultra-low') === 'true' && performanceMode === 'auto') {
+            console.log('[PortalManager] Ultra-low mode explicitly requested via URL parameter');
+            this.configurePerformance('ultra-low');
+        }
+        else if (urlParams.get('minimal') === 'true') {
+            console.log('[PortalManager] Minimal mode explicitly requested via URL parameter');
+            this.configurePerformance('minimal');
+        }
         
         // Portal configurations (existing configurations)
         console.log('[PortalManager] Creating portal configurations, showEnterPortal:', showEnterPortal);
@@ -1434,13 +1573,28 @@ export class PortalManager {
         let medium = 200; 
         let far = 300;
         
+        // Default portal render budget
+        let highDetailBudget = 10;  // Number of high-detail portals
+        let mediumDetailBudget = 20; // Number of medium-detail portals
+        let totalVisibleBudget = 30; // Total visible portals
+        
+        // Default auto-balancing settings
+        let enableAutoBalancing = true;
+        let targetFramerate = 60;
+        let initialMaxDistance = far;
+        
         // Adjust based on specified mode
         switch(mode) {
             case 'high':
-                // High-quality mode - see UI elements from further away
+                // High-quality mode - see UI elements from further away and render more portals
                 close = 150;
                 medium = 250;
                 far = 350;
+                highDetailBudget = 15;
+                mediumDetailBudget = 25;
+                totalVisibleBudget = 40;
+                targetFramerate = 55; // Slightly lower target for high quality
+                initialMaxDistance = far * 1.2;
                 break;
             
             case 'low':
@@ -1448,13 +1602,46 @@ export class PortalManager {
                 close = 60;
                 medium = 120;
                 far = 200;
+                highDetailBudget = 8;
+                mediumDetailBudget = 16;
+                totalVisibleBudget = 25;
+                targetFramerate = 60;
+                initialMaxDistance = far * 0.9;
+                break;
+                
+            case 'ultra-low':
+                // Ultra-low quality mode for extremely limited devices
+                close = 30;  // Extremely short visibility for high detail
+                medium = 60; // Very limited medium detail range
+                far = 100;   // Severely reduced overall visibility 
+                highDetailBudget = 5;   // Minimal high-detail portals
+                mediumDetailBudget = 10; // Very few medium-detail portals
+                totalVisibleBudget = 15; // Drastically reduced total visible portals
+                targetFramerate = 30;    // Target lower framerate to reduce CPU usage
+                initialMaxDistance = far * 0.8; // Start with even lower visibility
+                break;
+                
+            case 'minimal':
+                // Absolute minimum settings for severely throttled environments
+                close = 15;   // Extremely limited visibility for high detail
+                medium = 45;  // Very short medium detail range
+                far = 75;     // Drastically reduced overall visibility
+                highDetailBudget = 3;    // Bare minimum high-detail portals
+                mediumDetailBudget = 5;  // Very few medium-detail portals
+                totalVisibleBudget = 8;  // Extremely limited total visible portals
+                targetFramerate = 25;    // Very low target framerate
+                initialMaxDistance = far; // Start at base visibility (already very limited)
                 break;
             
-            case 'ultra-low':
-                // Ultra-low mode - minimal UI for maximum performance
-                close = 40;
-                medium = 80;
-                far = 120;
+            case 'no-auto-balance':
+                // Use medium quality but disable auto-balancing
+                close = 100;
+                medium = 200;
+                far = 300;
+                highDetailBudget = 10;
+                mediumDetailBudget = 20;
+                totalVisibleBudget = 30;
+                enableAutoBalancing = false;
                 break;
             
             case 'auto':
@@ -1470,14 +1657,102 @@ export class PortalManager {
                     close = 60;
                     medium = 120;
                     far = 200;
+                    highDetailBudget = 6;
+                    mediumDetailBudget = 12;
+                    totalVisibleBudget = 20;
+                    targetFramerate = 45; // Lower target framerate for mobile
+                    initialMaxDistance = far * 0.85;
+                    
+                    // Try to detect if it's a low-end mobile device
+                    if (navigator && navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) {
+                        // Use low settings for low-end devices
+                        close = 40;
+                        medium = 80;
+                        far = 120;
+                        highDetailBudget = 4;
+                        mediumDetailBudget = 8;
+                        totalVisibleBudget = 15;
+                        targetFramerate = 30; // Even lower target for low-end devices
+                        initialMaxDistance = far * 0.7;
+                        
+                        // Check for extremely low-resource devices
+                        if (navigator.deviceMemory && navigator.deviceMemory <= 2) {
+                            // Use ultra-low settings for extremely limited devices
+                            close = 30;
+                            medium = 60;
+                            far = 100;
+                            highDetailBudget = 5;
+                            mediumDetailBudget = 10;
+                            totalVisibleBudget = 15;
+                            targetFramerate = 30;
+                            initialMaxDistance = far * 0.7;
+                        }
+                        // For devices that don't support deviceMemory API (like older Android)
+                        else {
+                            // Check for specific device models known to have performance issues
+                            const userAgent = navigator.userAgent;
+                            const isLowEndAndroid = /Android [2-5]/.test(userAgent) || 
+                                                   /SM-[GT][0-9]{4}[A-Z]?/.test(userAgent) ||  // Older Samsung models
+                                                   /Moto [GE]|Moto G\(/.test(userAgent);       // Older Motorola models
+                            
+                            if (isLowEndAndroid) {
+                                // Use ultra-low settings for detected low-end Android devices
+                                close = 30;
+                                medium = 60;
+                                far = 100;
+                                highDetailBudget = 5;
+                                mediumDetailBudget = 10;
+                                totalVisibleBudget = 15;
+                                targetFramerate = 30;
+                                initialMaxDistance = far * 0.7;
+                            }
+                        }
+                    }
+                } else {
+                    // For desktops, check GPU performance
+                    if (navigator && navigator.gpu) {
+                        // Modern browser with WebGPU support - likely high-end
+                        close = 150;
+                        medium = 250;
+                        far = 350;
+                        highDetailBudget = 15;
+                        mediumDetailBudget = 25;
+                        totalVisibleBudget = 40;
+                        initialMaxDistance = far * 1.1;
+                    }
                 }
-                // Otherwise use defaults
                 break;
         }
         
         // Set the LOD levels
         this.lodLevels = { close, medium, far };
-        console.log(`[PortalManager] Performance configured to ${mode} mode:`, this.lodLevels);
+        
+        // Set portal budgets
+        this.portalBudgets = {
+            highDetail: highDetailBudget,
+            mediumDetail: mediumDetailBudget,
+            totalVisible: totalVisibleBudget
+        };
+        
+        // Configure auto-balancing
+        this.balancingEnabled = enableAutoBalancing;
+        this.targetFps = targetFramerate;
+        this.maxVisibilityDistance = initialMaxDistance;
+        this.fpsHistory = []; // Reset FPS history on reconfiguration
+        
+        // Adjust adjustment step size based on far distance
+        this.distanceAdjustmentStep = far * 0.05; // 5% of far distance per adjustment
+        
+        console.log(`[PortalManager] Performance configured to ${mode} mode:`, {
+            lodLevels: this.lodLevels,
+            portalBudgets: this.portalBudgets,
+            autoBalancing: {
+                enabled: this.balancingEnabled,
+                targetFps: this.targetFps,
+                maxVisibilityDistance: this.maxVisibilityDistance,
+                adjustmentStep: this.distanceAdjustmentStep
+            }
+        });
     }
     
     async fetchPortalsFromAPI() {
@@ -1800,7 +2075,7 @@ export class PortalManager {
         return portalGroup;
     }
 
-    // New method to handle LOD-based visibility
+    // New method to handle LOD-based visibility with cluster filtering
     updateLODVisibility() {
         if (!this.camera) return;
         
@@ -1831,15 +2106,168 @@ export class PortalManager {
         
         // Camera position for distance checks
         const cameraPosition = this.camera.position;
+
+        // Organize portals by distance for LOD management
+        const portalItems = [];
+        this.portals.forEach(portal => {
+            if (!portal.mesh) return;
+            
+            // Calculate distance to camera
+            const distance = cameraPosition.distanceTo(portal.mesh.position);
+            portal.distanceFromCamera = distance;
+            
+            // Skip frustum checks for very close objects
+            const skipFrustumCheck = distance < 40;
+            
+            // Apply auto-balanced distance culling - hide portals beyond the dynamic visibility distance
+            if (distance > this.maxVisibilityDistance) {
+                portal.mesh.visible = false;
+                return;
+            }
+            
+            // Determine visibility - either very close or in frustum
+            let inView = skipFrustumCheck;
+            
+            // Only perform frustum check if not skipping
+            if (!skipFrustumCheck) {
+                // Simplified frustum check on portal mesh
+                inView = isInFrustum(portal.mesh);
+            }
+            
+            portalItems.push({
+                portal,
+                distance,
+                inView
+            });
+        });
+        
+        // Sort portals by distance (closest first)
+        portalItems.sort((a, b) => a.distance - b.distance);
+        
+        // Find portal clusters to reduce visual clutter
+        const CLUSTER_RADIUS = 15; // Portals within this distance are considered a cluster
+        const prefiltered = [];
+        const clusters = [];
+        
+        // Group portals into clusters
+        portalItems.forEach(item => {
+            if (!item.inView) {
+                // Skip portals outside frustum
+                return;
+            }
+            
+            // Check if this portal belongs to an existing cluster
+            let foundCluster = false;
+            for (const cluster of clusters) {
+                const clusterPortal = cluster.portals[0];
+                const portalDistance = clusterPortal.portal.mesh.position.distanceTo(item.portal.mesh.position);
+                
+                if (portalDistance < CLUSTER_RADIUS) {
+                    // Add to existing cluster
+                    cluster.portals.push(item);
+                    foundCluster = true;
+                    break;
+                }
+            }
+            
+            if (!foundCluster) {
+                // Create a new cluster
+                clusters.push({
+                    portals: [item],
+                    center: item.portal.mesh.position.clone(),
+                    distance: item.distance
+                });
+            }
+        });
+        
+        // Sort clusters by distance
+        clusters.sort((a, b) => a.distance - b.distance);
+        
+        // Select representative portals from each cluster
+        clusters.forEach(cluster => {
+            // Sort portals in this cluster by distance
+            cluster.portals.sort((a, b) => a.distance - b.distance);
+            
+            // Take at most 3 portals from each cluster, prioritizing closest ones
+            const maxFromCluster = Math.min(3, cluster.portals.length);
+            for (let i = 0; i < maxFromCluster; i++) {
+                prefiltered.push(cluster.portals[i]);
+            }
+        });
+        
+        // Sort prefiltered portals by distance again
+        prefiltered.sort((a, b) => a.distance - b.distance);
+        
+        // Maximum number of high-detail portals to show
+        const MAX_HIGH_DETAIL = this.portalBudgets?.highDetail || 10;
+        const MAX_MEDIUM_DETAIL = this.portalBudgets?.mediumDetail || 20;
+        const MAX_TOTAL_VISIBLE = this.portalBudgets?.totalVisible || 30;
+        
+        // Count of portals at each detail level
+        let highDetailCount = 0;
+        let mediumDetailCount = 0;
+        let lowDetailCount = 0;
+        
+        // Hide all portals first
+        this.portals.forEach(portal => {
+            if (portal.mesh) {
+                portal.mesh.visible = false;
+            }
+        });
+        
+        // Apply detail levels based on distance and budget
+        prefiltered.forEach((item, index) => {
+            const { portal, distance, inView } = item;
+            
+            // Skip portals beyond the dynamic max visibility distance
+            if (distance > this.maxVisibilityDistance) {
+                return;
+            }
+            
+            // Make portal visible since it's in view and survived prefiltering
+            portal.mesh.visible = true;
+            
+            // Apply detail level based on distance and budget
+            if (distance <= this.lodLevels.close && highDetailCount < MAX_HIGH_DETAIL) {
+                // High detail mode - full shader effects, UI, animations
+                this.setPortalDetailLevel(portal, 'high');
+                highDetailCount++;
+            } else if (distance <= this.lodLevels.medium && mediumDetailCount < MAX_MEDIUM_DETAIL) {
+                // Medium detail - simplified effects, basic UI
+                this.setPortalDetailLevel(portal, 'medium');
+                mediumDetailCount++;
+            } else if ((highDetailCount + mediumDetailCount + lowDetailCount) < MAX_TOTAL_VISIBLE) {
+                // Low detail - minimal effects, no UI
+                this.setPortalDetailLevel(portal, 'low');
+                lowDetailCount++;
+            } else {
+                // Beyond our render budget - hide completely
+                portal.mesh.visible = false;
+            }
+        });
         
         // Update UI groups visibility based on distance and frustum
         // 1. Like buttons
         this.uiGroups.likeButtons.children.forEach(buttonGroup => {
             if (!buttonGroup.userData || !buttonGroup.userData.portalId) return;
             
+            // Find the portal this button belongs to
+            const portal = this.portals.find(p => p.portalId === buttonGroup.userData.portalId);
+            if (!portal || !portal.mesh.visible) {
+                // If portal is hidden, hide the button
+                buttonGroup.visible = false;
+                return;
+            }
+            
             // Calculate distance to camera
             const distance = cameraPosition.distanceTo(buttonGroup.position);
             buttonGroup.userData.distanceFromCamera = distance;
+            
+            // Apply dynamic visibility distance cutoff to UI elements
+            if (distance > this.maxVisibilityDistance * 0.7) { // UI disappears at 70% of max portal distance
+                buttonGroup.visible = false;
+                return;
+            }
             
             // Skip frustum checks for very close objects
             const skipFrustumCheck = distance < 40;
@@ -1859,18 +2287,13 @@ export class PortalManager {
                 buttonGroup.visible = false;
             } else {
                 // Within visible range
-                buttonGroup.visible = true;
+                buttonGroup.visible = distance <= this.lodLevels.medium;
                 
                 // Optimize update frequency based on distance
-                if (distance > this.lodLevels.medium) {
+                if (distance > this.lodLevels.medium / 2) {
                     // Update rotation less frequently for distant buttons
                     buttonGroup.userData.skipFrames = (buttonGroup.userData.skipFrames || 0) + 1;
-                    if (buttonGroup.userData.skipFrames % 3 !== 0) {
-                        // Skip quaternion update for this frame
-                        buttonGroup.userData.skipUpdate = true;
-                    } else {
-                        buttonGroup.userData.skipUpdate = false;
-                    }
+                    buttonGroup.userData.skipUpdate = buttonGroup.userData.skipFrames % 4 !== 0;
                 } else {
                     // Close enough for every-frame updates
                     buttonGroup.userData.skipUpdate = false;
@@ -1882,11 +2305,24 @@ export class PortalManager {
         this.uiGroups.nameplates.children.forEach(nameMesh => {
             if (!nameMesh.userData || !nameMesh.userData.portalId) return;
             
+            // Find the portal this nameplate belongs to
+            const portal = this.portals.find(p => p.portalId === nameMesh.userData.portalId);
+            if (!portal || !portal.mesh.visible) {
+                // If portal is hidden, hide the nameplate
+                nameMesh.visible = false;
+                return;
+            }
+            
             // Calculate distance to camera
             const distance = cameraPosition.distanceTo(nameMesh.position);
-            nameMesh.userData.distanceFromCamera = distance;
             
-            // Skip complex frustum checks - just use distance
+            // Apply dynamic visibility distance cutoff to nameplates (disappear earlier than portals)
+            if (distance > this.maxVisibilityDistance * 0.6) { // Nameplates disappear at 60% of max portal distance
+                nameMesh.visible = false;
+                return;
+            }
+            
+            // Show nameplates only for close and medium detail portals
             nameMesh.visible = distance <= this.lodLevels.medium;
         });
         
@@ -1894,12 +2330,282 @@ export class PortalManager {
         this.uiGroups.infoSigns.children.forEach(infoMesh => {
             if (!infoMesh.userData || !infoMesh.userData.portalId) return;
             
+            // Find the portal this info sign belongs to
+            const portal = this.portals.find(p => p.portalId === infoMesh.userData.portalId);
+            if (!portal || !portal.mesh.visible) {
+                // If portal is hidden, hide the info sign
+                infoMesh.visible = false;
+                return;
+            }
+            
             // Calculate distance to camera
             const distance = cameraPosition.distanceTo(infoMesh.position);
-            infoMesh.userData.distanceFromCamera = distance;
             
-            // Skip complex frustum checks - just use distance
+            // Apply dynamic visibility distance cutoff to info signs (disappear very early)
+            if (distance > this.maxVisibilityDistance * 0.5) { // Info signs disappear at 50% of max portal distance
+                infoMesh.visible = false;
+                return;
+            }
+            
+            // Show info signs only for close detail portals
             infoMesh.visible = distance <= this.lodLevels.close;
         });
+        
+        // Store statistics for logging
+        this._lastClusterCount = clusters.length;
+        this._lastFilteredOutCount = portalItems.filter(item => item.inView).length - prefiltered.length;
+    }
+    
+    // New method to set portal detail level
+    setPortalDetailLevel(portal, level) {
+        if (!portal || !portal.mesh) return;
+        
+        // Check if the detail level is changing
+        if (portal.currentDetailLevel === level) {
+            return; // Skip if there's no change in detail level
+        }
+        
+        // Store the new detail level
+        portal.currentDetailLevel = level;
+        
+        // Apply different settings based on detail level
+        switch (level) {
+            case 'high':
+                // Full detail - everything enabled
+                portal.mesh.traverse(child => {
+                    if (child.isMesh) {
+                        child.visible = true;
+                        
+                        // Restore original material if it was replaced
+                        if (child.userData.originalMaterial) {
+                            child.material = child.userData.originalMaterial;
+                            delete child.userData.originalMaterial;
+                        }
+                        
+                        // Enable full shader effects
+                        if (child.material && child.material instanceof THREE.ShaderMaterial) {
+                            // Use full quality shaders
+                            if (portal.isMobile) {
+                                child.material.vertexShader = simplifiedVertexShader;
+                                child.material.fragmentShader = simplifiedFragmentShader;
+                            } else {
+                                child.material.vertexShader = rippleVertexShader;
+                                child.material.fragmentShader = rippleFragmentShader;
+                            }
+                            child.material.needsUpdate = true;
+                        }
+                    }
+                });
+                break;
+                
+            case 'medium':
+                // Medium detail - simplified effects
+                portal.mesh.traverse(child => {
+                    if (child.isMesh) {
+                        child.visible = true;
+                        
+                        // Restore original material if it was replaced
+                        if (child.userData.originalMaterial) {
+                            child.material = child.userData.originalMaterial;
+                            delete child.userData.originalMaterial;
+                        }
+                        
+                        // Simplify shader effects
+                        if (child.material && child.material instanceof THREE.ShaderMaterial) {
+                            // Use simplified shaders for medium distance
+                            child.material.vertexShader = simplifiedVertexShader;
+                            child.material.fragmentShader = simplifiedFragmentShader;
+                            child.material.needsUpdate = true;
+                        }
+                    }
+                });
+                break;
+                
+            case 'low':
+                // Low detail - minimal rendering with extremely optimized draw calls
+                
+                // Initialize shared materials if not already done
+                if (!this.sharedLowDetailMaterials) {
+                    this.sharedLowDetailMaterials = {};
+                }
+                
+                portal.mesh.traverse(child => {
+                    if (child.isMesh) {
+                        // Show only the main portal surface, hide decorative elements
+                        if (child.material && 
+                            (child.material.name === 'Material.002' || child.material.name === 'Cube002_3')) {
+                            child.visible = true;
+                            
+                            // Use extremely simplified shader
+                            if (child.material instanceof THREE.ShaderMaterial) {
+                                // Store original material if not already saved
+                                if (!child.userData.originalMaterial) {
+                                    child.userData.originalMaterial = child.material;
+                                    
+                                    // Store the original texture for this portal
+                                    const originalTexture = child.material.uniforms.baseTexture.value;
+                                    if (originalTexture) {
+                                        // Create a unique key for this portal's texture
+                                        const textureKey = `texture_${portal.portalId}`;
+                                        
+                                        // Store this texture for later retrieval
+                                        if (!this.portalTextures) {
+                                            this.portalTextures = new Map();
+                                        }
+                                        this.portalTextures.set(textureKey, originalTexture);
+                                    }
+                                }
+                                
+                                // Create a shared material key
+                                const materialKey = 'ultraSimplified_' + child.material.name;
+                                let sharedMaterial = this.sharedLowDetailMaterials[materialKey];
+                                
+                                if (!sharedMaterial) {
+                                    // Create a new shared material for this type
+                                    sharedMaterial = new THREE.ShaderMaterial({
+                                        uniforms: {
+                                            baseTexture: { value: null },
+                                            time: { value: 0 }
+                                        },
+                                        vertexShader: ultraSimplifiedVertexShader,
+                                        fragmentShader: ultraSimplifiedFragmentShader,
+                                        transparent: true,
+                                        side: THREE.DoubleSide
+                                    });
+                                    
+                                    // Store for reuse
+                                    this.sharedLowDetailMaterials[materialKey] = sharedMaterial;
+                                }
+                                
+                                // Apply the shared material
+                                child.material = sharedMaterial;
+                                
+                                // Get the texture for this portal
+                                const textureKey = `texture_${portal.portalId}`;
+                                const texture = this.portalTextures?.get(textureKey);
+                                
+                                // Set the texture for this specific portal
+                                if (texture) {
+                                    child.material.uniforms.baseTexture.value = texture;
+                                }
+                            }
+                        } else {
+                            // Hide non-essential elements
+                            child.visible = false;
+                        }
+                    }
+                });
+                break;
+                
+            default:
+                // Default to low detail
+                this.setPortalDetailLevel(portal, 'low');
+        }
+    }
+    
+    // Add performance stats to help monitor optimizations
+    logPerformanceStats() {
+        // Count visible portals at each detail level
+        let highCount = 0;
+        let mediumCount = 0;
+        let lowCount = 0;
+        let hiddenCount = 0;
+        
+        this.portals.forEach(portal => {
+            if (!portal.mesh || !portal.mesh.visible) {
+                hiddenCount++;
+            } else if (portal.currentDetailLevel === 'high') {
+                highCount++;
+            } else if (portal.currentDetailLevel === 'medium') {
+                mediumCount++;
+            } else if (portal.currentDetailLevel === 'low') {
+                lowCount++;
+            }
+        });
+        
+        // Count clusters and filtering stats
+        const clusterCount = this._lastClusterCount || 0;
+        const filteredOutCount = this._lastFilteredOutCount || 0;
+        
+        // Count visible UI elements
+        let visibleButtons = 0;
+        let visibleNameplates = 0;
+        let visibleInfoSigns = 0;
+        
+        this.uiGroups.likeButtons.children.forEach(child => {
+            if (child.visible) visibleButtons++;
+        });
+        
+        this.uiGroups.nameplates.children.forEach(child => {
+            if (child.visible) visibleNameplates++;
+        });
+        
+        this.uiGroups.infoSigns.children.forEach(child => {
+            if (child.visible) visibleInfoSigns++;
+        });
+        
+        // Auto-balancing stats
+        const autoBalanceStatus = this.balancingEnabled ? 'Enabled' : 'Disabled';
+        
+        console.log('[PortalManager] Performance stats:', {
+            // Portal stats
+            totalPortals: this.portals.length,
+            visiblePortals: highCount + mediumCount + lowCount,
+            highDetail: highCount,
+            mediumDetail: mediumCount,
+            lowDetail: lowCount,
+            hidden: hiddenCount,
+            
+            // Clustering stats
+            clusters: clusterCount,
+            filteredOut: filteredOutCount,
+            
+            // UI stats
+            visibleUI: {
+                likeButtons: visibleButtons,
+                nameplates: visibleNameplates,
+                infoSigns: visibleInfoSigns
+            },
+            
+            // Auto-balancing
+            autoBalancing: {
+                status: autoBalanceStatus,
+                fps: this.currentFps.toFixed(1),
+                targetFps: this.targetFps,
+                maxVisibilityDistance: this.maxVisibilityDistance.toFixed(1),
+                baseDistance: this.lodLevels.far
+            }
+        });
+    }
+    
+    // Allow toggling of auto-balancing via API
+    toggleAutoBalancing(enabled) {
+        this.balancingEnabled = enabled !== undefined ? !!enabled : !this.balancingEnabled;
+        console.log(`[PortalManager] Auto-balancing ${this.balancingEnabled ? 'enabled' : 'disabled'}`);
+        
+        // Reset to base visibility distance when disabling
+        if (!this.balancingEnabled) {
+            this.maxVisibilityDistance = this.lodLevels.far;
+        }
+        
+        return this.balancingEnabled;
+    }
+    
+    // Set target framerate for auto-balancing
+    setTargetFramerate(fps) {
+        if (typeof fps === 'number' && fps > 0) {
+            this.targetFps = fps;
+            console.log(`[PortalManager] Target framerate set to ${fps}`);
+        }
+        return this.targetFps;
+    }
+    
+    // Manually set max visibility distance (overrides auto-balancing temporarily)
+    setMaxVisibilityDistance(distance) {
+        if (typeof distance === 'number' && distance > 0) {
+            this.maxVisibilityDistance = distance;
+            console.log(`[PortalManager] Max visibility distance set to ${distance}`);
+        }
+        return this.maxVisibilityDistance;
     }
 } 
