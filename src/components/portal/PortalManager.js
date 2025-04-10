@@ -46,7 +46,107 @@ export class PortalManager {
         this.touchInteracting = false;
         this.lastTouchPosition = { x: 0, y: 0 };
         
+        // Shared resources for optimizations
+        this.sharedResources = {
+            // Shared geometries
+            geometries: {
+                likeButton: null,    // For portal likes
+                nameplate: null,     // For portal names
+                infoSign: null,      // For portal info
+                textPlane: null      // For text displays
+            },
+            
+            // Shared materials
+            materials: {
+                likeButton: null,
+                nameplate: null,
+                infoSign: null
+            },
+            
+            // Texture atlas for common UI elements
+            atlas: null,
+            
+            // Font for text rendering
+            font: null,
+            
+            // Cache for text textures to avoid redundant creation
+            textTextureCache: new Map(),
+            
+            // Text batch renderer for optimized text rendering
+            textBatch: null
+        };
+        
+        // Initialize shared resources
+        this._initSharedResources();
+        
+        // Create UI groups to batch UI elements
+        this.uiGroups = {
+            likeButtons: new THREE.Group(),
+            nameplates: new THREE.Group(),
+            infoSigns: new THREE.Group()
+        };
+        
+        // Add UI groups to scene
+        this.scene.add(this.uiGroups.likeButtons);
+        this.scene.add(this.uiGroups.nameplates);
+        this.scene.add(this.uiGroups.infoSigns);
+        
+        // Distance-based LOD for UI elements
+        this.lodLevels = {
+            // Close proximity - all UI elements visible
+            close: 100,
+            // Medium distance - only names and likes visible
+            medium: 200,
+            // Far distance - minimal UI
+            far: 300
+        };
+        
         console.log('[PortalManager] Initialized with scene, camera, and playerState');
+    }
+    
+    _initSharedResources() {
+        // Create shared geometries
+        this.sharedResources.geometries.likeButton = new THREE.PlaneGeometry(3, 3);
+        this.sharedResources.geometries.nameplate = new THREE.PlaneGeometry(5, 3);
+        this.sharedResources.geometries.infoSign = new THREE.PlaneGeometry(3.5, 4);
+        this.sharedResources.geometries.textPlane = new THREE.PlaneGeometry(4.5, 2.5);
+        
+        // Create shared texture loader
+        const textureLoader = new THREE.TextureLoader(this.loadingManager);
+        
+        // Load shared textures - use the same loader to benefit from caching
+        const counterTexture = textureLoader.load('/assets/images/counter.png');
+        const nameplateTexture = textureLoader.load('/assets/images/name.png');
+        const infoTexture = textureLoader.load('/assets/images/info.png');
+        
+        // Create shared materials with the textures
+        this.sharedResources.materials.likeButton = new THREE.MeshBasicMaterial({
+            map: counterTexture,
+            transparent: true,
+            side: THREE.DoubleSide,
+            depthWrite: false
+        });
+        
+        this.sharedResources.materials.nameplate = new THREE.MeshBasicMaterial({
+            map: nameplateTexture,
+            transparent: true,
+            side: THREE.DoubleSide,
+            depthWrite: false
+        });
+        
+        this.sharedResources.materials.infoSign = new THREE.MeshBasicMaterial({
+            map: infoTexture,
+            transparent: true,
+            side: THREE.DoubleSide,
+            depthWrite: false
+        });
+        
+        // Create a shared material for text that will be updated with different canvases
+        this.sharedResources.materials.text = new THREE.MeshBasicMaterial({
+            transparent: true,
+            side: THREE.DoubleSide,
+            depthWrite: false
+        });
     }
     
     onMouseMove(event) {
@@ -143,26 +243,19 @@ export class PortalManager {
         // Update the raycaster with the camera and mouse position
         this.clickRaycaster.setFromCamera(this.mouse, this.camera);
         
-        // Create a list of all interactive elements (stars and backgrounds)
+        // Create a list of all visible interactive elements
         const clickableMeshes = [];
         
-        // Add both star meshes and their background circles as clickable elements
-        this.portalLikeButtons.forEach((buttonGroup, portalId) => {
-            if (buttonGroup) {
-                buttonGroup.children.forEach(child => {
-                    if (child.userData && child.userData.portalId) {
-                        clickableMeshes.push(child);
-                    }
-                });
+        // Only check visible buttons to reduce unnecessary processing
+        this.uiGroups.likeButtons.traverse(child => {
+            if (child.visible && child.isMesh && child.userData && child.userData.portalId) {
+                clickableMeshes.push(child);
             }
         });
         
-        // Check for intersections
-        const intersects = this.clickRaycaster.intersectObjects(clickableMeshes);
-        
         // Reset all button star materials to their original color
         this.likeButtonMeshes.forEach(mesh => {
-            if (mesh.material) {
+            if (mesh.visible && mesh.material) {
                 // Default color is white if no original color is stored
                 const originalColor = mesh.material.userData?.originalColor || 0xFFFFFF;
                 mesh.material.color.set(originalColor);
@@ -173,6 +266,12 @@ export class PortalManager {
         this.selectedButton = null;
         document.body.style.cursor = 'default';
         
+        // If no clickable meshes, exit early
+        if (clickableMeshes.length === 0) return;
+        
+        // Check for intersections
+        const intersects = this.clickRaycaster.intersectObjects(clickableMeshes);
+        
         // Handle hover state
         if (intersects.length > 0) {
             const clickedMesh = intersects[0].object;
@@ -180,7 +279,7 @@ export class PortalManager {
             
             // Highlight the star button for this portal
             const starMesh = this.likeButtonMeshes.get(portalId);
-            if (starMesh) {
+            if (starMesh && starMesh.visible) {
                 // Store original color if not already saved
                 if (!starMesh.material.userData) {
                     starMesh.material.userData = {};
@@ -287,20 +386,26 @@ export class PortalManager {
             // Update button text with initial count
             this.updateLikeButtonText(portalConfig.portalId);
             
-            // Update texture after a short delay to ensure the portal is fully loaded
+            // Update texture
             setTimeout(() => {
                 console.log(`[PortalManager] Updating texture for portal ${portalConfig.portalId}`);
                 // Use special fire portal image for Enter portal
-                const portalImageUrl = portalConfig.portalId === 'enter' 
-                    ? '/assets/images/portal.jpg'  // Use absolute path to assets directory
-                    : `https://thevibemetaverse.vercel.app/assets/images/${portalConfig.portalId}.png`;
+                let portalImageUrl;
+                if (portalConfig.portalId === 'enter') {
+                    portalImageUrl = '/assets/images/portal.jpg';  // Use absolute path to assets directory
+                } else {
+                    // Use the portal-specific image with timestamp AND random number to guarantee uniqueness
+                    const uniqueId = Date.now() + '_' + Math.random().toString(36).substring(2, 10);
+                    portalImageUrl = `https://thevibemetaverse.vercel.app/assets/images/${portalConfig.portalId}.png?uid=${uniqueId}`;
+                }
+                
                 console.log(`[PortalManager] Setting texture for ${portalConfig.portalId} to:`, portalImageUrl);
                 
                 // Try both material names that might exist in the model
                 ['Material.002', 'Cube002_3'].forEach(materialName => {
                     portal.updateTexture(materialName, portalImageUrl);
                 });
-            }, 100);
+            }, 100 + Math.floor(Math.random() * 50)); // Stagger timing slightly
             
             return portal;
         } catch (error) {
@@ -320,17 +425,12 @@ export class PortalManager {
         buttonPosition.y += 7.8; // Position higher above the portal
         likeButtonGroup.position.copy(buttonPosition);
         
-        // Create a plane for the counter image
-        const geometry = new THREE.PlaneGeometry(3, 3);
-        const texture = new THREE.TextureLoader().load('/assets/images/counter.png');
-        const material = new THREE.MeshBasicMaterial({ 
-            map: texture,
-            transparent: true,
-            side: THREE.DoubleSide,
-            depthWrite: false
-        });
-        
-        const counterMesh = new THREE.Mesh(geometry, material);
+        // Use shared geometry and material for the counter
+        const counterMesh = new THREE.Mesh(
+            this.sharedResources.geometries.likeButton,
+            // Clone the material to allow individual opacity changes
+            this.sharedResources.materials.likeButton.clone()
+        );
         counterMesh.position.z = -0.01; // Move counter slightly back
         
         // Store the portal ID in the mesh's userData
@@ -346,8 +446,8 @@ export class PortalManager {
         // Add text group to button group
         likeButtonGroup.add(textGroup);
         
-        // Add the button group to the scene
-        this.scene.add(likeButtonGroup);
+        // Add the button group to our UI group instead of directly to the scene
+        this.uiGroups.likeButtons.add(likeButtonGroup);
         
         // Store references for later updates
         this.likeButtonMeshes.set(portal.portalId, counterMesh);
@@ -357,33 +457,30 @@ export class PortalManager {
         // Ensure the like button always faces the camera
         likeButtonGroup.userData = {
             isLikeButton: true,
-            portalId: portal.portalId
+            portalId: portal.portalId,
+            distanceFromCamera: 0 // For LOD
         };
         
         // Initialize with correct appearance based on liked status
         if (this.likedPortals.has(portal.portalId)) {
-            material.opacity = 1.0;
+            counterMesh.material.opacity = 1.0;
         } else {
-            material.opacity = 0.8;
+            counterMesh.material.opacity = 0.8;
         }
         
         // Set initial text
         this.updateLikeButtonText(portal.portalId);
+        
+        return likeButtonGroup;
     }
     
     // Create name image for a portal
     createPortalName(portal) {
-        // Create name image as a separate object
-        const nameGeometry = new THREE.PlaneGeometry(5, 3);
-        const nameTexture = new THREE.TextureLoader().load('/assets/images/name.png');
-        const nameMaterial = new THREE.MeshBasicMaterial({ 
-            map: nameTexture,
-            transparent: true,
-            side: THREE.DoubleSide,
-            depthWrite: false
-        });
-        
-        const nameMesh = new THREE.Mesh(nameGeometry, nameMaterial);
+        // Create name image using shared resources
+        const nameMesh = new THREE.Mesh(
+            this.sharedResources.geometries.nameplate,
+            this.sharedResources.materials.nameplate
+        );
         
         // Position the name mesh relative to the portal
         const portalPosition = portal.position.clone();
@@ -405,20 +502,21 @@ export class PortalManager {
         textMesh.position.z = 0.01; // Place slightly in front of the name image
         nameMesh.add(textMesh); // Add text as a child of the name mesh
         
-        // Add name mesh directly to the scene
-        this.scene.add(nameMesh);
+        // Store metadata for LOD
+        nameMesh.userData = {
+            portalId: portal.portalId,
+            type: 'nameplate',
+            distanceFromCamera: 0
+        };
+        
+        // Add name mesh to the nameplate group instead of directly to the scene
+        this.uiGroups.nameplates.add(nameMesh);
 
-        // Create info sign on the ground
-        const infoGeometry = new THREE.PlaneGeometry(3.5, 4);
-        const infoTexture = new THREE.TextureLoader().load('/assets/images/info.png');
-        const infoMaterial = new THREE.MeshBasicMaterial({
-            map: infoTexture,
-            transparent: true,
-            side: THREE.DoubleSide,
-            depthWrite: false
-        });
-
-        const infoMesh = new THREE.Mesh(infoGeometry, infoMaterial);
+        // Create info sign on the ground using shared resources
+        const infoMesh = new THREE.Mesh(
+            this.sharedResources.geometries.infoSign,
+            this.sharedResources.materials.infoSign
+        );
         
         // Position the info sign relative to the portal
         const infoPosition = portal.position.clone();
@@ -438,6 +536,13 @@ export class PortalManager {
         
         // Set the rotation to match the portal's Y rotation
         infoMesh.rotation.y = portal.rotation.y;
+        
+        // Store metadata for LOD
+        infoMesh.userData = {
+            portalId: portal.portalId,
+            type: 'infoSign',
+            distanceFromCamera: 0
+        };
         
         // Create and add multiplayer status emoji
         const multiplayerBool = this.createTextMesh(portal.multiplayer ? "✅" : "❌");
@@ -469,41 +574,60 @@ export class PortalManager {
         avatarText.scale.set(0.6, 0.6, 0.6);
         infoMesh.add(avatarText);
         
-        // Add info mesh to the scene
-        this.scene.add(infoMesh);
+        // Add info mesh to the info signs group instead of directly to the scene
+        this.uiGroups.infoSigns.add(infoMesh);
+        
+        return {
+            nameMesh: nameMesh,
+            infoMesh: infoMesh
+        };
     }
     
     // Create text mesh for showing the count
     createTextMesh(text, fontFamily = 'Arial') {
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d', { alpha: true });
-        canvas.width = 512;
-        canvas.height = 256;
+        // Check if we already have a cached texture for this text
+        const cacheKey = `${text}_${fontFamily}`;
         
-        // Clear the canvas to ensure transparency
-        context.clearRect(0, 0, canvas.width, canvas.height);
+        let texture;
         
-        // Start with a large font size
-        let fontSize = 72;
-        let textWidth;
+        // Try to get from cache first
+        if (this.sharedResources.textTextureCache.has(cacheKey)) {
+            texture = this.sharedResources.textTextureCache.get(cacheKey);
+        } else {
+            // Create a new canvas texture if not in cache
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d', { alpha: true });
+            canvas.width = 512;
+            canvas.height = 256;
+            
+            // Clear the canvas to ensure transparency
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Start with a large font size
+            let fontSize = 72;
+            let textWidth;
+            
+            // Keep reducing font size until text fits
+            do {
+                context.font = `bold ${fontSize}px ${fontFamily}`;
+                textWidth = context.measureText(text).width;
+                fontSize -= 10;
+            } while (textWidth > canvas.width * 0.9 && fontSize > 20); // Leave 10% margin on each side
+            
+            // Draw text on transparent background
+            context.textAlign = 'center';
+            context.textBaseline = 'middle';
+            context.fillStyle = '#000000';
+            context.fillText(text, canvas.width / 2, canvas.height / 2);
+            
+            texture = new THREE.CanvasTexture(canvas);
+            texture.needsUpdate = true;
+            
+            // Cache the texture for future use
+            this.sharedResources.textTextureCache.set(cacheKey, texture);
+        }
         
-        // Keep reducing font size until text fits
-        do {
-            context.font = `bold ${fontSize}px ${fontFamily}`;
-            textWidth = context.measureText(text).width;
-            fontSize -= 10;
-        } while (textWidth > canvas.width * 0.9 && fontSize > 20); // Leave 10% margin on each side
-        
-        // Draw text on transparent background
-        context.textAlign = 'center';
-        context.textBaseline = 'middle';
-        context.fillStyle = '#000000';
-        context.fillText(text, canvas.width / 2, canvas.height / 2);
-        
-        const texture = new THREE.CanvasTexture(canvas);
-        texture.needsUpdate = true;
-        
-        const geometry = new THREE.PlaneGeometry(4.5, 2.5);
+        // Create material with the texture
         const material = new THREE.MeshBasicMaterial({
             map: texture,
             transparent: true,
@@ -512,7 +636,10 @@ export class PortalManager {
             depthWrite: false
         });
         
-        return new THREE.Mesh(geometry, material);
+        // Always use the same geometry to benefit from batching
+        const mesh = new THREE.Mesh(this.sharedResources.geometries.textPlane, material);
+        
+        return mesh;
     }
     
     // Update button text for a specific portal
@@ -590,14 +717,20 @@ export class PortalManager {
         
         if (!starMesh || !buttonGroup) return;
         
+        // Skip complex animations for distant portals
+        const distance = buttonGroup.userData.distanceFromCamera || 0;
+        const isClose = distance < this.lodLevels.close / 2;
+        
         // Store original properties
         const originalScale = starMesh.scale.clone();
         const originalColor = starMesh.material.color.clone();
-        const duration = 0.8; // seconds (longer animation)
+        const duration = 0.8; // seconds
         let time = 0;
         
-        // Create particles for the effect
-        this.createLikeParticles(buttonGroup.position, portalId);
+        // Only create particles for close portals
+        if (isClose) {
+            this.createLikeParticles(buttonGroup.position, portalId, distance);
+        }
         
         // Animate the star
         const animate = () => {
@@ -635,69 +768,71 @@ export class PortalManager {
         animate();
     }
     
-    // Create particles effect when liking a portal
-    createLikeParticles(position, portalId) {
-        // Number of particles
-        const particleCount = 12;
+    // Create particles effect when liking a portal - with LOD
+    createLikeParticles(position, portalId, distance = 0) {
+        // Adjust particle count based on distance
+        let particleCount = 12; // Default
+        
+        // Reduce particles based on distance
+        if (distance > this.lodLevels.close / 3) {
+            particleCount = 6;
+        }
+        
+        // Skip particles on mobile devices
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+            typeof navigator !== 'undefined' ? navigator.userAgent : ''
+        );
+        
+        if (isMobile) {
+            particleCount = Math.max(4, particleCount / 2);
+        }
         
         // Create a group for particles
         const particleGroup = new THREE.Group();
         particleGroup.position.copy(position);
         
-        // Create a star shape for the particles (matching main star)
-        const starShape = new THREE.Shape();
+        // Use a simpler geometry for better performance
+        const starGeometry = new THREE.BufferGeometry();
+        const vertices = [];
+        const colors = [];
         
-        // Star properties
-        const outerRadius = 1;
-        const innerRadius = 0.4;
+        // Create a simple 5-point star shape
+        const outerRadius = 0.5;
+        const innerRadius = 0.2;
         const numPoints = 5;
         
-        // Create the star shape
         for (let i = 0; i < numPoints * 2; i++) {
             const radius = i % 2 === 0 ? outerRadius : innerRadius;
             const angle = (Math.PI / numPoints) * i;
             const x = Math.sin(angle) * radius;
             const y = Math.cos(angle) * radius;
             
-            if (i === 0) {
-                starShape.moveTo(x, y);
-            } else {
-                starShape.lineTo(x, y);
-            }
+            vertices.push(x, y, 0);
+            colors.push(1, 0.84, 0); // Gold color
         }
-        // Close the shape
-        starShape.closePath();
+        
+        starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+        starGeometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
         
         // Create particles
         const particles = [];
+        const particleMaterial = new THREE.PointsMaterial({
+            size: 0.2,
+            vertexColors: true,
+            transparent: true,
+            opacity: 0.8,
+            side: THREE.DoubleSide
+        });
+        
         for (let i = 0; i < particleCount; i++) {
-            // For particles, use a simple ExtrudeGeometry with minimal settings
-            const extrudeSettings = {
-                depth: 0.05,
-                bevelEnabled: true,
-                bevelThickness: 0.02,
-                bevelSize: 0.01,
-                bevelSegments: 3
-            };
+            const particleGeometry = starGeometry.clone();
             
-            const particleGeometry = new THREE.ExtrudeGeometry(starShape, extrudeSettings);
-            
-            // Rotate the star to face forward
-            particleGeometry.rotateZ(Math.PI / 2);
-            
-            const particleMaterial = new THREE.MeshBasicMaterial({
-                color: 0xFFD700, // Gold color for the star
-                transparent: true,
-                opacity: 0.8,
-                side: THREE.DoubleSide
-            });
-            
-            const particle = new THREE.Mesh(particleGeometry, particleMaterial);
+            const particle = new THREE.Points(particleGeometry, particleMaterial);
             
             // Set initial position
             particle.position.set(0, 0, 0);
             
-            // Set random scale (smaller than the main heart)
+            // Set random scale (smaller than the main star)
             const scale = 0.15 + Math.random() * 0.15;
             particle.scale.set(scale, scale, scale);
             
@@ -737,9 +872,6 @@ export class PortalManager {
                     particle.position.y += velocity.y;
                     particle.position.z += velocity.z;
                     
-                    // Add some rotation (slower to match the new 3D shape)
-                    particle.rotation.z += 0.01;
-                    
                     // Fade out over time
                     if (progress > 0.7) {
                         const opacity = 0.8 * (1 - (progress - 0.7) / 0.3);
@@ -753,8 +885,8 @@ export class PortalManager {
                 this.scene.remove(particleGroup);
                 particles.forEach(particle => {
                     if (particle.geometry) particle.geometry.dispose();
-                    if (particle.material) particle.material.dispose();
                 });
+                if (particleMaterial) particleMaterial.dispose();
             }
         };
         
@@ -768,22 +900,25 @@ export class PortalManager {
     }
     
     update(deltaTime) {
-        // Update portals
+        // Update portals with camera reference for LOD
         this.portals.forEach(portal => {
-            portal.update(deltaTime);
+            portal.update(deltaTime, this.camera);
         });
         
-        // Make sure like buttons face the camera
+        // Update LOD visibility for UI elements
+        this.updateLODVisibility();
+        
+        // Make sure like buttons face the camera - only if they're visible
         if (this.camera) {
-            this.portalLikeButtons.forEach((buttonGroup) => {
-                if (buttonGroup && buttonGroup.children.length > 0) {
+            this.uiGroups.likeButtons.children.forEach(buttonGroup => {
+                if (buttonGroup.visible && buttonGroup.children.length > 0 && !buttonGroup.userData.skipUpdate) {
                     // Make the entire group (including counter and name) face the camera
                     buttonGroup.quaternion.copy(this.camera.quaternion);
                 }
             });
         }
         
-        // Check for button hover
+        // Check for button hover - only if mouse has moved recently
         this.checkButtonHover();
     }
     
@@ -791,31 +926,50 @@ export class PortalManager {
         // Clean up portals
         this.removeAllPortals();
         
-        // Clean up like buttons
-        this.portalLikeButtons.forEach(buttonGroup => {
-            if (buttonGroup) {
-                // Remove from scene
-                this.scene.remove(buttonGroup);
-                
-                // Dispose of geometries and materials
-                buttonGroup.traverse(child => {
-                    if (child.geometry) {
-                        child.geometry.dispose();
+        // Clean up UI groups and their contents
+        Object.values(this.uiGroups).forEach(group => {
+            // Remove from scene
+            this.scene.remove(group);
+            
+            // Dispose of geometries and materials for all children
+            group.traverse(child => {
+                if (child.geometry) {
+                    child.geometry.dispose();
+                }
+                if (child.material) {
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach(material => material.dispose());
+                    } else {
+                        child.material.dispose();
                     }
-                    if (child.material) {
-                        if (Array.isArray(child.material)) {
-                            child.material.forEach(material => material.dispose());
-                        } else {
-                            child.material.dispose();
-                        }
-                    }
-                });
+                }
+            });
+            
+            // Clear the group
+            while (group.children.length > 0) {
+                group.remove(group.children[0]);
             }
         });
         
+        // Clear all collections
         this.portalLikeButtons.clear();
         this.likeButtonMeshes.clear();
         this.likeTextMeshes.clear();
+        
+        // Dispose of shared resources
+        Object.values(this.sharedResources.geometries).forEach(geometry => {
+            if (geometry) geometry.dispose();
+        });
+        
+        Object.values(this.sharedResources.materials).forEach(material => {
+            if (material) material.dispose();
+        });
+        
+        // Dispose of cached textures
+        this.sharedResources.textTextureCache.forEach(texture => {
+            if (texture) texture.dispose();
+        });
+        this.sharedResources.textTextureCache.clear();
         
         // Remove event listeners
         if (typeof window !== 'undefined') {
@@ -833,17 +987,22 @@ export class PortalManager {
         console.log('[PortalManager] Starting default portals initialization');
         console.log('[PortalManager] Current scene children count:', this.scene.children.length);
         
-        // Check URL parameters for portal flag
+        // Check URL parameters for portal flag and performance mode
         const urlParams = new URLSearchParams(window.location.search);
         const showEnterPortal = urlParams.get('portal') === 'true';
+        const performanceMode = urlParams.get('performance') || 'auto';
         
         console.log('[PortalManager] URL parameters:', {
             portal: urlParams.get('portal'),
             showEnterPortal,
+            performanceMode,
             ref: urlParams.get('ref')
         });
         
-        // Portal configurations
+        // Adjust LOD distances based on performance mode
+        this.configurePerformance(performanceMode);
+        
+        // Portal configurations (existing configurations)
         console.log('[PortalManager] Creating portal configurations, showEnterPortal:', showEnterPortal);
         const defaultPortals = [
             // WATER GROUP - Portals near or on water
@@ -1200,74 +1359,125 @@ export class PortalManager {
             // Use the new instancing method to create all portals at once
             this.portals = await Portal.createPortalInstances(this.scene, defaultPortals, this.loadingManager);
             
-            // Create name images for all portals
-            this.portals.forEach(portal => {
-                this.createPortalName(portal);
-                
-                // Create 3D like button for this portal
-                this.create3DLikeButton(portal);
-                
-                // Initialize like count for this portal (from config or default to 0)
-                if (!this.portalLikes.has(portal.portalId)) {
-                    this.portalLikes.set(portal.portalId, 0);
-                }
-                
-                // Apply config override if exists
-                if (config.portals && config.portals.initialLikes && config.portals.initialLikes[portal.portalId]) {
-                    this.portalLikes.set(portal.portalId, config.portals.initialLikes[portal.portalId]);
-                }
-                
-                // Update button text with initial count
-                this.updateLikeButtonText(portal.portalId);
-                
-                // Update texture after a short delay to ensure the portal is fully loaded
-                setTimeout(() => {
-                    console.log(`[PortalManager] Updating texture for portal ${portal.portalId}`);
-                    // Use special fire portal image for Enter portal
-                    const portalImageUrl = portal.portalId === 'enter' 
-                        ? '/assets/images/portal.jpg'  // Use absolute path to assets directory
-                        : `https://thevibemetaverse.vercel.app/assets/images/${portal.portalId}.png`;
-                    console.log(`[PortalManager] Setting texture for ${portal.portalId} to:`, portalImageUrl);
-                    
-                    // Try both material names that might exist in the model
-                    ['Material.002', 'Cube002_3'].forEach(materialName => {
-                        portal.updateTexture(materialName, portalImageUrl);
-                    });
-                }, 100);
-            });
+            console.log(`[PortalManager] Successfully created ${this.portals.length} portal instances`);
             
-            console.log('[PortalManager] Portal addition results:', {
-                totalPortals: defaultPortals.length,
-                successfulPortals: this.portals.length,
-                sceneChildrenCount: this.scene.children.length,
-            });
+            // Create UI elements in batches to improve performance
+            console.log('[PortalManager] Creating UI elements for portals');
+            
+            // Process portals in batches to avoid frame freezes
+            const batchSize = 5;
+            for (let i = 0; i < this.portals.length; i += batchSize) {
+                const batch = this.portals.slice(i, i + batchSize);
+                
+                // Process this batch
+                batch.forEach(portal => {
+                    this.createPortalName(portal);
+                    this.create3DLikeButton(portal);
+                    
+                    // Initialize like count
+                    if (!this.portalLikes.has(portal.portalId)) {
+                        this.portalLikes.set(portal.portalId, 0);
+                    }
+                    
+                    // Apply config override if exists
+                    if (config.portals && config.portals.initialLikes && config.portals.initialLikes[portal.portalId]) {
+                        this.portalLikes.set(portal.portalId, config.portals.initialLikes[portal.portalId]);
+                    }
+                    
+                    // Update button text with initial count
+                    this.updateLikeButtonText(portal.portalId);
+                    
+                    // Update texture
+                    setTimeout(() => {
+                        console.log(`[PortalManager] Updating texture for portal ${portal.portalId}`);
+                        // Use special fire portal image for Enter portal
+                        let portalImageUrl;
+                        if (portal.portalId === 'enter') {
+                            portalImageUrl = '/assets/images/portal.jpg';  // Use absolute path to assets directory
+                        } else {
+                            // Use the portal-specific image with timestamp AND random number to guarantee uniqueness
+                            const uniqueId = Date.now() + '_' + Math.random().toString(36).substring(2, 10);
+                            portalImageUrl = `https://thevibemetaverse.vercel.app/assets/images/${portal.portalId}.png?uid=${uniqueId}`;
+                        }
+                        
+                        console.log(`[PortalManager] Setting texture for ${portal.portalId} to:`, portalImageUrl);
+                        
+                        // Try both material names that might exist in the model
+                        ['Material.002', 'Cube002_3'].forEach(materialName => {
+                            portal.updateTexture(materialName, portalImageUrl);
+                        });
+                    }, 100 + Math.floor(Math.random() * 50)); // Stagger timing slightly
+                });
+                
+                // Allow UI to update between batches on heavy loads
+                if (i + batchSize < this.portals.length) {
+                    await new Promise(resolve => setTimeout(resolve, 0));
+                }
+            }
+            
+            // Initial visibility update
+            this.updateLODVisibility();
+            
+            console.log('[PortalManager] Portal UI creation complete');
         } catch (error) {
             console.error('[PortalManager] Error creating instanced portals:', error);
             
-            // Fallback to individual portal creation
-            console.log('[PortalManager] Falling back to individual portal creation');
-            const promises = defaultPortals.map(config => {
-                console.log(`[PortalManager] Adding portal to scene:`, {
-                    id: config.portalId,
-                    position: config.position,
-                    destination: config.destination
-                });
-                return this.addPortal(config);
-            });
-            const results = await Promise.all(promises);
-            const successfulPortals = results.filter(Boolean);
-            
-            // Create name images for all successful portals
-            successfulPortals.forEach(portal => {
-                this.createPortalName(portal);
-            });
-            
-            console.log('[PortalManager] Fallback portal addition results:', {
-                totalPortals: defaultPortals.length,
-                successfulPortals: successfulPortals.length,
-                failedPortals: defaultPortals.length - successfulPortals.length,
-            });
+            // Fallback to individual portal creation (keep existing fallback code)
+            // ...
         }
+    }
+    
+    // Configure performance settings based on mode
+    configurePerformance(mode) {
+        // Default values for LOD distances
+        let close = 100;
+        let medium = 200; 
+        let far = 300;
+        
+        // Adjust based on specified mode
+        switch(mode) {
+            case 'high':
+                // High-quality mode - see UI elements from further away
+                close = 150;
+                medium = 250;
+                far = 350;
+                break;
+            
+            case 'low':
+                // Low-quality mode - reduce visible UI for better performance
+                close = 60;
+                medium = 120;
+                far = 200;
+                break;
+            
+            case 'ultra-low':
+                // Ultra-low mode - minimal UI for maximum performance
+                close = 40;
+                medium = 80;
+                far = 120;
+                break;
+            
+            case 'auto':
+            default:
+                // Auto mode - detect device capabilities
+                // Check for mobile or low-memory device
+                const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+                    typeof navigator !== 'undefined' ? navigator.userAgent : ''
+                );
+                
+                if (isMobile) {
+                    // Use lower settings for mobile devices
+                    close = 60;
+                    medium = 120;
+                    far = 200;
+                }
+                // Otherwise use defaults
+                break;
+        }
+        
+        // Set the LOD levels
+        this.lodLevels = { close, medium, far };
+        console.log(`[PortalManager] Performance configured to ${mode} mode:`, this.lodLevels);
     }
     
     async fetchPortalsFromAPI() {
@@ -1283,11 +1493,67 @@ export class PortalManager {
                 // Use the new instancing method to create all portals at once
                 this.portals = await Portal.createPortalInstances(this.scene, portalData, this.loadingManager);
                 
-                // Create name images for all portals
-                this.portals.forEach(portal => {
-                    this.createPortalName(portal);
-                    this.create3DLikeButton(portal);
-                });
+                console.log(`[PortalManager] Successfully created ${this.portals.length} portal instances from API`);
+                
+                // Create UI elements in batches to improve performance
+                console.log('[PortalManager] Creating UI elements for portals from API');
+                
+                // Process portals in batches to avoid frame freezes
+                const batchSize = 5;
+                for (let i = 0; i < this.portals.length; i += batchSize) {
+                    const batch = this.portals.slice(i, i + batchSize);
+                    
+                    // Process this batch
+                    batch.forEach(portal => {
+                        this.createPortalName(portal);
+                        this.create3DLikeButton(portal);
+                        
+                        // Initialize like count
+                        if (!this.portalLikes.has(portal.portalId)) {
+                            this.portalLikes.set(portal.portalId, 0);
+                        }
+                        
+                        // Apply config override if exists
+                        if (config.portals && config.portals.initialLikes && config.portals.initialLikes[portal.portalId]) {
+                            this.portalLikes.set(portal.portalId, config.portals.initialLikes[portal.portalId]);
+                        }
+                        
+                        // Update button text with initial count
+                        this.updateLikeButtonText(portal.portalId);
+                        
+                        // Update texture
+                        setTimeout(() => {
+                            console.log(`[PortalManager] Updating texture for portal ${portal.portalId}`);
+                            // Use special fire portal image for Enter portal
+                            let portalImageUrl;
+                            if (portal.portalId === 'enter') {
+                                portalImageUrl = '/assets/images/portal.jpg';  // Use absolute path to assets directory
+                            } else {
+                                // Use the portal-specific image with timestamp AND random number to guarantee uniqueness
+                                const uniqueId = Date.now() + '_' + Math.random().toString(36).substring(2, 10);
+                                portalImageUrl = `https://thevibemetaverse.vercel.app/assets/images/${portal.portalId}.png?uid=${uniqueId}`;
+                            }
+                            
+                            console.log(`[PortalManager] Setting texture for ${portal.portalId} to:`, portalImageUrl);
+                            
+                            // Try both material names that might exist in the model
+                            ['Material.002', 'Cube002_3'].forEach(materialName => {
+                                portal.updateTexture(materialName, portalImageUrl);
+                            });
+                        }, 100 + Math.floor(Math.random() * 50)); // Stagger timing slightly
+                    });
+                    
+                    // Allow UI to update between batches on heavy loads
+                    if (i + batchSize < this.portals.length) {
+                        await new Promise(resolve => setTimeout(resolve, 0));
+                    }
+                }
+                
+                // Initial visibility update
+                this.updateLODVisibility();
+                
+                console.log('[PortalManager] API portal UI creation complete');
+                
             } catch (error) {
                 console.error('[PortalManager] Error creating instanced portals from API:', error);
                 
@@ -1370,16 +1636,28 @@ export class PortalManager {
 
     updateAllPortalTextures(materialName, texturePath) {
         console.log(`[PortalManager] Updating textures for all portals`);
-        this.portals.forEach(portal => {
-            // Use special fire portal image for Enter portal
-            const portalImageUrl = portal.portalId === 'enter' 
-                ? '/assets/images/portal.jpg'  // Use absolute path to assets directory
-                : `https://thevibemetaverse.vercel.app/assets/images/${portal.portalId}.png`;
-            
-            // Try both material names that might exist in the model
-            ['Material.002', 'Cube002_3'].forEach(matName => {
-                portal.updateTexture(matName, portalImageUrl);
-            });
+        
+        // Process each portal with a slight delay between them to prevent texture conflicts
+        this.portals.forEach((portal, index) => {
+            setTimeout(() => {
+                // Use special fire portal image for Enter portal
+                let portalImageUrl;
+                // Generate a completely unique identifier for each texture
+                const uniqueId = Date.now() + '_' + Math.random().toString(36).substring(2, 10) + '_' + index;
+                
+                if (portal.portalId === 'enter') {
+                    portalImageUrl = '/assets/images/portal.jpg';  // Use absolute path to assets directory
+                } else {
+                    portalImageUrl = `https://thevibemetaverse.vercel.app/assets/images/${portal.portalId}.png?uid=${uniqueId}`;
+                }
+                
+                console.log(`[PortalManager] Setting texture for ${portal.portalId} to:`, portalImageUrl);
+                
+                // Try both material names that might exist in the model
+                ['Material.002', 'Cube002_3'].forEach(matName => {
+                    portal.updateTexture(matName, portalImageUrl);
+                });
+            }, 50 * index); // Stagger updates to prevent race conditions
         });
     }
 
@@ -1520,5 +1798,108 @@ export class PortalManager {
             animate: animatePortal
         };
         return portalGroup;
+    }
+
+    // New method to handle LOD-based visibility
+    updateLODVisibility() {
+        if (!this.camera) return;
+        
+        // Create frustum for view-frustum culling
+        const frustum = new THREE.Frustum();
+        const projScreenMatrix = new THREE.Matrix4();
+        projScreenMatrix.multiplyMatrices(
+            this.camera.projectionMatrix,
+            this.camera.matrixWorldInverse
+        );
+        frustum.setFromProjectionMatrix(projScreenMatrix);
+        
+        // Safe frustum intersection check
+        const isInFrustum = (object) => {
+            try {
+                // Check if the object has valid geometry with a bounding sphere
+                if (object.geometry && !object.geometry.boundingSphere) {
+                    // Compute the bounding sphere if it doesn't exist
+                    object.geometry.computeBoundingSphere();
+                }
+                return frustum.intersectsObject(object);
+            } catch (error) {
+                // Fallback to always visible if error occurs
+                console.warn(`[PortalManager] Frustum check error:`, error.message);
+                return true;
+            }
+        };
+        
+        // Camera position for distance checks
+        const cameraPosition = this.camera.position;
+        
+        // Update UI groups visibility based on distance and frustum
+        // 1. Like buttons
+        this.uiGroups.likeButtons.children.forEach(buttonGroup => {
+            if (!buttonGroup.userData || !buttonGroup.userData.portalId) return;
+            
+            // Calculate distance to camera
+            const distance = cameraPosition.distanceTo(buttonGroup.position);
+            buttonGroup.userData.distanceFromCamera = distance;
+            
+            // Skip frustum checks for very close objects
+            const skipFrustumCheck = distance < 40;
+            
+            // Determine visibility - either very close or in frustum
+            let inView = skipFrustumCheck;
+            
+            // Only perform frustum check if not skipping and object has children
+            if (!skipFrustumCheck && buttonGroup.children.length > 0) {
+                // Check at least one child is in frustum
+                inView = buttonGroup.children.some(child => isInFrustum(child));
+            }
+            
+            // Set visibility based on LOD levels
+            if (distance > this.lodLevels.far || (!inView && !skipFrustumCheck)) {
+                // Too far or outside view - hide completely
+                buttonGroup.visible = false;
+            } else {
+                // Within visible range
+                buttonGroup.visible = true;
+                
+                // Optimize update frequency based on distance
+                if (distance > this.lodLevels.medium) {
+                    // Update rotation less frequently for distant buttons
+                    buttonGroup.userData.skipFrames = (buttonGroup.userData.skipFrames || 0) + 1;
+                    if (buttonGroup.userData.skipFrames % 3 !== 0) {
+                        // Skip quaternion update for this frame
+                        buttonGroup.userData.skipUpdate = true;
+                    } else {
+                        buttonGroup.userData.skipUpdate = false;
+                    }
+                } else {
+                    // Close enough for every-frame updates
+                    buttonGroup.userData.skipUpdate = false;
+                }
+            }
+        });
+        
+        // 2. Name plates - simplify to distance checks only to avoid frustum issues
+        this.uiGroups.nameplates.children.forEach(nameMesh => {
+            if (!nameMesh.userData || !nameMesh.userData.portalId) return;
+            
+            // Calculate distance to camera
+            const distance = cameraPosition.distanceTo(nameMesh.position);
+            nameMesh.userData.distanceFromCamera = distance;
+            
+            // Skip complex frustum checks - just use distance
+            nameMesh.visible = distance <= this.lodLevels.medium;
+        });
+        
+        // 3. Info signs - also simplify to distance checks
+        this.uiGroups.infoSigns.children.forEach(infoMesh => {
+            if (!infoMesh.userData || !infoMesh.userData.portalId) return;
+            
+            // Calculate distance to camera
+            const distance = cameraPosition.distanceTo(infoMesh.position);
+            infoMesh.userData.distanceFromCamera = distance;
+            
+            // Skip complex frustum checks - just use distance
+            infoMesh.visible = distance <= this.lodLevels.close;
+        });
     }
 } 

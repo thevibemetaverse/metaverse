@@ -186,6 +186,9 @@ export class Portal {
         
         // Store references to materials for texture updates
         this.shaderMaterials = new Map();
+        
+        // Distance from camera for LOD calculations
+        this.distanceFromCamera = 0;
     }
 
     // Static method to create portal geometry instances
@@ -229,8 +232,9 @@ export class Portal {
                         
                         console.log('[Portal] Found', meshes.length, 'meshes in template model');
                         
-                        // Create shader materials for the portal effects
-                        const shaderMaterials = new Map();
+                        // Group portals by material to reduce draw calls using shared materials
+                        // Store shader materials by type to share between portals
+                        const sharedMaterials = new Map();
                         
                         // Create instances for each portal config
                         configs.forEach((config, index) => {
@@ -254,7 +258,8 @@ export class Portal {
                                 let material;
                                 
                                 if (originalMaterial.name === 'Material.002' || originalMaterial.name === 'Cube002_3') {
-                                    // Use shader material for portal surface
+                                    // CRITICAL FIX: Always create a unique material for each portal's shader surfaces
+                                    // No longer sharing materials between portals for texture surfaces
                                     material = new THREE.ShaderMaterial({
                                         uniforms: {
                                             baseTexture: { value: null },
@@ -268,13 +273,27 @@ export class Portal {
                                         side: THREE.DoubleSide
                                     });
                                     
+                                    // Generate a unique ID for this material
+                                    material.uuid = THREE.MathUtils.generateUUID();
+                                    
+                                    // Store reference to this material's uniforms
+                                    portal.shaderUniforms = material.uniforms;
+                                    
                                     // Save reference to this material for texture updates
                                     portal.shaderMaterials.set(originalMaterial.name, material);
                                     
-                                    console.log(`[Portal] Created ${portal.isMobile ? 'simplified' : 'standard'} shader material for ${portal.portalId}`);
+                                    console.log(`[Portal] Created unique shader material for ${portal.portalId}`);
                                 } else {
-                                    // Use the original material for other parts
-                                    material = originalMaterial.material.clone();
+                                    // For non-shader materials, we can still share to save resources
+                                    const materialKey = 'standard_' + originalMaterial.name;
+                                    
+                                    if (sharedMaterials.has(materialKey)) {
+                                        material = sharedMaterials.get(materialKey);
+                                    } else {
+                                        // Use the original material for other parts
+                                        material = originalMaterial.material.clone();
+                                        sharedMaterials.set(materialKey, material);
+                                    }
                                 }
                                 
                                 material.name = originalMaterial.name;
@@ -299,7 +318,7 @@ export class Portal {
                             console.log(`[Portal] Added portal ${portal.portalId} to scene`);
                         });
                         
-                        console.log(`[Portal] Successfully created ${portals.length} portal instances`);
+                        console.log(`[Portal] Successfully created ${portals.length} portal instances with ${sharedMaterials.size} shared materials`);
                         resolve(portals);
                     },
                     (xhr) => {
@@ -421,26 +440,52 @@ export class Portal {
         return url.toString();
     }
     
-    update(deltaTime) {
+    update(deltaTime, camera) {
         // Update animations
         if (this.animationMixer) {
             this.animationMixer.update(deltaTime);
         }
         
-        // Update ripple effect - use smaller time steps on mobile for smoother animation
-        if (this.mesh) {
-            const timeIncrement = this.isMobile ? deltaTime * 0.5 : deltaTime;
-            
-            // Update all shader materials with new time
-            this.shaderMaterials.forEach((material) => {
-                if (material.uniforms && material.uniforms.time) {
-                    material.uniforms.time.value += timeIncrement;
-                }
-            });
+        // Calculate distance from camera if provided, for LOD
+        if (camera && this.mesh) {
+            this.distanceFromCamera = camera.position.distanceTo(this.mesh.position);
         }
         
-        // Update effects
-        if (!this.isMobile || this.effects.length < 3) { // Limit effects on mobile
+        // Update shader time based on visibility (reduced updates for distant portals)
+        if (this.mesh) {
+            // Determine update frequency based on distance
+            let updateShader = true;
+            
+            if (this.distanceFromCamera > 0) {
+                if (this.distanceFromCamera > 150) {
+                    // Very far portals - update every 5 frames
+                    updateShader = (performance.now() % 100 < 20);
+                } else if (this.distanceFromCamera > 80) {
+                    // Far portals - update every 2 frames
+                    updateShader = (performance.now() % 50 < 25);
+                }
+            }
+            
+            if (updateShader) {
+                const timeIncrement = this.isMobile ? deltaTime * 0.5 : deltaTime;
+                
+                // Update shader uniforms if this portal has custom uniforms
+                if (this.shaderUniforms && this.shaderUniforms.time) {
+                    this.shaderUniforms.time.value += timeIncrement;
+                } else {
+                    // Otherwise update all shader materials with new time (legacy support)
+                    this.shaderMaterials.forEach((material) => {
+                        if (material.uniforms && material.uniforms.time) {
+                            material.uniforms.time.value += timeIncrement;
+                        }
+                    });
+                }
+            }
+        }
+        
+        // Skip effects update for very distant portals
+        const shouldUpdateEffects = !this.distanceFromCamera || this.distanceFromCamera < 100;
+        if (shouldUpdateEffects && (!this.isMobile || this.effects.length < 3)) {
             this.effects.forEach(effect => effect.update(deltaTime));
         }
     }
@@ -456,23 +501,64 @@ export class Portal {
             texturePath
         });
 
+        // Create a new texture loader for each update to prevent sharing
         const textureLoader = new THREE.TextureLoader();
+        
+        // Prevent caching at the THREE.js and browser levels
+        // Adding both portalId and timestamp and random suffix
+        const uniqueSuffix = Date.now() + '_' + Math.random().toString(36).substring(2, 15);
+        const uniqueTexturePath = texturePath.includes('?') 
+            ? `${texturePath}&nocache=${uniqueSuffix}` 
+            : `${texturePath}?nocache=${uniqueSuffix}`;
+        
+        // Disable texture caching at the THREE.js level
+        THREE.Cache.enabled = false;
+        
         textureLoader.load(
-            texturePath,
+            uniqueTexturePath,
             (texture) => {
+                // Re-enable texture cache after this load
+                THREE.Cache.enabled = true;
+                
                 // Basic texture settings
                 texture.encoding = THREE.sRGBEncoding;
                 texture.flipY = false;
                 
-                console.log(`[Portal] Texture loaded successfully for ${this.portalId}`);
+                // Ensure the texture is never shared by forcing a unique ID
+                texture.uuid = THREE.MathUtils.generateUUID();
+                
+                // Disable texture caching at the Three.js level
+                texture.dispose = function() {
+                    THREE.Texture.prototype.dispose.call(this);
+                    // Force removal from cache
+                    THREE.Cache.remove(uniqueTexturePath);
+                };
+                
+                console.log(`[Portal] Texture loaded successfully for ${this.portalId} (${uniqueTexturePath})`);
                 
                 // Check if we have a cached shader material with this name
                 const material = this.shaderMaterials.get(materialName);
                 
-                if (material && material.uniforms) {
-                    material.uniforms.baseTexture.value = texture;
-                    material.needsUpdate = true;
-                    console.log(`[Portal] Applied texture to shader material ${materialName} in ${this.portalId}`);
+                if (material) {
+                    // Update the texture in this portal's unique uniforms if available
+                    if (this.shaderUniforms && this.shaderUniforms.baseTexture) {
+                        // Dispose previous texture if it exists to prevent memory leaks
+                        if (this.shaderUniforms.baseTexture.value) {
+                            this.shaderUniforms.baseTexture.value.dispose();
+                        }
+                        this.shaderUniforms.baseTexture.value = texture;
+                        console.log(`[Portal] Applied texture to shader uniforms for ${this.portalId}`);
+                    } 
+                    // Fall back to updating material directly
+                    else if (material.uniforms && material.uniforms.baseTexture) {
+                        // Dispose previous texture if it exists to prevent memory leaks
+                        if (material.uniforms.baseTexture.value) {
+                            material.uniforms.baseTexture.value.dispose();
+                        }
+                        material.uniforms.baseTexture.value = texture;
+                        material.needsUpdate = true;
+                        console.log(`[Portal] Applied texture to shader material ${materialName} in ${this.portalId}`);
+                    }
                 } else {
                     // If not found in cache, traverse the mesh
                     let materialFound = false;
@@ -480,6 +566,10 @@ export class Portal {
                     this.mesh.traverse((child) => {
                         if (child.isMesh && child.material && child.material.name === materialName) {
                             if (child.material instanceof THREE.ShaderMaterial) {
+                                // Dispose previous texture if it exists to prevent memory leaks
+                                if (child.material.uniforms.baseTexture.value) {
+                                    child.material.uniforms.baseTexture.value.dispose();
+                                }
                                 child.material.uniforms.baseTexture.value = texture;
                                 child.material.needsUpdate = true;
                                 materialFound = true;
@@ -502,6 +592,8 @@ export class Portal {
             },
             (error) => {
                 console.error(`[Portal] Error loading texture for ${this.portalId}:`, error);
+                // Re-enable texture cache in case of error
+                THREE.Cache.enabled = true;
             }
         );
     }
