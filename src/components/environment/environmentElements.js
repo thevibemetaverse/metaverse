@@ -213,15 +213,26 @@ async function createEnvironmentElements(scene, interactionManager = null) {
       environment.add(eiffelTower);
       
       // First logo remains at its current position
-      const logoPosition = new THREE.Vector3(65, 30, -60);
-      const logoImage = create2DImage(
+      const affordihomePosition = new THREE.Vector3(65, 47, -60);
+      const affordihomeImage = create2DImage(
         '/assets/images/affordihome.png',
-        logoPosition,
-        40,
-        25,
+        affordihomePosition,
+        35,
+        20,
         new THREE.Euler(0, 0, 0)
       );
-      environment.add(logoImage);
+      environment.add(affordihomeImage);
+
+          // First logo remains at its current position
+      const foodbuddyPosition = new THREE.Vector3(65, 27, -60);
+      const foodbuddyImage = create2DImage(
+        '/assets/images/foodbuddy.png',
+        foodbuddyPosition,
+        35,
+        20,
+        new THREE.Euler(0, 0, 0)
+      );
+      environment.add(foodbuddyImage);
     }
 
     // Load Sagrada Familia
