@@ -393,26 +393,34 @@ export class PortalManager {
             // Update button text with initial count
             this.updateLikeButtonText(portalConfig.portalId);
             
-            // Update texture
+            // Use a placeholder texture to prevent flickering
+            const placeholderTexture = new THREE.Texture();
+            placeholderTexture.image = new Image();
+            placeholderTexture.image.src = '/assets/images/placeholder.png';
+            placeholderTexture.needsUpdate = true;
+            
+            // Update texture with placeholder first
+            console.log(`[PortalManager] Setting placeholder texture for portal ${portalConfig.portalId}`);
+            ['Material.002', 'Cube002_3'].forEach(materialName => {
+                portal.updateTexture(materialName, '/assets/images/placeholder.png');
+            });
+            
+            // Then load the actual texture after a delay
             setTimeout(() => {
                 console.log(`[PortalManager] Updating texture for portal ${portalConfig.portalId}`);
-                // Use special fire portal image for Enter portal
                 let portalImageUrl;
                 if (portalConfig.portalId === 'enter') {
-                    portalImageUrl = '/assets/images/portal.jpg';  // Use absolute path to assets directory
+                    portalImageUrl = '/assets/images/portal.jpg';
                 } else {
-                    // Use the portal-specific image with timestamp AND random number to guarantee uniqueness
                     const uniqueId = Date.now() + '_' + Math.random().toString(36).substring(2, 10);
                     portalImageUrl = `https://thevibemetaverse.vercel.app/assets/images/${portalConfig.portalId}.png?uid=${uniqueId}`;
                 }
                 
                 console.log(`[PortalManager] Setting texture for ${portalConfig.portalId} to:`, portalImageUrl);
-                
-                // Try both material names that might exist in the model
                 ['Material.002', 'Cube002_3'].forEach(materialName => {
                     portal.updateTexture(materialName, portalImageUrl);
                 });
-            }, 100 + Math.floor(Math.random() * 50)); // Stagger timing slightly
+            }, 500 + Math.floor(Math.random() * 100)); // Increased delay to ensure placeholder is shown first
             
             return portal;
         } catch (error) {
@@ -489,7 +497,7 @@ export class PortalManager {
         // Move the name mesh in front of the portal
         nameMesh.position.add(forwardVector.multiplyScalar(0.22));
         
-        // Set the rotation to match the portal's Y rotation
+        // Set the rotation to match the portal's Y rotation - FIXED to not follow camera
         nameMesh.rotation.y = portal.rotation.y;
         
         // Create text mesh for the portal's title
@@ -972,12 +980,8 @@ export class PortalManager {
                 }
             });
             
-            // Rotate nameplates to face camera
-            this.uiGroups.nameplates.children.forEach(nameMesh => {
-                if (nameMesh.visible) {
-                    nameMesh.lookAt(this.camera.position);
-                }
-            });
+            // Removed rotation for nameplates to fix orientation issue
+            // Nameplates now maintain portal orientation
         }
         
         // Update instanced UI elements efficiently
@@ -1627,9 +1631,13 @@ export class PortalManager {
                 const batch = this.portals.slice(i, i + batchSize);
                 
                 // Process this batch
-                batch.forEach(portal => {
-                    this.createPortalName(portal);
-                    this.create3DLikeButton(portal);
+                batch.forEach((portal, index) => {
+                    const globalIndex = i + index;
+                    // Assign instance indices for UI elements
+                    this.instancedMeshes.buttonMapping.set(portal.portalId, globalIndex);
+                    
+                    // Create individual meshes for nameplates and info signs
+                    const { nameMesh, infoMesh } = this.createPortalName(portal);
                     
                     // Initialize like count
                     if (!this.portalLikes.has(portal.portalId)) {
@@ -1644,10 +1652,15 @@ export class PortalManager {
                     // Update button text with initial count
                     this.updateLikeButtonText(portal.portalId);
                     
-                    // Update texture
+                    // Update texture with placeholder first to prevent flickering
+                    console.log(`[PortalManager] Setting placeholder texture for portal ${portal.portalId}`);
+                    ['Material.002', 'Cube002_3'].forEach(materialName => {
+                        portal.updateTexture(materialName, '/assets/images/placeholder.png');
+                    });
+                    
+                    // Then load the actual texture after a delay
                     setTimeout(() => {
                         console.log(`[PortalManager] Updating texture for portal ${portal.portalId}`);
-                        // Use special fire portal image for Enter portal
                         let portalImageUrl;
                         if (portal.portalId === 'enter') {
                             portalImageUrl = '/assets/images/portal.jpg';  // Use absolute path to assets directory
@@ -1663,7 +1676,7 @@ export class PortalManager {
                         ['Material.002', 'Cube002_3'].forEach(materialName => {
                             portal.updateTexture(materialName, portalImageUrl);
                         });
-                    }, 100 + Math.floor(Math.random() * 50)); // Stagger timing slightly
+                    }, 500 + Math.floor(Math.random() * 100)); // Increased delay to ensure placeholder is shown first
                 });
                 
                 // Allow UI to update between batches on heavy loads
@@ -3210,12 +3223,8 @@ export class PortalManager {
                 }
             });
             
-            // Rotate nameplates to face camera
-            this.uiGroups.nameplates.children.forEach(nameMesh => {
-                if (nameMesh.visible) {
-                    nameMesh.lookAt(this.camera.position);
-                }
-            });
+            // Removed rotation for nameplates to fix orientation issue
+            // Nameplates now maintain portal orientation
         }
         
         // Update instanced UI elements efficiently
@@ -3228,62 +3237,65 @@ export class PortalManager {
             // Only update instance matrix if we need to
             let needsMatrixUpdate = false;
             
-            // Find all instances that need updating
-            this.instancedMeshes.buttonMapping.forEach((instanceIndex, portalId) => {
-                // Find the portal for this instance
-                const portal = this.portals.find(p => p.portalId === portalId);
-                if (!portal || !portal.mesh) return;
-                
-                // Skip updating if beyond visibility distance
-                if (portal.distanceFromCamera > this.lodLevels.medium) {
-                    return;
-                }
-                
-                // Update matrix for this instance
-                const matrix = this.instancedMeshes.likeButtonMatrices[instanceIndex];
-                const dummy = new THREE.Object3D();
-                
-                // Get position from portal
-                const position = portal.mesh.position.clone();
-                position.y += 10; // Position above portal
-                
-                dummy.position.copy(position);
-                
-                // Apply scale based on hover state - simplified in emergency mode
-                if (this.disableButtonAnimations) {
-                    dummy.scale.set(1.5, 1.5, 1.5);
-                } else {
-                    const isHovered = this.hoveredPortalId === portalId;
-                    const baseScale = 1.5;
-                    const hoverScale = 1.8;
-                    const scale = isHovered ? hoverScale : baseScale;
+            // Throttle updates for instanced meshes based on performance
+            if (this.frameCounter % updateFrequency === 0) {
+                // Find all instances that need updating
+                this.instancedMeshes.buttonMapping.forEach((instanceIndex, portalId) => {
+                    // Find the portal for this instance
+                    const portal = this.portals.find(p => p.portalId === portalId);
+                    if (!portal || !portal.mesh) return;
                     
-                    // Apply pulse animation to liked portals
-                    const isLiked = this.likedPortals.has(portalId);
-                    if (isLiked) {
-                        const pulse = Math.sin(Date.now() * 0.004) * 0.1 + 1.0;
-                        dummy.scale.set(
-                            scale * pulse,
-                            scale * pulse, 
-                            scale * pulse
-                        );
-                    } else {
-                        dummy.scale.set(scale, scale, scale);
+                    // Skip updating if beyond visibility distance
+                    if (portal.distanceFromCamera > this.lodLevels.medium) {
+                        return;
                     }
-                }
+                    
+                    // Update matrix for this instance
+                    const matrix = this.instancedMeshes.likeButtonMatrices[instanceIndex];
+                    const dummy = new THREE.Object3D();
+                    
+                    // Get position from portal
+                    const position = portal.mesh.position.clone();
+                    position.y += 10; // Position above portal
+                    
+                    dummy.position.copy(position);
+                    
+                    // Apply scale based on hover state - simplified in emergency mode
+                    if (this.disableButtonAnimations) {
+                        dummy.scale.set(1.5, 1.5, 1.5);
+                    } else {
+                        const isHovered = this.hoveredPortalId === portalId;
+                        const baseScale = 1.5;
+                        const hoverScale = 1.8;
+                        const scale = isHovered ? hoverScale : baseScale;
+                        
+                        // Apply pulse animation to liked portals
+                        const isLiked = this.likedPortals.has(portalId);
+                        if (isLiked) {
+                            const pulse = Math.sin(Date.now() * 0.004) * 0.1 + 1.0;
+                            dummy.scale.set(
+                                scale * pulse,
+                                scale * pulse, 
+                                scale * pulse
+                            );
+                        } else {
+                            dummy.scale.set(scale, scale, scale);
+                        }
+                    }
+                    
+                    // Update matrix
+                    dummy.updateMatrix();
+                    if (!matrix.equals(dummy.matrix)) {
+                        this.instancedMeshes.likeButtons.setMatrixAt(instanceIndex, dummy.matrix);
+                        matrix.copy(dummy.matrix);
+                        needsMatrixUpdate = true;
+                    }
+                });
                 
-                // Update matrix
-                dummy.updateMatrix();
-                if (!matrix.equals(dummy.matrix)) {
-                    this.instancedMeshes.likeButtons.setMatrixAt(instanceIndex, dummy.matrix);
-                    matrix.copy(dummy.matrix);
-                    needsMatrixUpdate = true;
+                // Only update the instance matrix buffer if something changed
+                if (needsMatrixUpdate) {
+                    this.instancedMeshes.likeButtons.instanceMatrix.needsUpdate = true;
                 }
-            });
-            
-            // Only update the instance matrix buffer if something changed
-            if (needsMatrixUpdate) {
-                this.instancedMeshes.likeButtons.instanceMatrix.needsUpdate = true;
             }
         }
     }
