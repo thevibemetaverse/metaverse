@@ -45,6 +45,9 @@ uniform sampler2D baseTexture;
 uniform sampler2D portalDepthTexture;
 uniform float time;
 uniform vec4 uniqueOffset;
+uniform bool useTextureAtlas;
+uniform sampler2D atlasTexture;
+uniform vec4 atlasOffset;
 varying vec2 vUv;
 varying vec3 vNormal;
 
@@ -74,8 +77,16 @@ void main() {
     // Simplified distortion
     vec2 finalUV = uv + vec2(ripple) * (1.0 - distanceFromCenter * 0.5);
     
-    // Sample base texture with distortions
-    vec4 baseColor = texture2D(baseTexture, finalUV);
+    // Sample texture with support for texture atlas
+    vec4 baseColor;
+    if (useTextureAtlas) {
+        // Transform UVs to atlas coordinates
+        vec2 atlasUV = finalUV * atlasOffset.zw + atlasOffset.xy;
+        baseColor = texture2D(atlasTexture, atlasUV);
+    } else {
+        // Use regular texture
+        baseColor = texture2D(baseTexture, finalUV);
+    }
     
     // Simplified depth blend
     vec4 finalColor = baseColor;
@@ -116,6 +127,9 @@ const simplifiedFragmentShader = `
 uniform sampler2D baseTexture;
 uniform float time;
 uniform vec4 uniqueOffset;
+uniform bool useTextureAtlas;
+uniform sampler2D atlasTexture;
+uniform vec4 atlasOffset;
 varying vec2 vUv;
 varying vec3 vNormal;
 
@@ -129,8 +143,15 @@ void main() {
     float ripple = sin(distanceFromCenter * 10.0 - time * 0.7) * 0.002;
     vec2 finalUV = uv + vec2(ripple);
     
-    // Sample base texture with simplified distortions
-    vec4 baseColor = texture2D(baseTexture, finalUV);
+    // Sample texture with support for texture atlas
+    vec4 baseColor;
+    if (useTextureAtlas) {
+        // Transform UVs to atlas coordinates
+        vec2 atlasUV = finalUV * atlasOffset.zw + atlasOffset.xy;
+        baseColor = texture2D(atlasTexture, atlasUV);
+    } else {
+        baseColor = texture2D(baseTexture, finalUV);
+    }
     
     // Simple glow effect
     vec3 glowColor = vec3(0.2, 0.4, 0.8);
@@ -153,11 +174,21 @@ void main() {
 // Ultra simplified fragment shader for distant portals
 const ultraSimplifiedFragmentShader = `
 uniform sampler2D baseTexture;
+uniform bool useTextureAtlas;
+uniform sampler2D atlasTexture;
+uniform vec4 atlasOffset;
 varying vec2 vUv;
 
 void main() {
-    // Simple direct texture mapping without effects
-    gl_FragColor = texture2D(baseTexture, vUv);
+    // Sample texture with support for texture atlas
+    if (useTextureAtlas) {
+        // Transform UVs to atlas coordinates
+        vec2 atlasUV = vUv * atlasOffset.zw + atlasOffset.xy;
+        gl_FragColor = texture2D(atlasTexture, atlasUV);
+    } else {
+        // Simple direct texture mapping without effects
+        gl_FragColor = texture2D(baseTexture, vUv);
+    }
 }
 `;
 
@@ -283,13 +314,15 @@ export class Portal {
                                 
                                 if (originalMaterial.name === 'Material.002' || originalMaterial.name === 'Cube002_3') {
                                     // CRITICAL FIX: Always create a unique material for each portal's shader surfaces
-                                    // No longer sharing materials between portals for texture surfaces
                                     material = new THREE.ShaderMaterial({
                                         uniforms: {
                                             baseTexture: { value: null },
                                             portalDepthTexture: { value: null },
                                             time: { value: 0 },
-                                            uniqueOffset: { value: portal.uniqueOffset }
+                                            uniqueOffset: { value: portal.uniqueOffset },
+                                            useTextureAtlas: { value: false },
+                                            atlasTexture: { value: null },
+                                            atlasOffset: { value: new THREE.Vector4(0, 0, 1, 1) }
                                         },
                                         vertexShader: portal.isMobile ? simplifiedVertexShader : rippleVertexShader,
                                         fragmentShader: portal.isMobile ? simplifiedFragmentShader : rippleFragmentShader,
@@ -391,7 +424,10 @@ export class Portal {
                                         baseTexture: { value: null },
                                         portalDepthTexture: { value: null },
                                         time: { value: 0 },
-                                        uniqueOffset: { value: this.uniqueOffset }
+                                        uniqueOffset: { value: this.uniqueOffset },
+                                        useTextureAtlas: { value: false },
+                                        atlasTexture: { value: null },
+                                        atlasOffset: { value: new THREE.Vector4(0, 0, 1, 1) }
                                     },
                                     vertexShader: this.isMobile ? simplifiedVertexShader : rippleVertexShader,
                                     fragmentShader: this.isMobile ? simplifiedFragmentShader : rippleFragmentShader,

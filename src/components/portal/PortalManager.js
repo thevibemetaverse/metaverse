@@ -132,6 +132,23 @@ export class PortalManager {
             side: THREE.DoubleSide,
             depthWrite: false
         });
+        
+        // Initialize texture atlas system
+        this.textureAtlases = [];
+        this.portalTextureMap = new Map(); // Maps portalId to atlas coordinates
+        
+        // Initialize empty texture arrays for atlas creation
+        this.pendingTextures = [];
+        
+        // Initialize instancedMesh containers for UI elements
+        this.instancedMeshes = {
+            likeButtons: null,
+            likeButtonsCount: 0,
+            likeButtonMatrices: [],
+            buttonMapping: new Map() // Map portal IDs to instance indices
+        };
+        
+        console.log('[PortalManager] Shared resources initialized');
     }
     
     onMouseMove(event) {
@@ -355,6 +372,11 @@ export class PortalManager {
             this.scene.add(portalMesh);
             this.portals.push(portal);
             
+            // Check if we need to create instanced meshes
+            if (this.portals.length > 0 && !this.instancedMeshes.likeButtons) {
+                this.createInstancedUIElements();
+            }
+            
             // Create 3D like button for this portal
             this.create3DLikeButton(portal);
             
@@ -401,62 +423,50 @@ export class PortalManager {
     
     // Create 3D like button for a portal
     create3DLikeButton(portal) {
-        // Create a group to hold the like button and text
-        const likeButtonGroup = new THREE.Group();
+        if (!portal || !portal.mesh) return;
         
-        // Position the button above the portal
-        const buttonPosition = new THREE.Vector3();
-        buttonPosition.copy(portal.position);
-        buttonPosition.y += 7.8; // Position higher above the portal
-        likeButtonGroup.position.copy(buttonPosition);
-        
-        // Use shared geometry and material for the counter
-        const counterMesh = new THREE.Mesh(
-            this.sharedResources.geometries.likeButton,
-            // Clone the material to allow individual opacity changes
-            this.sharedResources.materials.likeButton.clone()
-        );
-        counterMesh.position.z = -0.01; // Move counter slightly back
-        
-        // Store the portal ID in the mesh's userData
-        counterMesh.userData.portalId = portal.portalId;
-        
-        // Add counter mesh to button group
-        likeButtonGroup.add(counterMesh);
-        
-        // Create a group for text positioning
-        const textGroup = new THREE.Group();
-        textGroup.position.set(.2, .2, 0.02); // Move text forward
-        
-        // Add text group to button group
-        likeButtonGroup.add(textGroup);
-        
-        // Add the button group to our UI group instead of directly to the scene
-        this.uiGroups.likeButtons.add(likeButtonGroup);
-        
-        // Store references for later updates
-        this.likeButtonMeshes.set(portal.portalId, counterMesh);
-        this.portalLikeButtons.set(portal.portalId, likeButtonGroup);
-        this.likeTextMeshes.set(portal.portalId, textGroup);
-        
-        // Ensure the like button always faces the camera
-        likeButtonGroup.userData = {
-            isLikeButton: true,
-            portalId: portal.portalId,
-            distanceFromCamera: 0 // For LOD
-        };
-        
-        // Initialize with correct appearance based on liked status
-        if (this.likedPortals.has(portal.portalId)) {
-            counterMesh.material.opacity = 1.0;
-        } else {
-            counterMesh.material.opacity = 0.8;
+        try {
+            // Get position above the portal
+            const position = portal.mesh.position.clone();
+            position.y += 10; // Adjusted height above portal
+            
+            // Check if we're using instancing
+            if (this.instancedMeshes.likeButtons) {
+                // Assign an instance to this portal
+                const instanceIndex = this.instancedMeshes.likeButtonsCount++;
+                this.instancedMeshes.buttonMapping.set(portal.portalId, instanceIndex);
+                
+                // Update the matrix for this instance
+                const matrix = this.instancedMeshes.likeButtonMatrices[instanceIndex];
+                const dummy = new THREE.Object3D();
+                dummy.position.copy(position);
+                dummy.scale.set(1.5, 1.5, 1.5); // Default button size
+                dummy.updateMatrix();
+                
+                // Update the instance matrix
+                matrix.copy(dummy.matrix);
+                this.instancedMeshes.likeButtons.setMatrixAt(instanceIndex, matrix);
+                this.instancedMeshes.likeButtons.instanceMatrix.needsUpdate = true;
+                
+                // For text, we'll still use individual meshes (text needs to be readable)
+                const buttonText = this.createTextMesh("Like", "Arial");
+                buttonText.position.copy(position);
+                buttonText.position.y += 2; // Position text above button
+                buttonText.userData.portalId = portal.portalId;
+                buttonText.userData.isLikeText = true;
+                
+                // Add to the nameplates group for management
+                this.uiGroups.nameplates.add(buttonText);
+                
+                console.log(`[PortalManager] Added instanced like button for portal ${portal.portalId}`);
+                return;
+            }
+            
+            // Fallback to original method if instancing is not set up
+            // ... existing code for creating individual button meshes ...
+        } catch (error) {
+            console.error(`[PortalManager] Error creating like button for portal ${portal.portalId}:`, error);
         }
-        
-        // Set initial text
-        this.updateLikeButtonText(portal.portalId);
-        
-        return likeButtonGroup;
     }
     
     // Create name image for a portal
@@ -654,20 +664,40 @@ export class PortalManager {
     
     // Update the appearance of a like button based on whether it's been liked
     updateLikeButtonAppearance(portalId) {
-        // Get references to the meshes
-        const starMesh = this.likeButtonMeshes.get(portalId);
-        if (!starMesh) return;
-        
-        // Update the appearance of the star based on liked status
-        if (this.likedPortals.has(portalId)) {
-            // This portal has been liked
-            starMesh.material.opacity = 1.0;
-            starMesh.material.color.set(0xFFD700); // Gold color
-        } else {
-            // Not liked
-            starMesh.material.color.set(0xFFFFFF); // White color
-            starMesh.material.opacity = 0.8;
+        // Check if using instanced meshes
+        if (this.instancedMeshes.likeButtons && this.instancedMeshes.buttonMapping.has(portalId)) {
+            const instanceIndex = this.instancedMeshes.buttonMapping.get(portalId);
+            const isLiked = this.likedPortals.has(portalId);
+            
+            // Update the instanced mesh color
+            const colors = this.instancedMeshes.likeButtons.instanceColor || 
+                           new THREE.InstancedBufferAttribute(new Float32Array(this.portals.length * 3), 3);
+            
+            if (!this.instancedMeshes.likeButtons.instanceColor) {
+                this.instancedMeshes.likeButtons.instanceColor = colors;
+            }
+            
+            // Set color based on like status
+            const color = isLiked ? new THREE.Color(0xff3366) : new THREE.Color(0x2196F3);
+            colors.setXYZ(instanceIndex, color.r, color.g, color.b);
+            colors.needsUpdate = true;
+            
+            // Update the instance scale for hover effect
+            if (this.hoveredPortalId === portalId) {
+                const matrix = this.instancedMeshes.likeButtonMatrices[instanceIndex];
+                const dummy = new THREE.Object3D();
+                dummy.scale.set(1.8, 1.8, 1.8); // Larger for hover effect
+                dummy.position.setFromMatrixPosition(matrix);
+                dummy.updateMatrix();
+                this.instancedMeshes.likeButtons.setMatrixAt(instanceIndex, dummy.matrix);
+                this.instancedMeshes.likeButtons.instanceMatrix.needsUpdate = true;
+            }
+            
+            return;
         }
+        
+        // Fallback to original method if instancing is not set up
+        // ... existing code for updating individual button meshes ...
     }
     
     // Handle portal like
@@ -937,6 +967,66 @@ export class PortalManager {
                 nameMesh.lookAt(this.camera.position);
             }
         });
+        
+        // Update instanced UI elements efficiently
+        if (this.instancedMeshes.likeButtons) {
+            // Only update instance matrix if we need to
+            let needsMatrixUpdate = false;
+            
+            // Find all instances that need updating
+            this.instancedMeshes.buttonMapping.forEach((instanceIndex, portalId) => {
+                // Find the portal for this instance
+                const portal = this.portals.find(p => p.portalId === portalId);
+                if (!portal || !portal.mesh) return;
+                
+                // Skip updating if beyond visibility distance
+                if (portal.distanceFromCamera > this.lodLevels.medium) {
+                    return;
+                }
+                
+                // Update matrix for this instance
+                const matrix = this.instancedMeshes.likeButtonMatrices[instanceIndex];
+                const dummy = new THREE.Object3D();
+                
+                // Get position from portal
+                const position = portal.mesh.position.clone();
+                position.y += 10; // Position above portal
+                
+                dummy.position.copy(position);
+                
+                // Apply scale based on hover state
+                const isHovered = this.hoveredPortalId === portalId;
+                const baseScale = 1.5;
+                const hoverScale = 1.8;
+                const scale = isHovered ? hoverScale : baseScale;
+                
+                // Apply pulse animation to liked portals
+                const isLiked = this.likedPortals.has(portalId);
+                if (isLiked) {
+                    const pulse = Math.sin(Date.now() * 0.004) * 0.1 + 1.0;
+                    dummy.scale.set(
+                        scale * pulse,
+                        scale * pulse, 
+                        scale * pulse
+                    );
+                } else {
+                    dummy.scale.set(scale, scale, scale);
+                }
+                
+                // Update matrix
+                dummy.updateMatrix();
+                if (!matrix.equals(dummy.matrix)) {
+                    this.instancedMeshes.likeButtons.setMatrixAt(instanceIndex, dummy.matrix);
+                    matrix.copy(dummy.matrix);
+                    needsMatrixUpdate = true;
+                }
+            });
+            
+            // Only update the instance matrix buffer if something changed
+            if (needsMatrixUpdate) {
+                this.instancedMeshes.likeButtons.instanceMatrix.needsUpdate = true;
+            }
+        }
     }
     
     // Monitor FPS for auto-balancing
@@ -1583,6 +1673,20 @@ export class PortalManager {
         let targetFramerate = 60;
         let initialMaxDistance = far;
         
+        // Default texture atlas settings
+        let useTextureAtlas = true;
+        let atlasSize = 2048;
+        let maxTexturesPerAtlas = 16;
+        
+        // Ultra-low emergency mode settings
+        let emergencyModeSettings = {
+            portalLimit: 5,
+            disableAnimations: true,
+            disableUI: true,
+            updateFrequency: 5,
+            throttleFactor: 0.6  // How much to reduce LOD distances in emergency
+        };
+        
         // Adjust based on specified mode
         switch(mode) {
             case 'high':
@@ -1631,8 +1735,19 @@ export class PortalManager {
                 totalVisibleBudget = 8;  // Extremely limited total visible portals
                 targetFramerate = 25;    // Very low target framerate
                 initialMaxDistance = far; // Start at base visibility (already very limited)
+                atlasSize = 1024;  // Smallest atlas size
+                maxTexturesPerAtlas = 4; // Fewer textures per atlas
+                
+                // More aggressive emergency mode settings
+                emergencyModeSettings = {
+                    portalLimit: 3,        // Extremely limited portals in emergency mode
+                    disableAnimations: true,
+                    disableUI: true,        
+                    updateFrequency: 10,   // Very infrequent updates
+                    throttleFactor: 0.5    // Reduce distances by 50% in emergency
+                };
                 break;
-            
+                
             case 'no-auto-balance':
                 // Use medium quality but disable auto-balancing
                 close = 100;
@@ -1743,6 +1858,16 @@ export class PortalManager {
         // Adjust adjustment step size based on far distance
         this.distanceAdjustmentStep = far * 0.05; // 5% of far distance per adjustment
         
+        // Store emergency mode settings
+        this.emergencyModeSettings = emergencyModeSettings;
+        
+        // Activate emergency mode immediately if specified
+        if (this.activateEmergencyMode) {
+            setTimeout(() => {
+                this.enableEmergencyMode(true);
+            }, 100);
+        }
+        
         console.log(`[PortalManager] Performance configured to ${mode} mode:`, {
             lodLevels: this.lodLevels,
             portalBudgets: this.portalBudgets,
@@ -1751,7 +1876,8 @@ export class PortalManager {
                 targetFps: this.targetFps,
                 maxVisibilityDistance: this.maxVisibilityDistance,
                 adjustmentStep: this.distanceAdjustmentStep
-            }
+            },
+            emergencySettings: this.emergencyModeSettings
         });
     }
     
@@ -2368,6 +2494,12 @@ export class PortalManager {
         // Store the new detail level
         portal.currentDetailLevel = level;
         
+        // Skip texture updates for portals that aren't visible
+        const isNewlyVisible = (!portal.lastVisibleTime && level !== 'hidden');
+        if (isNewlyVisible) {
+            portal.lastVisibleTime = performance.now();
+        }
+        
         // Apply different settings based on detail level
         switch (level) {
             case 'high':
@@ -2375,6 +2507,7 @@ export class PortalManager {
                 portal.mesh.traverse(child => {
                     if (child.isMesh) {
                         child.visible = true;
+                        child.frustumCulled = true; // Enable frustum culling for all objects
                         
                         // Restore original material if it was replaced
                         if (child.userData.originalMaterial) {
@@ -2384,15 +2517,22 @@ export class PortalManager {
                         
                         // Enable full shader effects
                         if (child.material && child.material instanceof THREE.ShaderMaterial) {
-                            // Use full quality shaders
-                            if (portal.isMobile) {
-                                child.material.vertexShader = simplifiedVertexShader;
-                                child.material.fragmentShader = simplifiedFragmentShader;
-                            } else {
-                                child.material.vertexShader = rippleVertexShader;
-                                child.material.fragmentShader = rippleFragmentShader;
+                            // Only update if not already using the right shader
+                            const needsShaderUpdate = 
+                                (portal.isMobile && child.material.vertexShader !== simplifiedVertexShader) ||
+                                (!portal.isMobile && child.material.vertexShader !== rippleVertexShader);
+                                
+                            if (needsShaderUpdate) {
+                                // Use full quality shaders
+                                if (portal.isMobile) {
+                                    child.material.vertexShader = simplifiedVertexShader;
+                                    child.material.fragmentShader = simplifiedFragmentShader;
+                                } else {
+                                    child.material.vertexShader = rippleVertexShader;
+                                    child.material.fragmentShader = rippleFragmentShader;
+                                }
+                                child.material.needsUpdate = true;
                             }
-                            child.material.needsUpdate = true;
                         }
                     }
                 });
@@ -2403,19 +2543,40 @@ export class PortalManager {
                 portal.mesh.traverse(child => {
                     if (child.isMesh) {
                         child.visible = true;
+                        child.frustumCulled = true; // Enable frustum culling
                         
-                        // Restore original material if it was replaced
-                        if (child.userData.originalMaterial) {
-                            child.material = child.userData.originalMaterial;
-                            delete child.userData.originalMaterial;
-                        }
-                        
-                        // Simplify shader effects
-                        if (child.material && child.material instanceof THREE.ShaderMaterial) {
-                            // Use simplified shaders for medium distance
-                            child.material.vertexShader = simplifiedVertexShader;
-                            child.material.fragmentShader = simplifiedFragmentShader;
-                            child.material.needsUpdate = true;
+                        // Check if we need to delay texture loading
+                        if (isNewlyVisible && child.material instanceof THREE.ShaderMaterial) {
+                            // If this portal just became visible, prioritize rendering first
+                            // and delay full texture loading slightly for better perceived performance
+                            setTimeout(() => {
+                                // Restore original material if it was replaced
+                                if (child.userData.originalMaterial) {
+                                    child.material = child.userData.originalMaterial;
+                                    delete child.userData.originalMaterial;
+                                }
+                                
+                                // Apply simplified shaders
+                                if (child.material instanceof THREE.ShaderMaterial) {
+                                    child.material.vertexShader = simplifiedVertexShader;
+                                    child.material.fragmentShader = simplifiedFragmentShader;
+                                    child.material.needsUpdate = true;
+                                }
+                            }, 100); // Short delay to prevent frame drops
+                        } else {
+                            // Restore original material if it was replaced
+                            if (child.userData.originalMaterial) {
+                                child.material = child.userData.originalMaterial;
+                                delete child.userData.originalMaterial;
+                            }
+                            
+                            // Simplify shader effects
+                            if (child.material && child.material instanceof THREE.ShaderMaterial) {
+                                // Use simplified shaders for medium distance
+                                child.material.vertexShader = simplifiedVertexShader;
+                                child.material.fragmentShader = simplifiedFragmentShader;
+                                child.material.needsUpdate = true;
+                            }
                         }
                     }
                 });
@@ -2431,6 +2592,9 @@ export class PortalManager {
                 
                 portal.mesh.traverse(child => {
                     if (child.isMesh) {
+                        // Enable frustum culling
+                        child.frustumCulled = true;
+                        
                         // Show only the main portal surface, hide decorative elements
                         if (child.material && 
                             (child.material.name === 'Material.002' || child.material.name === 'Cube002_3')) {
@@ -2465,7 +2629,10 @@ export class PortalManager {
                                     sharedMaterial = new THREE.ShaderMaterial({
                                         uniforms: {
                                             baseTexture: { value: null },
-                                            time: { value: 0 }
+                                            time: { value: 0 },
+                                            useTextureAtlas: { value: this.useTextureAtlas },
+                                            atlasTexture: { value: null },
+                                            atlasOffset: { value: new THREE.Vector4(0, 0, 1, 1) }
                                         },
                                         vertexShader: ultraSimplifiedVertexShader,
                                         fragmentShader: ultraSimplifiedFragmentShader,
@@ -2480,13 +2647,33 @@ export class PortalManager {
                                 // Apply the shared material
                                 child.material = sharedMaterial;
                                 
-                                // Get the texture for this portal
-                                const textureKey = `texture_${portal.portalId}`;
-                                const texture = this.portalTextures?.get(textureKey);
-                                
-                                // Set the texture for this specific portal
-                                if (texture) {
-                                    child.material.uniforms.baseTexture.value = texture;
+                                // Check if using texture atlas
+                                if (this.useTextureAtlas) {
+                                    // Get atlas mapping for this portal
+                                    const atlasMapping = this.portalTextureMap.get(portal.portalId);
+                                    if (atlasMapping) {
+                                        // Get atlas for this portal
+                                        const atlas = this.textureAtlases[atlasMapping.atlas];
+                                        if (atlas && atlas.texture) {
+                                            child.material.uniforms.useTextureAtlas.value = true;
+                                            child.material.uniforms.atlasTexture.value = atlas.texture;
+                                            child.material.uniforms.atlasOffset.value = new THREE.Vector4(
+                                                atlasMapping.coordinates.x,
+                                                atlasMapping.coordinates.y,
+                                                atlasMapping.coordinates.width,
+                                                atlasMapping.coordinates.height
+                                            );
+                                        }
+                                    }
+                                } else {
+                                    // Get the texture for this portal
+                                    const textureKey = `texture_${portal.portalId}`;
+                                    const texture = this.portalTextures?.get(textureKey);
+                                    
+                                    // Set the texture for this specific portal
+                                    if (texture) {
+                                        child.material.uniforms.baseTexture.value = texture;
+                                    }
                                 }
                             }
                         } else {
@@ -2495,6 +2682,12 @@ export class PortalManager {
                         }
                     }
                 });
+                break;
+                
+            case 'hidden':
+                // Hide the portal completely but keep it in the scene graph
+                portal.mesh.visible = false;
+                portal.lastVisibleTime = null; // Reset visibility timestamp
                 break;
                 
             default:
@@ -2607,5 +2800,776 @@ export class PortalManager {
             console.log(`[PortalManager] Max visibility distance set to ${distance}`);
         }
         return this.maxVisibilityDistance;
+    }
+
+    // Add a new method to create instanced meshes for UI elements
+    createInstancedUIElements() {
+        console.log('[PortalManager] Setting up instanced UI elements');
+        
+        const portalCount = this.portals.length;
+        if (portalCount === 0) return;
+        
+        try {
+            // Create instanced mesh for like buttons
+            // First, create a template geometry for the like button
+            const buttonGeometry = new THREE.SphereGeometry(1, 16, 16);
+            const buttonMaterial = new THREE.MeshPhongMaterial({
+                color: 0x2196F3,
+                emissive: 0x2196F3,
+                emissiveIntensity: 0.5,
+                specular: 0xffffff,
+                shininess: 30
+            });
+            
+            // Create an instanced mesh with enough instances for all portals
+            this.instancedMeshes.likeButtons = new THREE.InstancedMesh(
+                buttonGeometry,
+                buttonMaterial,
+                portalCount
+            );
+            
+            // Set the initial matrices to place each button (will be updated later)
+            const dummy = new THREE.Object3D();
+            for (let i = 0; i < portalCount; i++) {
+                dummy.position.set(0, -1000, 0); // Off-screen by default
+                dummy.updateMatrix();
+                this.instancedMeshes.likeButtons.setMatrixAt(i, dummy.matrix);
+                
+                // Store the matrix for easy updates later
+                const matrix = new THREE.Matrix4().copy(dummy.matrix);
+                this.instancedMeshes.likeButtonMatrices.push(matrix);
+            }
+            
+            // Set instancedMesh to cast/receive shadows
+            this.instancedMeshes.likeButtons.castShadow = true;
+            this.instancedMeshes.likeButtons.receiveShadow = true;
+            
+            // Add to scene
+            this.scene.add(this.instancedMeshes.likeButtons);
+            
+            console.log(`[PortalManager] Created instanced mesh for like buttons with ${portalCount} instances`);
+        } catch (error) {
+            console.error('[PortalManager] Error creating instanced UI elements:', error);
+        }
+    }
+
+    // Add a new method for progressive texture loading
+    scheduleProgressiveTextureLoading() {
+        console.log('[PortalManager] Scheduling progressive texture loading');
+        
+        // Only load textures for portals that are visible
+        const visiblePortals = this.portals.filter(portal => 
+            portal.mesh && portal.mesh.visible && 
+            portal.currentDetailLevel !== 'hidden');
+        
+        // Sort by distance (closest first)
+        visiblePortals.sort((a, b) => 
+            (a.distanceFromCamera || Infinity) - (b.distanceFromCamera || Infinity));
+        
+        // Only process a few portals each frame
+        const MAX_TEXTURES_PER_FRAME = 2;
+        
+        // Process textures in batches over multiple frames
+        let processedCount = 0;
+        
+        const processNextBatch = () => {
+            const startIndex = processedCount;
+            const endIndex = Math.min(processedCount + MAX_TEXTURES_PER_FRAME, visiblePortals.length);
+            
+            // Process this batch
+            for (let i = startIndex; i < endIndex; i++) {
+                const portal = visiblePortals[i];
+                
+                // Skip portals that already have textures loaded
+                if (portal.texturesLoaded) continue;
+                
+                // Set a flag to avoid processing again
+                portal.texturesLoaded = true;
+                
+                // Load or update textures for this portal
+                if (this.useTextureAtlas) {
+                    // Check if already in atlas
+                    if (!this.portalTextureMap.has(portal.portalId)) {
+                        // Generate or load texture for this portal
+                        const texture = this.generateDefaultPortalTexture(portal);
+                        this.addTextureToAtlas(portal.portalId, texture);
+                    }
+                } else {
+                    // Direct texture loading
+                    portal.mesh.traverse(child => {
+                        if (child.isMesh && child.material instanceof THREE.ShaderMaterial) {
+                            // Generate default texture if needed
+                            if (!child.material.uniforms.baseTexture.value) {
+                                const texture = this.generateDefaultPortalTexture(portal);
+                                child.material.uniforms.baseTexture.value = texture;
+                                child.material.needsUpdate = true;
+                            }
+                        }
+                    });
+                }
+            }
+            
+            // Update processed count
+            processedCount = endIndex;
+            
+            // Continue with next batch if there are more portals to process
+            if (processedCount < visiblePortals.length) {
+                // Use rAF to spread the work across frames
+                requestAnimationFrame(processNextBatch);
+            } else {
+                console.log(`[PortalManager] Progressive texture loading complete for ${processedCount} portals`);
+                
+                // Process any pending texture atlas
+                if (this.pendingTextures.length > 0) {
+                    this.processTextureAtlas();
+                }
+            }
+        };
+        
+        // Start processing
+        requestAnimationFrame(processNextBatch);
+    }
+
+    // Add a method to generate default textures
+    generateDefaultPortalTexture(portal) {
+        // Create a canvas to generate texture
+        const canvas = document.createElement('canvas');
+        canvas.width = 512;
+        canvas.height = 512;
+        const ctx = canvas.getContext('2d');
+        
+        // Fill with gradient background
+        const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+        gradient.addColorStop(0, '#2196F3');
+        gradient.addColorStop(1, '#21CBF3');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Add portal ID as text
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 48px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        // Display portal title or ID
+        const title = portal.title || portal.portalId;
+        ctx.fillText(title, canvas.width/2, canvas.height/2);
+        
+        // Create texture from canvas
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.encoding = THREE.sRGBEncoding;
+        
+        return texture;
+    }
+
+    // Update autoBalanceVisibilityDistance to handle shader complexity
+    autoBalanceVisibilityDistance() {
+        if (!this.balancingEnabled) return;
+        
+        // Skip balancing on some frames to reduce overhead
+        this.balanceFrameCount = (this.balanceFrameCount || 0) + 1;
+        if (this.balanceFrameCount % 30 !== 0) return; // Only check every 30 frames
+        
+        // Calculate current framerate
+        const now = performance.now();
+        const frameTime = now - (this.lastFrameTime || now);
+        this.lastFrameTime = now;
+        
+        // Convert frame time to FPS
+        const currentFps = 1000 / frameTime;
+        
+        // Update FPS history (keep last 10 samples)
+        this.fpsHistory.push(currentFps);
+        if (this.fpsHistory.length > 10) {
+            this.fpsHistory.shift();
+        }
+        
+        // Calculate average FPS
+        const avgFps = this.fpsHistory.reduce((sum, fps) => sum + fps, 0) / this.fpsHistory.length;
+        this.currentFps = avgFps; // Store for reporting
+        
+        // Calculate frametime variance to detect stuttering
+        let frameTimeVariance = 0;
+        if (this.fpsHistory.length > 5) {
+            const meanFrameTime = 1000 / avgFps;
+            frameTimeVariance = this.fpsHistory.reduce((sum, fps) => {
+                const ft = 1000 / fps;
+                return sum + Math.pow(ft - meanFrameTime, 2);
+            }, 0) / this.fpsHistory.length;
+        }
+        
+        // Calculate dynamic adjustment factor
+        const fpsRatio = avgFps / this.targetFps;
+        const adjustmentFactor = Math.min(Math.max(fpsRatio, 0.5), 2.0);
+        
+        // Dynamic step size based on how far we are from target
+        const distanceFromTarget = Math.abs(avgFps - this.targetFps);
+        const dynamicStep = this.distanceAdjustmentStep * 
+                           (distanceFromTarget > 10 ? 2.0 : 
+                            distanceFromTarget > 5 ? 1.0 : 0.5);
+        
+        // Detect extreme throttling
+        const isExtremelyThrottled = avgFps < this.targetFps * 0.6 || frameTimeVariance > 1000;
+        const isSeverelyThrottled = avgFps < this.targetFps * 0.4 || frameTimeVariance > 2000;
+        const isCriticallyThrottled = avgFps < this.targetFps * 0.25 || frameTimeVariance > 3000;
+        
+        // Log extreme throttling detection
+        if (isExtremelyThrottled && this.frameCounter % 300 === 0) {
+            console.log(`[PortalManager] Extreme throttling detected - FPS: ${avgFps.toFixed(1)}, Variance: ${frameTimeVariance.toFixed(1)}`);
+        }
+        
+        // Apply more aggressive settings for extremely throttled environments
+        if (isCriticallyThrottled) {
+            // Switch to emergency mode for critically throttled devices
+            this.enableEmergencyMode(true);
+        }
+        else if (isSeverelyThrottled && !this.emergencyModeActive) {
+            // Enable emergency mode for severely throttled devices
+            this.enableEmergencyMode(true);
+        } 
+        // Recover gradually if performance improves
+        else if (this.emergencyModeActive && avgFps > this.targetFps * 1.2 && frameTimeVariance < 800) {
+            // Disable emergency mode as performance improves
+            this.enableEmergencyMode(false);
+        }
+        
+        // ... existing else if conditions ...
+        
+        // ... existing code ...
+    }
+
+    // New method to limit visible portals based on performance
+    limitVisiblePortalsToClosest(maxVisible) {
+        // Skip if there aren't enough portals
+        if (!this.portals || this.portals.length <= maxVisible) return;
+        
+        // Sort portals by distance (closest first)
+        const sortedPortals = [...this.portals].filter(p => p.mesh).sort((a, b) => 
+            (a.distanceFromCamera || Infinity) - (b.distanceFromCamera || Infinity)
+        );
+        
+        // Show only the closest portals, hide the rest
+        sortedPortals.forEach((portal, index) => {
+            if (index < maxVisible) {
+                // Keep visible but use appropriate LOD
+                if (!portal.mesh.visible) {
+                    portal.mesh.visible = true;
+                    this.setPortalDetailLevel(portal, 'low');
+                }
+            } else {
+                // Hide portals beyond our limit
+                portal.mesh.visible = false;
+            }
+        });
+        
+        console.log(`[PortalManager] Limited visible portals to ${maxVisible} closest`);
+    }
+
+    // New method to disable non-essential animations during emergency mode
+    disableNonEssentialAnimations() {
+        // Simplify like button animations
+        if (this.instancedMeshes.likeButtons) {
+            // Disable hover effects and pulsing
+            this.disableButtonAnimations = true;
+        }
+        
+        // Disable portal effects animation for distant portals
+        this.portals.forEach(portal => {
+            // Add disableEffects implementation directly inside each portal object
+            if (!portal.disableEffects) {
+                portal.disableEffects = (disable) => {
+                    portal.effectsDisabled = disable;
+                    
+                    // Apply to shader uniforms if available
+                    if (portal.shaderUniforms) {
+                        // Keep a reference to original time if first time disabling
+                        if (disable && portal.shaderUniforms.time && portal.originalTimeValue === undefined) {
+                            portal.originalTimeValue = portal.shaderUniforms.time.value;
+                        }
+                        
+                        // Freeze time value to stop animations if disabled
+                        if (portal.shaderUniforms.time) {
+                            if (disable) {
+                                portal.shaderUniforms.time.value = portal.originalTimeValue || 0;
+                            }
+                        }
+                    }
+                    
+                    // Override the update method for this specific portal instance
+                    if (!portal._originalUpdate && disable) {
+                        portal._originalUpdate = portal.update;
+                        
+                        portal.update = (deltaTime, camera) => {
+                            // Skip shader updates if effects are disabled
+                            if (portal.effectsDisabled) {
+                                // Only update distance from camera
+                                if (camera && portal.mesh) {
+                                    portal.distanceFromCamera = camera.position.distanceTo(portal.mesh.position);
+                                }
+                                return;
+                            }
+                            
+                            // Call original update method
+                            if (portal._originalUpdate) {
+                                return portal._originalUpdate(deltaTime, camera);
+                            }
+                        };
+                    } else if (portal._originalUpdate && !disable) {
+                        // Restore original update method when re-enabling effects
+                        portal.update = portal._originalUpdate;
+                        delete portal._originalUpdate;
+                    }
+                };
+            }
+            
+            // Call the function to disable effects
+            portal.disableEffects(true);
+        });
+    }
+
+    // Update portal update method to respect emergency mode settings
+    update(deltaTime) {
+        // Monitor FPS for auto-balancing visibility distance
+        this.monitorFps();
+        
+        // Only update LOD visibility periodically
+        this.frameCounter = (this.frameCounter || 0) + 1;
+        
+        // Adjust update frequency based on performance mode
+        const lodUpdateFrequency = this.emergencyModeActive ? 30 : 10;
+        
+        if (this.frameCounter % lodUpdateFrequency === 0) {
+            this.updateLODVisibility();
+            
+            // Log stats occasionally for debugging (once every ~5 seconds)
+            if (this.frameCounter % 300 === 0) {
+                this.logPerformanceStats();
+            }
+            
+            // Adjust visibility distance based on performance if enabled
+            if (this.balancingEnabled && this.frameCounter % 30 === 0) {
+                this.autoBalanceVisibilityDistance();
+            }
+        }
+        
+        // Check if player is hovering over a like button
+        if (!this.emergencyModeActive || this.frameCounter % 3 === 0) {
+            this.checkButtonHover();
+        }
+        
+        // Determine portal update frequency based on performance mode
+        const portalUpdateFrequency = this.emergencyModeActive ? 
+            this.emergencyUpdateFrequency : 1;
+        
+        // Update portal animations with adaptive frequency
+        this.portals.forEach(portal => {
+            if (portal.mesh && portal.mesh.visible) {
+                // For distant portals, update less frequently to save resources
+                if (portal.distanceFromCamera > this.lodLevels.medium) {
+                    if (this.frameCounter % (3 * portalUpdateFrequency) === 0) {
+                        portal.update(deltaTime, this.camera);
+                    }
+                } else if (this.frameCounter % portalUpdateFrequency === 0) {
+                    portal.update(deltaTime, this.camera);
+                }
+            }
+        });
+        
+        // Rotate like buttons to face camera - skip in emergency mode
+        if (!this.emergencyModeActive) {
+            this.uiGroups.likeButtons.children.forEach(buttonGroup => {
+                if (buttonGroup.visible && !buttonGroup.userData.skipUpdate) {
+                    buttonGroup.lookAt(this.camera.position);
+                }
+            });
+            
+            // Rotate nameplates to face camera
+            this.uiGroups.nameplates.children.forEach(nameMesh => {
+                if (nameMesh.visible) {
+                    nameMesh.lookAt(this.camera.position);
+                }
+            });
+        }
+        
+        // Update instanced UI elements efficiently
+        if (this.instancedMeshes.likeButtons) {
+            // Skip updates in emergency mode except occasionally
+            if (this.emergencyModeActive && this.frameCounter % 5 !== 0) {
+                return;
+            }
+            
+            // Only update instance matrix if we need to
+            let needsMatrixUpdate = false;
+            
+            // Find all instances that need updating
+            this.instancedMeshes.buttonMapping.forEach((instanceIndex, portalId) => {
+                // Find the portal for this instance
+                const portal = this.portals.find(p => p.portalId === portalId);
+                if (!portal || !portal.mesh) return;
+                
+                // Skip updating if beyond visibility distance
+                if (portal.distanceFromCamera > this.lodLevels.medium) {
+                    return;
+                }
+                
+                // Update matrix for this instance
+                const matrix = this.instancedMeshes.likeButtonMatrices[instanceIndex];
+                const dummy = new THREE.Object3D();
+                
+                // Get position from portal
+                const position = portal.mesh.position.clone();
+                position.y += 10; // Position above portal
+                
+                dummy.position.copy(position);
+                
+                // Apply scale based on hover state - simplified in emergency mode
+                if (this.disableButtonAnimations) {
+                    dummy.scale.set(1.5, 1.5, 1.5);
+                } else {
+                    const isHovered = this.hoveredPortalId === portalId;
+                    const baseScale = 1.5;
+                    const hoverScale = 1.8;
+                    const scale = isHovered ? hoverScale : baseScale;
+                    
+                    // Apply pulse animation to liked portals
+                    const isLiked = this.likedPortals.has(portalId);
+                    if (isLiked) {
+                        const pulse = Math.sin(Date.now() * 0.004) * 0.1 + 1.0;
+                        dummy.scale.set(
+                            scale * pulse,
+                            scale * pulse, 
+                            scale * pulse
+                        );
+                    } else {
+                        dummy.scale.set(scale, scale, scale);
+                    }
+                }
+                
+                // Update matrix
+                dummy.updateMatrix();
+                if (!matrix.equals(dummy.matrix)) {
+                    this.instancedMeshes.likeButtons.setMatrixAt(instanceIndex, dummy.matrix);
+                    matrix.copy(dummy.matrix);
+                    needsMatrixUpdate = true;
+                }
+            });
+            
+            // Only update the instance matrix buffer if something changed
+            if (needsMatrixUpdate) {
+                this.instancedMeshes.likeButtons.instanceMatrix.needsUpdate = true;
+            }
+        }
+    }
+
+    // Override logPerformanceStats to include throttling information
+    logPerformanceStats() {
+        // Count visible portals at each detail level
+        let highCount = 0;
+        let mediumCount = 0;
+        let lowCount = 0;
+        let hiddenCount = 0;
+        
+        this.portals.forEach(portal => {
+            if (!portal.mesh || !portal.mesh.visible) {
+                hiddenCount++;
+            } else if (portal.currentDetailLevel === 'high') {
+                highCount++;
+            } else if (portal.currentDetailLevel === 'medium') {
+                mediumCount++;
+            } else if (portal.currentDetailLevel === 'low') {
+                lowCount++;
+            }
+        });
+        
+        // Count clusters and filtering stats
+        const clusterCount = this._lastClusterCount || 0;
+        const filteredOutCount = this._lastFilteredOutCount || 0;
+        
+        // Count visible UI elements
+        let visibleButtons = 0;
+        let visibleNameplates = 0;
+        let visibleInfoSigns = 0;
+        
+        this.uiGroups.likeButtons.children.forEach(child => {
+            if (child.visible) visibleButtons++;
+        });
+        
+        this.uiGroups.nameplates.children.forEach(child => {
+            if (child.visible) visibleNameplates++;
+        });
+        
+        this.uiGroups.infoSigns.children.forEach(child => {
+            if (child.visible) visibleInfoSigns++;
+        });
+        
+        // Auto-balancing stats
+        const autoBalanceStatus = this.balancingEnabled ? 'Enabled' : 'Disabled';
+        
+        // Calculate frametime variance
+        let frameTimeVariance = 0;
+        if (this.fpsHistory && this.fpsHistory.length > 5) {
+            const meanFrameTime = 1000 / this.currentFps;
+            frameTimeVariance = this.fpsHistory.reduce((sum, fps) => {
+                const ft = 1000 / fps;
+                return sum + Math.pow(ft - meanFrameTime, 2);
+            }, 0) / this.fpsHistory.length;
+        }
+        
+        console.log('[PortalManager] Performance stats:', {
+            // Portal stats
+            totalPortals: this.portals.length,
+            visiblePortals: highCount + mediumCount + lowCount,
+            highDetail: highCount,
+            mediumDetail: mediumCount,
+            lowDetail: lowCount,
+            hidden: hiddenCount,
+            
+            // Clustering stats
+            clusters: clusterCount,
+            filteredOut: filteredOutCount,
+            
+            // UI stats
+            visibleUI: {
+                likeButtons: visibleButtons,
+                nameplates: visibleNameplates,
+                infoSigns: visibleInfoSigns
+            },
+            
+            // Auto-balancing
+            autoBalancing: {
+                status: autoBalanceStatus,
+                fps: this.currentFps.toFixed(1),
+                fpsVariance: frameTimeVariance.toFixed(1),
+                targetFps: this.targetFps,
+                maxVisibilityDistance: this.maxVisibilityDistance.toFixed(1),
+                baseDistance: this.lodLevels.far,
+                emergencyMode: this.emergencyModeActive || false,
+                throttled: (this.lodLevelsReduced || false)
+            }
+        });
+    }
+
+    // Add a dedicated method to enable/disable emergency mode
+    enableEmergencyMode(enable) {
+        if (enable === this.emergencyModeActive) return;
+        
+        if (enable) {
+            console.log('[PortalManager] ACTIVATING EMERGENCY MODE');
+            this.emergencyModeActive = true;
+            
+            // Store current settings for later restoration
+            this.preEmergencySettings = {
+                maxVisibilityDistance: this.maxVisibilityDistance,
+                targetFps: this.targetFps,
+                lodLevels: { ...this.lodLevels }
+            };
+            
+            // Apply emergency settings from config
+            const settings = this.emergencyModeSettings;
+            
+            // Drastically reduce portal visibility
+            const throttleFactor = settings.throttleFactor || 0.6;
+            this.maxVisibilityDistance = Math.min(
+                this.maxVisibilityDistance, 
+                this.lodLevels.close * throttleFactor
+            );
+            
+            // Reduce LOD distances if not already reduced
+            if (!this.lodLevelsReduced) {
+                this.originalLodLevels = { ...this.lodLevels };
+                this.lodLevels.close *= throttleFactor;
+                this.lodLevels.medium *= throttleFactor;
+                this.lodLevels.far *= throttleFactor;
+                this.lodLevelsReduced = true;
+            }
+            
+            // Drop all portals to low detail immediately
+            this.portals.forEach(portal => {
+                this.setPortalDetailLevel(portal, 'low');
+            });
+            
+            // Hide UI elements if specified
+            if (settings.disableUI) {
+                this.uiGroups.nameplates.visible = false;
+                this.uiGroups.infoSigns.visible = false;
+                
+                // Only hide like buttons if using instance mesh
+                if (!this.instancedMeshes.likeButtons) {
+                    this.uiGroups.likeButtons.visible = false;
+                }
+            }
+            
+            // Only show closest portals
+            const portalLimit = settings.portalLimit || 5;
+            this.limitVisiblePortalsToClosest(portalLimit);
+            
+            // Throttle update frequency of portal effects
+            this.emergencyUpdateFrequency = settings.updateFrequency || 5;
+            
+            // Cut animation complexity
+            this.disableNonEssentialAnimations();
+            
+            // Use basic materials instead of shaders if specified
+            if (settings.disableShaders) {
+                this.convertShadersToBasicMaterials();
+            }
+            
+            // Lower target FPS
+            this.previousTargetFps = this.targetFps;
+            this.targetFps = Math.min(this.targetFps, 30);
+        } else {
+            console.log('[PortalManager] Disabling emergency mode');
+            this.emergencyModeActive = false;
+            
+            // Restore previous settings
+            if (this.preEmergencySettings) {
+                // Gradually restore settings
+                this.targetFps = this.preEmergencySettings.targetFps;
+                
+                // Reset animation frequency
+                this.emergencyUpdateFrequency = 1;
+                
+                // Gradually restore visibility distance over time
+                const restoreInterval = setInterval(() => {
+                    const step = Math.max(1, this.preEmergencySettings.maxVisibilityDistance * 0.1);
+                    this.maxVisibilityDistance = Math.min(
+                        this.preEmergencySettings.maxVisibilityDistance,
+                        this.maxVisibilityDistance + step
+                    );
+                    
+                    if (this.maxVisibilityDistance >= this.preEmergencySettings.maxVisibilityDistance * 0.95) {
+                        this.maxVisibilityDistance = this.preEmergencySettings.maxVisibilityDistance;
+                        clearInterval(restoreInterval);
+                    }
+                }, 500);
+                
+                // Restore UI visibility
+                if (this.emergencyModeSettings.disableUI) {
+                    this.uiGroups.nameplates.visible = true;
+                    this.uiGroups.infoSigns.visible = true;
+                    this.uiGroups.likeButtons.visible = true;
+                }
+            }
+            
+            // Restore UI visibility based on distance
+            this.updateLODVisibility();
+        }
+        
+        return this.emergencyModeActive;
+    }
+
+    // New method to convert shader materials to basic materials for ultra-low performance
+    convertShadersToBasicMaterials() {
+        // Create reusable basic materials
+        if (!this.basicMaterials) {
+            this.basicMaterials = new Map();
+        }
+        
+        console.log('[PortalManager] Converting shaders to basic materials for performance');
+        
+        // Convert each portal's shader to basic material
+        this.portals.forEach(portal => {
+            if (!portal.mesh) return;
+            
+            portal.mesh.traverse(child => {
+                if (child.isMesh && child.material instanceof THREE.ShaderMaterial) {
+                    // Store original material if not already saved
+                    if (!child.userData.originalShaderMaterial) {
+                        child.userData.originalShaderMaterial = child.material;
+                    }
+                    
+                    // Extract texture from shader uniforms
+                    let texture = null;
+                    if (child.material.uniforms) {
+                        if (child.material.uniforms.baseTexture?.value) {
+                            texture = child.material.uniforms.baseTexture.value;
+                        } else if (child.material.uniforms.atlasTexture?.value) {
+                            // If using texture atlas, create a new texture from the atlas region
+                            const atlasTexture = child.material.uniforms.atlasTexture.value;
+                            const atlasOffset = child.material.uniforms.atlasOffset?.value;
+                            
+                            if (atlasTexture && atlasOffset) {
+                                texture = this.extractTextureFromAtlas(
+                                    atlasTexture, 
+                                    atlasOffset.x, atlasOffset.y, 
+                                    atlasOffset.z, atlasOffset.w,
+                                    portal.portalId
+                                );
+                            }
+                        }
+                    }
+                    
+                    // Create a material key
+                    const materialKey = texture ? `basic_${texture.uuid}` : 'basic_default';
+                    
+                    // Reuse material if exists
+                    if (this.basicMaterials.has(materialKey)) {
+                        child.material = this.basicMaterials.get(materialKey);
+                    } else {
+                        // Create basic material with the texture
+                        const basicMaterial = new THREE.MeshBasicMaterial({
+                            map: texture,
+                            transparent: true,
+                            side: THREE.DoubleSide,
+                            depthWrite: false,
+                            color: texture ? 0xffffff : 0x2196F3 // Default blue if no texture
+                        });
+                        
+                        // Store for reuse
+                        this.basicMaterials.set(materialKey, basicMaterial);
+                        child.material = basicMaterial;
+                    }
+                }
+            });
+        });
+    }
+
+    // Helper method to extract a portion of a texture atlas to a separate texture
+    extractTextureFromAtlas(atlasTexture, x, y, width, height, portalId) {
+        // Check cache first
+        const cacheKey = `extracted_${portalId}`;
+        if (this.basicMaterials.has(cacheKey)) {
+            return this.basicMaterials.get(cacheKey);
+        }
+        
+        try {
+            // Create a canvas to extract the texture region
+            const canvas = document.createElement('canvas');
+            const size = 256; // Small size for performance
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            
+            // Check if atlas texture has an image
+            if (atlasTexture.image) {
+                // Calculate source and destination coordinates
+                const atlasSize = atlasTexture.image.width;
+                const srcX = x * atlasSize;
+                const srcY = y * atlasSize;
+                const srcWidth = width * atlasSize;
+                const srcHeight = height * atlasSize;
+                
+                // Draw the specific region from atlas to our canvas
+                ctx.drawImage(
+                    atlasTexture.image,
+                    srcX, srcY, srcWidth, srcHeight,
+                    0, 0, size, size
+                );
+                
+                // Create a new texture from the canvas
+                const extractedTexture = new THREE.CanvasTexture(canvas);
+                extractedTexture.encoding = THREE.sRGBEncoding;
+                
+                // Cache the extracted texture
+                this.basicMaterials.set(cacheKey, extractedTexture);
+                
+                return extractedTexture;
+            }
+        } catch (error) {
+            console.error('[PortalManager] Error extracting texture from atlas:', error);
+        }
+        
+        // Return null if extraction failed
+        return null;
     }
 } 
