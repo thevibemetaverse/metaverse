@@ -1124,26 +1124,29 @@ export class PortalManager {
             this.enableEmergencyMode(false);
         }
         
-        // Determine if adjustment is needed
+        // Determine if adjustment is needed, with less aggressive reduction
         if (this.currentFps < lowFpsThreshold) {
-            // FPS is too low, reduce visibility distance
-            this.maxVisibilityDistance = Math.max(
-                this.lodLevels.close,
-                this.maxVisibilityDistance - this.distanceAdjustmentStep
-            );
-            this.lastDistanceAdjustment = now;
-            this.distanceAdjustmentCooldown = 1000; // Longer cooldown for reduction
-            
-            console.log(`[PortalManager] Performance balancing: Reduced visibility distance to ${this.maxVisibilityDistance.toFixed(1)} (FPS: ${this.currentFps.toFixed(1)})`);
+            // FPS is too low, reduce visibility distance less aggressively
+            // Only reduce if FPS is consistently low over multiple checks
+            if (this.consecutiveLowFpsCount >= 2) {
+                this.maxVisibilityDistance = Math.max(
+                    this.lodLevels.close * 0.8, // Ensure we don't go below 80% of close distance
+                    this.maxVisibilityDistance - this.distanceAdjustmentStep * 0.5 // Reduce step size
+                );
+                this.lastDistanceAdjustment = now;
+                this.distanceAdjustmentCooldown = 1500; // Longer cooldown for reduction
+                
+                console.log(`[PortalManager] Performance balancing: Reduced visibility distance to ${this.maxVisibilityDistance.toFixed(1)} (FPS: ${this.currentFps.toFixed(1)})`);
+            }
         } 
-        else if (this.currentFps > highFpsThreshold && this.maxVisibilityDistance < this.lodLevels.far * 1.5) {
-            // FPS is high, we can try increasing visibility distance up to 150% of the base far distance
+        else if (this.currentFps > highFpsThreshold && this.maxVisibilityDistance < this.lodLevels.far * 2.0) {
+            // FPS is high, increase visibility distance more aggressively up to 200% of base far distance
             this.maxVisibilityDistance = Math.min(
-                this.lodLevels.far * 1.5,
-                this.maxVisibilityDistance + this.distanceAdjustmentStep * 0.5
+                this.lodLevels.far * 2.0,
+                this.maxVisibilityDistance + this.distanceAdjustmentStep
             );
             this.lastDistanceAdjustment = now;
-            this.distanceAdjustmentCooldown = 2000; // Longer cooldown for increases
+            this.distanceAdjustmentCooldown = 1000; // Shorter cooldown for increases to recover faster
             
             console.log(`[PortalManager] Performance balancing: Increased visibility distance to ${this.maxVisibilityDistance.toFixed(1)} (FPS: ${this.currentFps.toFixed(1)})`);
         }
@@ -1793,34 +1796,34 @@ export class PortalManager {
                 );
                 
                 if (isMobile) {
-                    // Use lower settings for mobile devices
-                    close = 60;
-                    medium = 120;
-                    far = 200;
-                    highDetailBudget = 6;
-                    mediumDetailBudget = 12;
-                    totalVisibleBudget = 20;
-                    targetFramerate = 45; // Lower target framerate for mobile
-                    initialMaxDistance = far * 0.85;
+                    // Use less conservative settings for modern mobile devices
+                    close = 80;    // Increased from 60
+                    medium = 160;  // Increased from 120
+                    far = 240;     // Increased from 200
+                    highDetailBudget = 8;   // Increased from 6
+                    mediumDetailBudget = 16; // Increased from 12
+                    totalVisibleBudget = 25; // Increased from 20
+                    targetFramerate = 50;   // Adjusted target for modern mobile devices
+                    initialMaxDistance = far * 0.9; // Slightly more aggressive start
                     
                     // Try to detect if it's a low-end mobile device
                     if (navigator && navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) {
                         // Use low settings for low-end devices
-                        close = 40;
-                        medium = 80;
-                        far = 120;
-                        highDetailBudget = 4;
-                        mediumDetailBudget = 8;
-                        totalVisibleBudget = 15;
-                        targetFramerate = 30; // Even lower target for low-end devices
-                        initialMaxDistance = far * 0.7;
+                        close = 50;   // Adjusted from 40
+                        medium = 100; // Adjusted from 80
+                        far = 150;    // Adjusted from 120
+                        highDetailBudget = 6;   // Increased from 4
+                        mediumDetailBudget = 12; // Increased from 8
+                        totalVisibleBudget = 20; // Increased from 15
+                        targetFramerate = 40;   // Adjusted for low-end devices
+                        initialMaxDistance = far * 0.8;
                         
                         // Check for extremely low-resource devices
                         if (navigator.deviceMemory && navigator.deviceMemory <= 2) {
                             // Use ultra-low settings for extremely limited devices
-                            close = 30;
-                            medium = 60;
-                            far = 100;
+                            close = 40;   // Adjusted from 30
+                            medium = 80;  // Adjusted from 60
+                            far = 120;    // Adjusted from 100
                             highDetailBudget = 5;
                             mediumDetailBudget = 10;
                             totalVisibleBudget = 15;
@@ -1837,9 +1840,9 @@ export class PortalManager {
                             
                             if (isLowEndAndroid) {
                                 // Use ultra-low settings for detected low-end Android devices
-                                close = 30;
-                                medium = 60;
-                                far = 100;
+                                close = 40;   // Adjusted from 30
+                                medium = 80;  // Adjusted from 60
+                                far = 120;    // Adjusted from 100
                                 highDetailBudget = 5;
                                 mediumDetailBudget = 10;
                                 totalVisibleBudget = 15;
@@ -2505,6 +2508,11 @@ export class PortalManager {
         // Store statistics for logging
         this._lastClusterCount = clusters.length;
         this._lastFilteredOutCount = portalItems.filter(item => item.inView).length - prefiltered.length;
+        
+        // Schedule progressive texture loading for visible portals that need textures
+        if (this.frameCounter % 30 === 0) { // Only check every 30 frames to avoid overhead
+            this.scheduleProgressiveTextureLoading();
+        }
     }
     
     // New method to set portal detail level
@@ -2912,26 +2920,25 @@ export class PortalManager {
                 portal.texturesLoaded = true;
                 
                 // Load or update textures for this portal
-                if (this.useTextureAtlas) {
-                    // Check if already in atlas
-                    if (!this.portalTextureMap.has(portal.portalId)) {
-                        // Generate or load texture for this portal
-                        const texture = this.generateDefaultPortalTexture(portal);
-                        this.addTextureToAtlas(portal.portalId, texture);
+                setTimeout(() => {
+                    console.log(`[PortalManager] Updating texture for portal ${portal.portalId}`);
+                    // Use special fire portal image for Enter portal
+                    let portalImageUrl;
+                    if (portal.portalId === 'enter') {
+                        portalImageUrl = '/assets/images/portal.jpg';  // Use absolute path to assets directory
+                    } else {
+                        // Use the portal-specific image with timestamp AND random number to guarantee uniqueness
+                        const uniqueId = Date.now() + '_' + Math.random().toString(36).substring(2, 10);
+                        portalImageUrl = `https://thevibemetaverse.vercel.app/assets/images/${portal.portalId}.png?uid=${uniqueId}`;
                     }
-                } else {
-                    // Direct texture loading
-                    portal.mesh.traverse(child => {
-                        if (child.isMesh && child.material instanceof THREE.ShaderMaterial) {
-                            // Generate default texture if needed
-                            if (!child.material.uniforms.baseTexture.value) {
-                                const texture = this.generateDefaultPortalTexture(portal);
-                                child.material.uniforms.baseTexture.value = texture;
-                                child.material.needsUpdate = true;
-                            }
-                        }
+                    
+                    console.log(`[PortalManager] Setting texture for ${portal.portalId} to:`, portalImageUrl);
+                    
+                    // Try both material names that might exist in the model
+                    ['Material.002', 'Cube002_3'].forEach(materialName => {
+                        portal.updateTexture(materialName, portalImageUrl);
                     });
-                }
+                }, 100 + Math.floor(Math.random() * 50)); // Stagger timing slightly
             }
             
             // Update processed count
@@ -2943,11 +2950,6 @@ export class PortalManager {
                 requestAnimationFrame(processNextBatch);
             } else {
                 console.log(`[PortalManager] Progressive texture loading complete for ${processedCount} portals`);
-                
-                // Process any pending texture atlas
-                if (this.pendingTextures.length > 0) {
-                    this.processTextureAtlas();
-                }
             }
         };
         
