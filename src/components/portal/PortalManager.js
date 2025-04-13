@@ -940,91 +940,106 @@ export class PortalManager {
         // Check if player is hovering over a like button
         this.checkButtonHover();
         
+        // Determine update frequency based on performance
+        let updateFrequency = 1; // Default to update every frame
+        if (this.emergencyModeActive) {
+            updateFrequency = this.emergencyUpdateFrequency || 5; // Throttle heavily in emergency mode
+        } else if (this.currentFps < this.targetFps * 0.6) {
+            updateFrequency = 3; // Moderate throttling if FPS is below 60% of target
+        } else if (this.currentFps < this.targetFps * 0.8) {
+            updateFrequency = 2; // Light throttling if FPS is below 80% of target
+        }
+        
         // Update portal animations with adaptive frequency
         this.portals.forEach(portal => {
             if (portal.mesh && portal.mesh.visible) {
-                // For distant portals, update less frequently to save resources
+                // For distant portals or low FPS, update less frequently to save resources
                 if (portal.distanceFromCamera > this.lodLevels.medium) {
-                    if (this.frameCounter % 3 === 0) {
+                    if (this.frameCounter % (3 * updateFrequency) === 0) {
                         portal.update(deltaTime, this.camera);
                     }
-                } else {
+                } else if (this.frameCounter % updateFrequency === 0) {
                     portal.update(deltaTime, this.camera);
                 }
             }
         });
         
-        // Rotate like buttons to face camera
-        this.uiGroups.likeButtons.children.forEach(buttonGroup => {
-            if (buttonGroup.visible && !buttonGroup.userData.skipUpdate) {
-                buttonGroup.lookAt(this.camera.position);
-            }
-        });
-        
-        // Rotate nameplates to face camera
-        this.uiGroups.nameplates.children.forEach(nameMesh => {
-            if (nameMesh.visible) {
-                nameMesh.lookAt(this.camera.position);
-            }
-        });
+        // Rotate like buttons to face camera, throttle based on performance
+        if (this.frameCounter % updateFrequency === 0) {
+            this.uiGroups.likeButtons.children.forEach(buttonGroup => {
+                if (buttonGroup.visible && !buttonGroup.userData.skipUpdate) {
+                    buttonGroup.lookAt(this.camera.position);
+                }
+            });
+            
+            // Rotate nameplates to face camera
+            this.uiGroups.nameplates.children.forEach(nameMesh => {
+                if (nameMesh.visible) {
+                    nameMesh.lookAt(this.camera.position);
+                }
+            });
+        }
         
         // Update instanced UI elements efficiently
         if (this.instancedMeshes.likeButtons) {
             // Only update instance matrix if we need to
             let needsMatrixUpdate = false;
             
-            // Find all instances that need updating
-            this.instancedMeshes.buttonMapping.forEach((instanceIndex, portalId) => {
-                // Find the portal for this instance
-                const portal = this.portals.find(p => p.portalId === portalId);
-                if (!portal || !portal.mesh) return;
+            // Throttle updates for instanced meshes based on performance
+            if (this.frameCounter % updateFrequency === 0) {
+                // Find all instances that need updating
+                this.instancedMeshes.buttonMapping.forEach((instanceIndex, portalId) => {
+                    // Find the portal for this instance
+                    const portal = this.portals.find(p => p.portalId === portalId);
+                    if (!portal || !portal.mesh) return;
+                    
+                    // Skip updating if beyond visibility distance
+                    if (portal.distanceFromCamera > this.lodLevels.medium) {
+                        return;
+                    }
+                    
+                    // Update matrix for this instance
+                    const matrix = this.instancedMeshes.likeButtonMatrices[instanceIndex];
+                    const dummy = new THREE.Object3D();
+                    
+                    // Get position from portal
+                    const position = portal.mesh.position.clone();
+                    position.y += 10; // Position above portal
+                    
+                    dummy.position.copy(position);
+                    
+                    // Apply scale based on hover state
+                    const isHovered = this.hoveredPortalId === portalId;
+                    const baseScale = 1.5;
+                    const hoverScale = 1.8;
+                    const scale = isHovered ? hoverScale : baseScale;
+                    
+                    // Apply pulse animation to liked portals
+                    const isLiked = this.likedPortals.has(portalId);
+                    if (isLiked) {
+                        const pulse = Math.sin(Date.now() * 0.004) * 0.1 + 1.0;
+                        dummy.scale.set(
+                            scale * pulse,
+                            scale * pulse, 
+                            scale * pulse
+                        );
+                    } else {
+                        dummy.scale.set(scale, scale, scale);
+                    }
+                    
+                    // Update matrix
+                    dummy.updateMatrix();
+                    if (!matrix.equals(dummy.matrix)) {
+                        this.instancedMeshes.likeButtons.setMatrixAt(instanceIndex, dummy.matrix);
+                        matrix.copy(dummy.matrix);
+                        needsMatrixUpdate = true;
+                    }
+                });
                 
-                // Skip updating if beyond visibility distance
-                if (portal.distanceFromCamera > this.lodLevels.medium) {
-                    return;
+                // Only update the instance matrix buffer if something changed
+                if (needsMatrixUpdate) {
+                    this.instancedMeshes.likeButtons.instanceMatrix.needsUpdate = true;
                 }
-                
-                // Update matrix for this instance
-                const matrix = this.instancedMeshes.likeButtonMatrices[instanceIndex];
-                const dummy = new THREE.Object3D();
-                
-                // Get position from portal
-                const position = portal.mesh.position.clone();
-                position.y += 10; // Position above portal
-                
-                dummy.position.copy(position);
-                
-                // Apply scale based on hover state
-                const isHovered = this.hoveredPortalId === portalId;
-                const baseScale = 1.5;
-                const hoverScale = 1.8;
-                const scale = isHovered ? hoverScale : baseScale;
-                
-                // Apply pulse animation to liked portals
-                const isLiked = this.likedPortals.has(portalId);
-                if (isLiked) {
-                    const pulse = Math.sin(Date.now() * 0.004) * 0.1 + 1.0;
-                    dummy.scale.set(
-                        scale * pulse,
-                        scale * pulse, 
-                        scale * pulse
-                    );
-                } else {
-                    dummy.scale.set(scale, scale, scale);
-                }
-                
-                // Update matrix
-                dummy.updateMatrix();
-                if (!matrix.equals(dummy.matrix)) {
-                    this.instancedMeshes.likeButtons.setMatrixAt(instanceIndex, dummy.matrix);
-                    matrix.copy(dummy.matrix);
-                    needsMatrixUpdate = true;
-                }
-            });
-            
-            // Only update the instance matrix buffer if something changed
-            if (needsMatrixUpdate) {
-                this.instancedMeshes.likeButtons.instanceMatrix.needsUpdate = true;
             }
         }
     }
@@ -1097,6 +1112,16 @@ export class PortalManager {
                 this.consecutiveLowFpsCount = 0;
                 return;
             }
+        }
+        
+        // Enhance emergency mode activation for critically low FPS
+        if (avgRecentFps < this.targetFps * 0.3 && !this.emergencyModeActive) {
+            console.log(`[PortalManager] Critically low FPS detected (${avgRecentFps.toFixed(1)}), activating emergency mode`);
+            this.enableEmergencyMode(true);
+            return;
+        } else if (this.emergencyModeActive && avgRecentFps > this.targetFps * 0.8) {
+            console.log(`[PortalManager] FPS recovered (${avgRecentFps.toFixed(1)}), disabling emergency mode`);
+            this.enableEmergencyMode(false);
         }
         
         // Determine if adjustment is needed
