@@ -1124,7 +1124,7 @@ export class PortalManager {
                 description: "",
                 modelPath: '/assets/models/portal/portal-new.gltf',
                 multiplayer: true,
-                avatarTeleport: false
+                avatarTeleport: false 
             },
 
 
