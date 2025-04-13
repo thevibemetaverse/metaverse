@@ -1097,33 +1097,33 @@ export class PortalManager {
                 position: new THREE.Vector3(155, 0, 5), // 15 units offset respecting rotation
                 rotation: new THREE.Euler(0, 0, 0),
                 destination: "",
-                portalId: "",
-                title: "",
+                portalId: "vibedisk",
+                title: "disk golf!",
                 description: "",
                 modelPath: '/assets/models/portal/portal-new.gltf',
-                multiplayer: false,
+                multiplayer: true,
                 avatarTeleport: false
             },
             {
                 position: new THREE.Vector3(170, 0, 5), // 15 units offset respecting rotation
                 rotation: new THREE.Euler(0, 0, 0),
                 destination: "",
-                portalId: "",
-                title: "",
+                portalId: "buoyhub",
+                title: "buoy hub",
                 description: "",
                 modelPath: '/assets/models/portal/portal-new.gltf',
-                multiplayer: false,
+                multiplayer: true,
                 avatarTeleport: false
             },
             {
                 position: new THREE.Vector3(185, 0, 5), // 15 units offset respecting rotation
                 rotation: new THREE.Euler(0, 0, 0),
                 destination: "",
-                portalId: "",
+                portalId: "cartrace",
                 title: "",
                 description: "",
                 modelPath: '/assets/models/portal/portal-new.gltf',
-                multiplayer: false,
+                multiplayer: true,
                 avatarTeleport: false
             },
 
