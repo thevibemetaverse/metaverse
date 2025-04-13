@@ -213,12 +213,23 @@ async function createEnvironmentElements(scene, interactionManager = null) {
       environment.add(eiffelTower);
       
       // First logo remains at its current position
+      const affordihomePosition = new THREE.Vector3(65, 45, -60);
+      const affordihomeImage = create2DImage(
+        '/assets/images/affordihome.png',
+        affordihomePosition,
+        35,
+        20,
+        new THREE.Euler(0, 0, 0)
+      );
+      environment.add(affordihomeImage);
+
+          // First logo remains at its current position
       const logoPosition = new THREE.Vector3(65, 30, -60);
       const logoImage = create2DImage(
-        '/assets/images/affordihome.png',
+        '/assets/images/foodbuddy.png',
         logoPosition,
-        40,
-        25,
+        35,
+        20,
         new THREE.Euler(0, 0, 0)
       );
       environment.add(logoImage);
