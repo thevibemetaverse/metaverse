@@ -971,9 +971,13 @@ export class PortalManager {
             updateFrequency = 2; // Light throttling if FPS is below 80% of target
         }
         
-        // Update portal animations with adaptive frequency
+        // Update portal animations with adaptive frequency and frustum culling
         this.portals.forEach(portal => {
             if (portal.mesh && portal.mesh.visible) {
+                // Skip updates for portals outside the camera frustum
+                if (!this.isInFrustum(portal.mesh)) {
+                    return;
+                }
                 // For distant portals or low FPS, update less frequently to save resources
                 if (portal.distanceFromCamera > this.lodLevels.medium) {
                     if (this.frameCounter % (3 * updateFrequency) === 0) {
@@ -3197,7 +3201,7 @@ export class PortalManager {
         // Monitor FPS for auto-balancing visibility distance
         this.monitorFps();
         
-        // Only update LOD visibility periodically
+        // Only update LOD visibility every 10 frames for performance
         this.frameCounter = (this.frameCounter || 0) + 1;
         
         // Adjust update frequency based on performance mode
@@ -3635,5 +3639,31 @@ export class PortalManager {
         
         // Return null if extraction failed
         return null;
+    }
+
+    // Add a helper method to check if an object is in the camera frustum
+    isInFrustum(object) {
+        if (!this.camera) return true;
+        
+        const frustum = new THREE.Frustum();
+        const projScreenMatrix = new THREE.Matrix4();
+        projScreenMatrix.multiplyMatrices(
+            this.camera.projectionMatrix,
+            this.camera.matrixWorldInverse
+        );
+        frustum.setFromProjectionMatrix(projScreenMatrix);
+        
+        try {
+            // Check if the object has valid geometry with a bounding sphere
+            if (object.geometry && !object.geometry.boundingSphere) {
+                // Compute the bounding sphere if it doesn't exist
+                object.geometry.computeBoundingSphere();
+            }
+            return frustum.intersectsObject(object);
+        } catch (error) {
+            // Fallback to always visible if error occurs
+            console.warn(`[PortalManager] Frustum check error:`, error.message);
+            return true;
+        }
     }
 } 

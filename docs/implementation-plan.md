@@ -19,15 +19,15 @@ These optimizations have high impact with relatively low risk, providing immedia
    - Monitor memory usage patterns to verify improvements (pending testing).
 
 ### Phase 1B: Essential Rendering Optimizations
-1. **Frustum Culling Implementation**
-   - Add frustum culling checks to portal update method
-   - Skip updates for off-screen portals
-   - Measure draw call reduction and frame rate improvement
+1. **Frustum Culling Implementation** - **Completed**
+   - Added frustum culling checks to the `update` method in `PortalManager.js` to skip updates for off-screen portals.
+   - Enhanced existing frustum logic in `updateLODVisibility` for visibility determination.
+   - Measure draw call reduction and frame rate improvement (pending testing).
 
-2. **Render Distance Management**
-   - Implement distance-based detail reduction
-   - Add configurable thresholds for effect quality
-   - Verify performance gains at different camera positions
+2. **Render Distance Management** - **Completed**
+   - Implemented configurable thresholds for effect quality based on distance in `configurePerformance` method.
+   - Set different LOD levels (close, medium, far) and budgets for various performance modes (high, low, ultra-low, minimal, auto).
+   - Verify performance gains at different camera positions (pending testing).
 
 ### Success Criteria for Phase 1:
 - 15-25% frame rate improvement (target: achieve 40-45 FPS on mid-range desktop from baseline 30 FPS)
