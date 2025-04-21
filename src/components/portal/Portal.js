@@ -247,7 +247,7 @@ export class Portal {
     }
 
     // Static method to create portal geometry instances
-    static createPortalInstances(scene, configs, loadingManager) {
+    static createPortalInstances(scene, configs, loadingManager, modelCache) {
         console.log('[Portal] Creating portal instances for', configs.length, 'portals');
         
         return new Promise(async (resolve, reject) => {
@@ -262,130 +262,237 @@ export class Portal {
             const portals = [];
             
             try {
-                // Load the template model
-                loader.load(
-                    modelPath,
-                    (gltf) => {
-                        console.log('[Portal] Template model loaded successfully');
-                        const templateScene = gltf.scene;
+                // Check if model is in cache
+                if (modelCache.has(modelPath)) {
+                    console.log('[Portal] Using cached template model:', modelPath);
+                    const cachedModel = modelCache.get(modelPath);
+                    const templateScene = cachedModel.clone();
+                    // Process template model
+                    const meshes = [];
+                    const geometries = [];
+                    const originalMaterials = [];
+                    
+                    templateScene.traverse((child) => {
+                        if (child.isMesh) {
+                            meshes.push(child);
+                            geometries.push(child.geometry.clone());
+                            originalMaterials.push({
+                                name: child.material.name,
+                                material: child.material.clone()
+                            });
+                        }
+                    });
+                    
+                    console.log('[Portal] Found', meshes.length, 'meshes in cached template model');
+                    // Group portals by material to reduce draw calls using shared materials
+                    // Store shader materials by type to share between portals
+                    const sharedMaterials = new Map();
+                    
+                    // Create instances for each portal config
+                    configs.forEach((config, index) => {
+                        // Create a new portal instance
+                        const portal = new Portal(config);
                         
-                        // Find meshes in the template to use for instancing
-                        const meshes = [];
-                        const geometries = [];
-                        const originalMaterials = [];
+                        // Create a group to hold the portal meshes
+                        const portalGroup = new THREE.Group();
+                        portalGroup.position.copy(portal.position);
+                        portalGroup.rotation.copy(portal.rotation);
+                        portalGroup.scale.copy(portal.scale);
                         
-                        templateScene.traverse((child) => {
-                            if (child.isMesh) {
-                                meshes.push(child);
-                                geometries.push(child.geometry.clone());
-                                originalMaterials.push({
-                                    name: child.material.name,
-                                    material: child.material.clone()
+                        // Store reference to this portal
+                        portalGroup.userData.portalRef = portal;
+                        
+                        // Create meshes from geometries and materials
+                        geometries.forEach((geometry, meshIndex) => {
+                            const originalMaterial = originalMaterials[meshIndex];
+                            let material;
+                            
+                            // Check if this material needs a shader (for portal effects)
+                            if (originalMaterial.name === 'Material.002' || originalMaterial.name === 'Cube002_3') {
+                                // Create a unique material for each portal to allow texture updates
+                                material = new THREE.ShaderMaterial({
+                                    uniforms: {
+                                        baseTexture: { value: null },
+                                        portalDepthTexture: { value: null },
+                                        time: { value: 0 },
+                                        uniqueOffset: { value: portal.uniqueOffset },
+                                        useTextureAtlas: { value: false },
+                                        atlasTexture: { value: null },
+                                        atlasOffset: { value: new THREE.Vector4(0, 0, 1, 1) }
+                                    },
+                                    vertexShader: portal.isMobile ? simplifiedVertexShader : rippleVertexShader,
+                                    fragmentShader: portal.isMobile ? simplifiedFragmentShader : rippleFragmentShader,
+                                    transparent: true,
+                                    side: THREE.DoubleSide
                                 });
+                                
+                                // Store reference to this material's uniforms
+                                portal.shaderUniforms = material.uniforms;
+                                
+                                // Save reference to this material for texture updates
+                                portal.shaderMaterials.set(originalMaterial.name, material);
+                                
+                                console.log(`[Portal] Created unique shader material for ${portal.portalId}`);
+                            } else {
+                                // For non-shader materials, we can still share to save resources
+                                const materialKey = 'standard_' + originalMaterial.name;
+                                
+                                if (sharedMaterials.has(materialKey)) {
+                                    material = sharedMaterials.get(materialKey);
+                                } else {
+                                    // Use the original material for other parts
+                                    material = originalMaterial.material.clone();
+                                    sharedMaterials.set(materialKey, material);
+                                }
                             }
+                            
+                            material.name = originalMaterial.name;
+                            
+                            // Create the mesh with geometry and material
+                            const mesh = new THREE.Mesh(geometry, material);
+                            mesh.userData.portalRef = portal;
+                            
+                            // Add to portal group
+                            portalGroup.add(mesh);
                         });
                         
-                        console.log('[Portal] Found', meshes.length, 'meshes in template model');
+                        // Save the mesh reference
+                        portal.mesh = portalGroup;
                         
-                        // Group portals by material to reduce draw calls using shared materials
-                        // Store shader materials by type to share between portals
-                        const sharedMaterials = new Map();
+                        // Add portal group to scene
+                        scene.add(portalGroup);
                         
-                        // Create instances for each portal config
-                        configs.forEach((config, index) => {
-                            // Create a new portal instance
-                            const portal = new Portal(config);
+                        // Add to portals array
+                        portals.push(portal);
+                        
+                        console.log(`[Portal] Added portal ${portal.portalId} to scene`);
+                    });
+                    
+                    console.log(`[Portal] Successfully created ${portals.length} portal instances with ${sharedMaterials.size} shared materials`);
+                    resolve(portals);
+                } else {
+                    // Load the template model if not in cache
+                    loader.load(
+                        modelPath,
+                        (gltf) => {
+                            console.log('[Portal] Template model loaded successfully');
+                            const templateScene = gltf.scene;
+                            // Cache the model for future use
+                            modelCache.set(modelPath, templateScene.clone());
+                            console.log('[Portal] Cached template model for:', modelPath);
+                            // Find meshes in the template to use for instancing
+                            const meshes = [];
+                            const geometries = [];
+                            const originalMaterials = [];
                             
-                            // Create a group to hold the portal meshes
-                            const portalGroup = new THREE.Group();
-                            portalGroup.position.copy(portal.position);
-                            portalGroup.rotation.copy(portal.rotation);
-                            portalGroup.scale.copy(portal.scale);
-                            
-                            // Store reference to this portal
-                            portalGroup.userData.portalRef = portal;
-                            
-                            // Clone and add each mesh from the template
-                            geometries.forEach((geometry, meshIndex) => {
-                                const originalMaterial = originalMaterials[meshIndex];
-                                
-                                // Create a new material, either shader or standard
-                                let material;
-                                
-                                if (originalMaterial.name === 'Material.002' || originalMaterial.name === 'Cube002_3') {
-                                    // CRITICAL FIX: Always create a unique material for each portal's shader surfaces
-                                    material = new THREE.ShaderMaterial({
-                                        uniforms: {
-                                            baseTexture: { value: null },
-                                            portalDepthTexture: { value: null },
-                                            time: { value: 0 },
-                                            uniqueOffset: { value: portal.uniqueOffset },
-                                            useTextureAtlas: { value: false },
-                                            atlasTexture: { value: null },
-                                            atlasOffset: { value: new THREE.Vector4(0, 0, 1, 1) }
-                                        },
-                                        vertexShader: portal.isMobile ? simplifiedVertexShader : rippleVertexShader,
-                                        fragmentShader: portal.isMobile ? simplifiedFragmentShader : rippleFragmentShader,
-                                        transparent: true,
-                                        side: THREE.DoubleSide
+                            templateScene.traverse((child) => {
+                                if (child.isMesh) {
+                                    meshes.push(child);
+                                    geometries.push(child.geometry.clone());
+                                    originalMaterials.push({
+                                        name: child.material.name,
+                                        material: child.material.clone()
                                     });
-                                    
-                                    // Generate a unique ID for this material
-                                    material.uuid = THREE.MathUtils.generateUUID();
-                                    
-                                    // Store reference to this material's uniforms
-                                    portal.shaderUniforms = material.uniforms;
-                                    
-                                    // Save reference to this material for texture updates
-                                    portal.shaderMaterials.set(originalMaterial.name, material);
-                                    
-                                    console.log(`[Portal] Created unique shader material for ${portal.portalId}`);
-                                } else {
-                                    // For non-shader materials, we can still share to save resources
-                                    const materialKey = 'standard_' + originalMaterial.name;
-                                    
-                                    if (sharedMaterials.has(materialKey)) {
-                                        material = sharedMaterials.get(materialKey);
-                                    } else {
-                                        // Use the original material for other parts
-                                        material = originalMaterial.material.clone();
-                                        sharedMaterials.set(materialKey, material);
-                                    }
                                 }
-                                
-                                material.name = originalMaterial.name;
-                                
-                                // Create the mesh with geometry and material
-                                const mesh = new THREE.Mesh(geometry, material);
-                                mesh.userData.portalRef = portal;
-                                
-                                // Add to portal group
-                                portalGroup.add(mesh);
                             });
                             
-                            // Save the mesh reference
-                            portal.mesh = portalGroup;
+                            console.log('[Portal] Found', meshes.length, 'meshes in template model');
+                            // Group portals by material to reduce draw calls using shared materials
+                            // Store shader materials by type to share between portals
+                            const sharedMaterials = new Map();
                             
-                            // Add portal group to scene
-                            scene.add(portalGroup);
+                            // Create instances for each portal config
+                            configs.forEach((config, index) => {
+                                // Create a new portal instance
+                                const portal = new Portal(config);
+                                
+                                // Create a group to hold the portal meshes
+                                const portalGroup = new THREE.Group();
+                                portalGroup.position.copy(portal.position);
+                                portalGroup.rotation.copy(portal.rotation);
+                                portalGroup.scale.copy(portal.scale);
+                                
+                                // Store reference to this portal
+                                portalGroup.userData.portalRef = portal;
+                                
+                                // Create meshes from geometries and materials
+                                geometries.forEach((geometry, meshIndex) => {
+                                    const originalMaterial = originalMaterials[meshIndex];
+                                    let material;
+                                    
+                                    // Check if this material needs a shader (for portal effects)
+                                    if (originalMaterial.name === 'Material.002' || originalMaterial.name === 'Cube002_3') {
+                                        // Create a unique material for each portal to allow texture updates
+                                        material = new THREE.ShaderMaterial({
+                                            uniforms: {
+                                                baseTexture: { value: null },
+                                                portalDepthTexture: { value: null },
+                                                time: { value: 0 },
+                                                uniqueOffset: { value: portal.uniqueOffset },
+                                                useTextureAtlas: { value: false },
+                                                atlasTexture: { value: null },
+                                                atlasOffset: { value: new THREE.Vector4(0, 0, 1, 1) }
+                                            },
+                                            vertexShader: portal.isMobile ? simplifiedVertexShader : rippleVertexShader,
+                                            fragmentShader: portal.isMobile ? simplifiedFragmentShader : rippleFragmentShader,
+                                            transparent: true,
+                                            side: THREE.DoubleSide
+                                        });
+                                        
+                                        // Store reference to this material's uniforms
+                                        portal.shaderUniforms = material.uniforms;
+                                        
+                                        // Save reference to this material for texture updates
+                                        portal.shaderMaterials.set(originalMaterial.name, material);
+                                        
+                                        console.log(`[Portal] Created unique shader material for ${portal.portalId}`);
+                                    } else {
+                                        // For non-shader materials, we can still share to save resources
+                                        const materialKey = 'standard_' + originalMaterial.name;
+                                        
+                                        if (sharedMaterials.has(materialKey)) {
+                                            material = sharedMaterials.get(materialKey);
+                                        } else {
+                                            // Use the original material for other parts
+                                            material = originalMaterial.material.clone();
+                                            sharedMaterials.set(materialKey, material);
+                                        }
+                                    }
+                                    
+                                    material.name = originalMaterial.name;
+                                    
+                                    // Create the mesh with geometry and material
+                                    const mesh = new THREE.Mesh(geometry, material);
+                                    mesh.userData.portalRef = portal;
+                                    
+                                    // Add to portal group
+                                    portalGroup.add(mesh);
+                                });
+                                
+                                // Save the mesh reference
+                                portal.mesh = portalGroup;
+                                
+                                // Add portal group to scene
+                                scene.add(portalGroup);
+                                
+                                // Add to portals array
+                                portals.push(portal);
+                                
+                                console.log(`[Portal] Added portal ${portal.portalId} to scene`);
+                            });
                             
-                            // Add to portals array
-                            portals.push(portal);
-                            
-                            console.log(`[Portal] Added portal ${portal.portalId} to scene`);
-                        });
-                        
-                        console.log(`[Portal] Successfully created ${portals.length} portal instances with ${sharedMaterials.size} shared materials`);
-                        resolve(portals);
-                    },
-                    (xhr) => {
-                        console.log(`[Portal] Loading template model: ${(xhr.loaded / xhr.total) * 100}% loaded`);
-                    },
-                    (error) => {
-                        console.error('[Portal] Error loading template model:', error);
-                        reject(error);
-                    }
-                );
+                            console.log(`[Portal] Successfully created ${portals.length} portal instances with ${sharedMaterials.size} shared materials`);
+                            resolve(portals);
+                        },
+                        (xhr) => {
+                            console.log(`[Portal] Loading template model: ${(xhr.loaded / xhr.total) * 100}% loaded`);
+                        },
+                        (error) => {
+                            console.error('[Portal] Error loading template model:', error);
+                            reject(error);
+                        }
+                    );
+                }
             } catch (error) {
                 console.error('[Portal] Failed to create portal instances:', error);
                 reject(error);

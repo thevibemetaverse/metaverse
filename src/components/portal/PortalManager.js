@@ -61,7 +61,9 @@ export class PortalManager {
             // Shared materials
             materials: {},
             // Cache for text textures
-            textTextureCache: new Map()
+            textTextureCache: new Map(),
+            // Cache for portal models
+            modelCache: new Map()
         };
         
         // Cache common geometries and materials for UI elements
@@ -362,7 +364,18 @@ export class PortalManager {
         const portal = new Portal(portalConfig);
         try {
             console.log('[PortalManager] Loading portal model from:', portalConfig.modelPath);
-            const portalMesh = await portal.load(this.loadingManager);
+            let portalMesh;
+            if (this.sharedResources.modelCache.has(portalConfig.modelPath)) {
+                console.log('[PortalManager] Using cached model for:', portalConfig.modelPath);
+                portalMesh = this.sharedResources.modelCache.get(portalConfig.modelPath).clone();
+                portalMesh.position.copy(portalConfig.position);
+                portalMesh.rotation.copy(portalConfig.rotation);
+                portal.mesh = portalMesh;
+            } else {
+                portalMesh = await portal.load(this.loadingManager);
+                this.sharedResources.modelCache.set(portalConfig.modelPath, portalMesh.clone());
+                console.log('[PortalManager] Cached model for future use:', portalConfig.modelPath);
+            }
             console.log('[PortalManager] Portal model loaded successfully, adding to scene');
             
             // Set position and rotation explicitly
@@ -1212,6 +1225,25 @@ export class PortalManager {
                 });
                 this.sharedResources.textTextureCache.clear();
             }
+            
+            // Dispose of cached models
+            if (this.sharedResources.modelCache) {
+                this.sharedResources.modelCache.forEach(model => {
+                    if (model) {
+                        model.traverse(child => {
+                            if (child.geometry) child.geometry.dispose();
+                            if (child.material) {
+                                if (Array.isArray(child.material)) {
+                                    child.material.forEach(mat => mat.dispose());
+                                } else {
+                                    child.material.dispose();
+                                }
+                            }
+                        });
+                    }
+                });
+                this.sharedResources.modelCache.clear();
+            }
         }
         
         // Dispose of shared low detail materials
@@ -1219,19 +1251,9 @@ export class PortalManager {
             Object.values(this.sharedLowDetailMaterials).forEach(material => {
                 if (material) material.dispose();
             });
-            this.sharedLowDetailMaterials = {};
         }
         
-        // Remove event listeners
-        if (typeof window !== 'undefined') {
-            window.removeEventListener('mousemove', this.onMouseMove.bind(this));
-            window.removeEventListener('click', this.onMouseClick.bind(this));
-            
-            // Remove touch event listeners
-            window.removeEventListener('touchstart', this.onTouchStart.bind(this));
-            window.removeEventListener('touchmove', this.onTouchMove.bind(this));
-            window.removeEventListener('touchend', this.onTouchEnd.bind(this));
-        }
+        console.log('[PortalManager] Resources disposed');
     }
 
     async initializeDefaultPortals() {
@@ -1618,7 +1640,7 @@ export class PortalManager {
         console.log('[PortalManager] Starting to add portals to scene using instancing');
         try {
             // Use the new instancing method to create all portals at once
-            this.portals = await Portal.createPortalInstances(this.scene, defaultPortals, this.loadingManager);
+            this.portals = await Portal.createPortalInstances(this.scene, defaultPortals, this.loadingManager, this.sharedResources.modelCache);
             
             console.log(`[PortalManager] Successfully created ${this.portals.length} portal instances`);
             
@@ -1652,7 +1674,13 @@ export class PortalManager {
                     // Update button text with initial count
                     this.updateLikeButtonText(portal.portalId);
                     
-                    // Update texture with placeholder first to prevent flickering
+                    // Use a placeholder texture to prevent flickering
+                    const placeholderTexture = new THREE.Texture();
+                    placeholderTexture.image = new Image();
+                    placeholderTexture.image.src = '/assets/images/placeholder.png';
+                    placeholderTexture.needsUpdate = true;
+                    
+                    // Update texture with placeholder first
                     console.log(`[PortalManager] Setting placeholder texture for portal ${portal.portalId}`);
                     ['Material.002', 'Cube002_3'].forEach(materialName => {
                         portal.updateTexture(materialName, '/assets/images/placeholder.png');
@@ -1663,16 +1691,13 @@ export class PortalManager {
                         console.log(`[PortalManager] Updating texture for portal ${portal.portalId}`);
                         let portalImageUrl;
                         if (portal.portalId === 'enter') {
-                            portalImageUrl = '/assets/images/portal.jpg';  // Use absolute path to assets directory
+                            portalImageUrl = '/assets/images/portal.jpg';
                         } else {
-                            // Use the portal-specific image with timestamp AND random number to guarantee uniqueness
                             const uniqueId = Date.now() + '_' + Math.random().toString(36).substring(2, 10);
                             portalImageUrl = `https://thevibemetaverse.vercel.app/assets/images/${portal.portalId}.png?uid=${uniqueId}`;
                         }
                         
                         console.log(`[PortalManager] Setting texture for ${portal.portalId} to:`, portalImageUrl);
-                        
-                        // Try both material names that might exist in the model
                         ['Material.002', 'Cube002_3'].forEach(materialName => {
                             portal.updateTexture(materialName, portalImageUrl);
                         });
@@ -1933,7 +1958,7 @@ export class PortalManager {
             
             try {
                 // Use the new instancing method to create all portals at once
-                this.portals = await Portal.createPortalInstances(this.scene, portalData, this.loadingManager);
+                this.portals = await Portal.createPortalInstances(this.scene, portalData, this.loadingManager, this.sharedResources.modelCache);
                 
                 console.log(`[PortalManager] Successfully created ${this.portals.length} portal instances from API`);
                 

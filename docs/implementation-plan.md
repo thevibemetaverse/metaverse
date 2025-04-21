@@ -7,15 +7,16 @@ This implementation plan outlines a phased approach to optimizing the portal sys
 These optimizations have high impact with relatively low risk, providing immediate benefits with minimal code changes.
 
 ### Phase 1A: Basic Resource Management
-1. **Implement Model Caching**
-   - Create model cache in `PortalManager`
-   - Load portal model once and reuse across instances
-   - Measure memory and load time improvements
+1. **Implement Model Caching** - **Completed**
+   - Created model cache in `PortalManager` to load portal models once and reuse across instances.
+   - Updated `addPortal`, `initializeDefaultPortals`, and `fetchPortalsFromAPI` methods to use the cache.
+   - Modified `createPortalInstances` in `Portal.js` to integrate with the cache.
+   - Measure memory and load time improvements (pending testing).
 
-2. **Centralized Resource Disposal**
-   - Add explicit disposal methods for portal resources
-   - Implement proper cleanup for unused resources
-   - Monitor memory usage patterns to verify improvements
+2. **Centralized Resource Disposal** - **Completed**
+   - Enhanced disposal methods in `PortalManager` to explicitly clean up cached models and resources.
+   - Added disposal logic for `modelCache` to ensure proper memory management.
+   - Monitor memory usage patterns to verify improvements (pending testing).
 
 ### Phase 1B: Essential Rendering Optimizations
 1. **Frustum Culling Implementation**
