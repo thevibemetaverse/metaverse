@@ -8,7 +8,7 @@ These optimizations have high impact with relatively low risk, providing immedia
 
 ### Phase 1A: Basic Resource Management
 1. **Implement Model Caching**
-   - Create model cache in PortalManager
+   - Create model cache in `PortalManager`
    - Load portal model once and reuse across instances
    - Measure memory and load time improvements
 
@@ -29,9 +29,9 @@ These optimizations have high impact with relatively low risk, providing immedia
    - Verify performance gains at different camera positions
 
 ### Success Criteria for Phase 1:
-- 15-25% frame rate improvement
-- 20-30% reduction in initial memory usage
-- No visual regression for nearby portals
+- 15-25% frame rate improvement (target: achieve 40-45 FPS on mid-range desktop from baseline 30 FPS)
+- 20-30% reduction in initial memory usage (target: reduce from 500MB to 350-400MB)
+- No visual regression for nearby portals (target: no noticeable quality loss under 10 units distance)
 
 ## Phase 2: Intermediate Optimizations (Week 3-4)
 These optimizations build on the foundation to further improve performance with moderate implementation complexity.
@@ -59,18 +59,19 @@ These optimizations build on the foundation to further improve performance with 
    - Measure CPU usage improvement for animations
 
 ### Success Criteria for Phase 2:
-- Additional 15-20% frame rate improvement
-- 40-50% cumulative improvement in memory usage
-- Load time reduced by 30-40% from baseline
+- Additional 15-20% frame rate improvement (target: achieve 50-55 FPS on mid-range desktop)
+- 40-50% cumulative improvement in memory usage (target: reduce to 250-300MB)
+- Load time reduced by 30-40% from baseline (target: initial load under 5 seconds)
 
-## Phase 3: Advanced Optimizations (Week 5-7)
-These more complex optimizations target specific performance bottlenecks identified in earlier phases.
+## Phase 3: Advanced Optimizations (Week 5-8)
+These more complex optimizations target specific performance bottlenecks identified in earlier phases. Extended timeline to account for dependencies and complexity.
 
 ### Phase 3A: Batching & Instancing
 1. **Static Geometry Batching**
    - Combine static portal elements
    - Implement proper material handling for variations
    - Measure draw call reduction
+   - **Dependency**: Requires Phase 2A (Portal Model Optimization) for optimized models
 
 2. **Like Button Instancing**
    - Convert like buttons to use instanced rendering
@@ -87,14 +88,15 @@ These more complex optimizations target specific performance bottlenecks identif
    - Create multiple complexity levels for shaders
    - Implement automatic tier selection based on distance
    - Measure GPU load reduction for distant portals
+   - **Dependency**: Requires Phase 2B (Shader Uniform Optimization) for baseline shader efficiency
 
 ### Success Criteria for Phase 3:
-- Additional 20-25% frame rate improvement
-- Support for at least 50% more portals at same performance
-- Mobile performance improved by 100% from baseline
+- Additional 20-25% frame rate improvement (target: achieve 60-65 FPS on mid-range desktop)
+- Support for at least 50% more portals at same performance (target: 45 portals at baseline FPS)
+- Mobile performance improved by 100% from baseline (target: 30 FPS on mid-range mobile from 15 FPS)
 
-## Phase 4: Final Optimizations (Week 8-10)
-These advanced optimizations focus on maximizing performance and scaling to larger portal numbers.
+## Phase 4: Final Optimizations (Week 9-12)
+These advanced optimizations focus on maximizing performance and scaling to larger portal numbers. Extended timeline to account for potential delays in complex implementations.
 
 ### Phase 4A: Advanced Rendering Techniques
 1. **Portal Effect Optimization**
@@ -106,6 +108,7 @@ These advanced optimizations focus on maximizing performance and scaling to larg
    - Combine portal images into texture atlases
    - Update UVs for atlas regions
    - Measure texture binding reduction
+   - **Dependency**: Requires Phase 2A (Texture Compression and Optimization) for optimized textures
 
 ### Phase 4B: Mobile & Scaling Optimizations
 1. **Mobile Shader Specialization**
@@ -117,11 +120,12 @@ These advanced optimizations focus on maximizing performance and scaling to larg
    - Combine instancing with LOD system
    - Dynamically assign portals to LOD groups
    - Measure scaling capability with large portal counts
+   - **Dependency**: Requires Phase 3A (Like Button Instancing) and Phase 3B (UI Element LOD) for foundational systems
 
 ### Success Criteria for Phase 4:
-- Support for 100+ portals with acceptable performance
-- 60fps performance on mid-range mobile devices
-- 75-80% total performance improvement from baseline
+- Support for 100+ portals with acceptable performance (target: 60 FPS on mid-range desktop with 100 portals)
+- 60fps performance on mid-range mobile devices (target: 60 FPS with 30 portals)
+- 75-80% total performance improvement from baseline (target: achieve 75-80 FPS from baseline 30 FPS on mid-range desktop)
 
 ## Testing Protocol
 For each optimization:
