@@ -4,7 +4,7 @@ const app = express();
 const http = require('http').createServer(app);
 const io = require('socket.io')(http, {
     cors: {
-        origin: ["https://thevibemetaverse.com", "https://metaverse-delta.vercel.app"],
+        origin: ["https://thevibemetaverse.com", "https://2025.thevibemetaverse.com", "https://metaverse-delta.vercel.app"],
         methods: ["GET", "POST"],
         credentials: true
     }
@@ -14,7 +14,7 @@ const portalService = require('./services/portalService');
 
 // Add CORS headers for all routes
 app.use((req, res, next) => {
-    const allowedOrigins = ['https://thevibemetaverse.com', 'https://metaverse-delta.vercel.app'];
+    const allowedOrigins = ['https://thevibemetaverse.com', 'https://2025.thevibemetaverse.com', 'https://metaverse-delta.vercel.app'];
     const origin = req.headers.origin;
     
     if (allowedOrigins.includes(origin)) {
