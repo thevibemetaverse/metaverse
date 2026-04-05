@@ -1,0 +1,10 @@
+{
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "metaverse-delta.vercel.app" }],
+      "destination": "https://www.thevibemetaverse.com/:path*",
+      "permanent": true
+    }
+  ]
+}
