@@ -341,8 +341,17 @@ function startGame(username) {
                     0,
                     Math.cos(moveAngle)
                 );
-                const distance = 5;
-                vibePortal.position.copy(character.position).addScaledVector(forwardVector, distance);
+                const rightVector = new THREE.Vector3(
+                    Math.sin(moveAngle + Math.PI / 2),
+                    0,
+                    Math.cos(moveAngle + Math.PI / 2)
+                );
+                const distance = 8;
+                const rightOffset = 2;
+                vibePortal.position
+                    .copy(character.position)
+                    .addScaledVector(forwardVector, distance)
+                    .addScaledVector(rightVector, rightOffset);
                 vibePortal.position.y = 0;
                 const eye = new THREE.Vector3(
                     character.position.x,
