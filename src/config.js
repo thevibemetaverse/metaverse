@@ -22,6 +22,11 @@ const config = {
      * - Reduced network usage and processing overhead
      */
     multiplayer: true,
+    /**
+     * Vibe Portal Network: loads createVibePortal from the portal hub embed script,
+     * registers this origin, and adds a walk-through portal to the hub network.
+     */
+    vibePortalNetwork: true,
   },
   
   // Server configuration
@@ -47,7 +52,9 @@ const config = {
      * Keys are portalId values, values are the starting like count
      * If a portal id is not in this object, its initial count will be 0
      */
-    initialLikes: {}
+    initialLikes: {},
+    /** ESM URL for createVibePortal (must expose compatible three + portal-mesh imports). */
+    vibeEmbedScriptUrl: 'https://portals-production-ee2d.up.railway.app/embed.js',
   }
 };
 

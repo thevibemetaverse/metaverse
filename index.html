@@ -124,6 +124,14 @@
             }
         }
     </style>
+    <!-- Resolves bare `three` for third-party ES modules (e.g. Vibe Portal embed.js) -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.162.0/build/three.module.js"
+        }
+    }
+    </script>
 </head>
 <body>
     <!-- Username modal -->

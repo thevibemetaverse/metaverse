@@ -107,6 +107,7 @@ let portalManager;
 let multiplayerManager;
 let chatManager;
 let interactionManager;
+let vibePortal = null;
 
 // Add function to count objects in scene
 function countObjects(scene) {
@@ -196,6 +197,10 @@ function animate() {
         portalManager.update(deltaTime);
     }
 
+    if (vibePortal && character && typeof vibePortal.update === 'function') {
+        vibePortal.update(character.position);
+    }
+
     // Update multiplayer if feature is enabled and manager is initialized
     if (config.features.multiplayer && multiplayerManager) {
         multiplayerManager.update(deltaTime);
@@ -237,6 +242,9 @@ window.addEventListener('resize', () => {
 window.addEventListener('beforeunload', () => {
     if (config.features.multiplayer && multiplayerManager) {
         multiplayerManager.dispose();
+    }
+    if (vibePortal && typeof vibePortal.dispose === 'function') {
+        vibePortal.dispose();
     }
 });
 
@@ -312,6 +320,42 @@ function startGame(username) {
         // Create Pieter portal in line with other portals
         console.log('[main] Creating Pieter portal');
         portalManager.createPieterPortal();
+
+        if (config.features.vibePortalNetwork) {
+            try {
+                const { createVibePortal } = await import(
+                    /* @vite-ignore */ config.portals.vibeEmbedScriptUrl
+                );
+                vibePortal = createVibePortal({
+                    scene,
+                    camera,
+                    username,
+                    game: 'the-vibe-metaverse',
+                    origin: 'bottom',
+                    scale: 1.25,
+                });
+                // Same forward basis as CharacterControls (walk direction)
+                const moveAngle = character.rotation.y;
+                const forwardVector = new THREE.Vector3(
+                    Math.sin(moveAngle),
+                    0,
+                    Math.cos(moveAngle)
+                );
+                const distance = 5;
+                vibePortal.position.copy(character.position).addScaledVector(forwardVector, distance);
+                vibePortal.position.y = 0;
+                const eye = new THREE.Vector3(
+                    character.position.x,
+                    character.position.y + 1.5,
+                    character.position.z
+                );
+                vibePortal.lookAt(eye);
+                scene.add(vibePortal);
+                console.log('[main] Vibe Portal Network embed added in front of spawn', vibePortal.position.toArray());
+            } catch (err) {
+                console.warn('[main] Vibe Portal Network embed failed to load:', err);
+            }
+        }
 
         // Connect portal manager to character manager
         console.log('[main] Connecting portal manager to character manager');
